@@ -12,18 +12,20 @@ type DashboardCardProps = {
 
 export function DashboardCard({ href, title, eyebrow, description, accent }: DashboardCardProps) {
   return (
-    <Link href={href} className="group panel relative block min-h-[240px] overflow-hidden rounded-[2rem] p-6 transition duration-300 hover:-translate-y-1.5 hover:shadow-[0_30px_80px_rgba(15,23,42,0.16)]">
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.22),transparent_45%)]" />
-      <div className="absolute inset-x-5 top-0 h-1 rounded-full" style={{ background: accent }} />
-      <div className="relative flex h-full flex-col justify-between gap-8">
-        <div className="eyebrow">{eyebrow}</div>
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="max-w-[12ch] text-3xl font-black tracking-[-0.05em] text-[var(--color-ink)]">{title}</h2>
-          <div className="glass-pill p-2.5 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5">
-            <ArrowUpRight className="h-4 w-4 text-[var(--color-ink)]" />
+    <Link href={href} className="group panel relative block min-h-[160px] overflow-hidden rounded-3xl p-5 transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-50" />
+      <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: accent }} />
+      <div className="relative flex h-full flex-col justify-between">
+        <div className="space-y-1">
+          <div className="eyebrow text-[0.6rem] opacity-60 uppercase tracking-widest">{eyebrow}</div>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-xl font-black tracking-tight text-[var(--color-foreground)]">{title}</h2>
+            <div className="glass-pill p-1.5 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </div>
           </div>
         </div>
-        <p className="max-w-[28ch] text-sm leading-7 text-[var(--color-ink-soft)]">{description}</p>
+        <p className="text-xs leading-5 text-[var(--color-sand-2)] line-clamp-2 mt-4">{description}</p>
       </div>
     </Link>
   );

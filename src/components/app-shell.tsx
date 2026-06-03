@@ -113,19 +113,18 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
           </div>
         </header>
 
-        <section className="panel rounded-[2rem] p-5 sm:p-6 lg:p-7">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-3">
-              <div className="eyebrow">{eyebrow}</div>
-              <h1 className="max-w-[12ch] text-3xl font-black tracking-[-0.05em] text-[var(--color-foreground)] sm:max-w-none sm:text-4xl lg:text-[2.8rem]">{title}</h1>
-              <p className="max-w-3xl text-sm leading-7 text-[var(--color-sand-2)] sm:text-base">{description}</p>
-            </div>
-          </div>
-        </section>
-
         <main className={aside ? "page-grid" : "space-y-6"}>
           {aside ? <aside className="panel rounded-[1.75rem] p-4">{aside}</aside> : null}
-          <section className="space-y-6">{children}</section>
+          <section className="space-y-6">
+            <div className="flex flex-col gap-1 px-4 sm:px-6">
+              <div className="flex items-baseline gap-3">
+                <span className="eyebrow text-[0.65rem] opacity-60 uppercase tracking-[0.2em]">{eyebrow}</span>
+                <h1 className="text-xl font-black tracking-tight text-[var(--color-foreground)]">{title}</h1>
+              </div>
+              <p className="text-xs text-[var(--color-sand-2)] opacity-80">{description}</p>
+            </div>
+            {children}
+          </section>
         </main>
       </div>
     </div>
