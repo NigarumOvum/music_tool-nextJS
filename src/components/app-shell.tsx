@@ -112,9 +112,6 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
               <h1 className="max-w-[12ch] text-3xl font-black tracking-[-0.05em] text-[var(--color-foreground)] sm:max-w-none sm:text-4xl lg:text-[2.8rem]">{title}</h1>
               <p className="max-w-3xl text-sm leading-7 text-[var(--color-sand-2)] sm:text-base">{description}</p>
             </div>
-            <span className="glass-pill inline-flex w-fit rounded-full px-4 py-2 font-mono text-[0.72rem] uppercase tracking-[0.22em] text-[var(--color-copper)]">
-              Spec-driven build
-            </span>
           </div>
         </section>
 
