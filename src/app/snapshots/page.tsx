@@ -7,6 +7,7 @@ export default function SnapshotsPage() {
       title="Snapshots"
       eyebrow="Rollback Safety"
       description="Manual checkpoints and one-click restore for the current song inventory, so edits and AI passes remain reversible."
+      pageKey="snapshots"
     >
       <SnapshotsClient />
     </AppShell>

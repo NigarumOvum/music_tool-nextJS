@@ -7,6 +7,7 @@ export default function LyricsLibraryPage() {
       title="Lyrics Library"
       eyebrow="Catalog + Partitures"
       description="Browse songs as a lyrics-first library and attach multiple partitures per song, with two guitar slots surfaced as the default working setup."
+      pageKey="lyrics-library"
     >
       <LyricsLibraryClient />
     </AppShell>

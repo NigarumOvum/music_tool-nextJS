@@ -3,12 +3,14 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
+import { MANAGEABLE_PAGES, type ManagedPageKey } from "@/lib/access";
 import { SESSION_COOKIE_NAME } from "@/lib/auth-constants";
 import { sendEmail } from "@/lib/email";
 
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 30;
 const EMAIL_CONFIRMATION_DURATION_MS = 1000 * 60 * 60 * 24;
 const PASSWORD_RESET_DURATION_MS = 1000 * 60 * 30;
+const BOOTSTRAP_ADMIN_EMAILS = new Set(["b.pdrn.rdz@gmail.com"]);
 
 type AuthEmailTokenType = "email-confirmation" | "password-reset";
 
@@ -19,12 +21,22 @@ export type AuthUser = {
   email: string;
   name: string | null;
   emailVerifiedAt: string | null;
+  isAdmin: boolean;
 };
 
 export type AuthSession = {
   id: string;
   userId: string;
   expiresAt: string;
+};
+
+export type RegisteredUserAccess = {
+  id: string;
+  email: string;
+  name: string | null;
+  emailVerifiedAt: string | null;
+  isAdmin: boolean;
+  pageAccess: Record<ManagedPageKey, boolean>;
 };
 
 let client: ReturnType<typeof createClient> | null = null;
@@ -72,6 +84,10 @@ function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
 }
 
+function isBootstrapAdminEmail(email: string) {
+  return BOOTSTRAP_ADMIN_EMAILS.has(normalizeEmail(email));
+}
+
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -96,7 +112,47 @@ function mapUserRow(row: Record<string, unknown>): AuthUser {
     email: String(row.email),
     name: (row.name as string | null) ?? null,
     emailVerifiedAt: (row.email_verified_at as string | null) ?? null,
+    isAdmin: Number(row.is_admin ?? 0) === 1,
   };
+}
+
+function getDefaultPageAccessMap() {
+  return Object.fromEntries(MANAGEABLE_PAGES.map((page) => [page.key, true])) as Record<ManagedPageKey, boolean>;
+}
+
+async function ensureBootstrapAdmins() {
+  const db = getAuthClient();
+  for (const email of BOOTSTRAP_ADMIN_EMAILS) {
+    await db.execute({
+      sql: "update app_user set is_admin = 1 where lower(email) = ?",
+      args: [email],
+    });
+  }
+}
+
+async function getUserPageAccessMap(userId: string, isAdmin: boolean) {
+  if (isAdmin) {
+    return getDefaultPageAccessMap();
+  }
+
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const result = await db.execute({
+    sql: "select page_key, can_access from app_page_access where user_id = ?",
+    args: [userId],
+  });
+
+  const accessMap = getDefaultPageAccessMap();
+  for (const row of result.rows) {
+    const pageKey = String((row as Record<string, unknown>).page_key);
+    if (!MANAGEABLE_PAGES.some((page) => page.key === pageKey)) {
+      continue;
+    }
+
+    accessMap[pageKey as ManagedPageKey] = Number((row as Record<string, unknown>).can_access ?? 1) === 1;
+  }
+
+  return accessMap;
 }
 
 async function createAuthEmailToken(userId: string, type: AuthEmailTokenType) {
@@ -121,7 +177,7 @@ async function consumeAuthEmailToken(token: string, type: AuthEmailTokenType) {
   const db = getAuthClient();
   const result = await db.execute({
     sql: `
-      select app_email_token.*, app_user.email as email, app_user.name as name, app_user.email_verified_at as email_verified_at
+      select app_email_token.*, app_user.email as email, app_user.name as name, app_user.email_verified_at as email_verified_at, app_user.is_admin as is_admin
       from app_email_token
       join app_user on app_user.id = app_email_token.user_id
       where app_email_token.token_hash = ? and app_email_token.type = ?
@@ -153,6 +209,7 @@ async function consumeAuthEmailToken(token: string, type: AuthEmailTokenType) {
     email: String(row.email),
     name: (row.name as string | null) ?? null,
     emailVerifiedAt: (row.email_verified_at as string | null) ?? null,
+    isAdmin: Number(row.is_admin ?? 0) === 1,
   } satisfies AuthUser;
 }
 
@@ -248,6 +305,7 @@ async function ensureAuthTables() {
       email text NOT NULL,
       name text,
       email_verified_at text,
+      is_admin integer NOT NULL DEFAULT 0,
       password_hash text NOT NULL,
       created_at text NOT NULL,
       updated_at text NOT NULL
@@ -289,6 +347,22 @@ async function ensureAuthTables() {
     ON app_email_token (user_id, type, expires_at)
   `);
   await ensureColumn("app_user", "email_verified_at", "text");
+  await ensureColumn("app_user", "is_admin", "integer NOT NULL DEFAULT 0");
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS app_page_access (
+      user_id text NOT NULL,
+      page_key text NOT NULL,
+      can_access integer NOT NULL,
+      updated_at text NOT NULL,
+      updated_by text,
+      PRIMARY KEY (user_id, page_key)
+    )
+  `);
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS app_page_access_user_idx
+    ON app_page_access (user_id, page_key)
+  `);
+  await ensureBootstrapAdmins();
 
   authTablesReady = true;
 }
@@ -309,7 +383,8 @@ async function getSessionRecord(sessionId: string | null) {
         app_user.id as id,
         app_user.email as email,
         app_user.name as name,
-        app_user.email_verified_at as email_verified_at
+        app_user.email_verified_at as email_verified_at,
+        app_user.is_admin as is_admin
       from app_session
       join app_user on app_user.id = app_session.user_id
       where app_session.id = ?
@@ -339,6 +414,7 @@ async function getSessionRecord(sessionId: string | null) {
       email: String(row.email),
       name: (row.name as string | null) ?? null,
       emailVerifiedAt: (row.email_verified_at as string | null) ?? null,
+      isAdmin: Number(row.is_admin ?? 0) === 1,
     } satisfies AuthUser,
   };
 }
@@ -367,6 +443,99 @@ export async function requireApiUser(request: Request) {
   }
 
   return record.user;
+}
+
+export async function requireAdminCurrentUser() {
+  const user = await requireCurrentUser();
+  if (!user.isAdmin) {
+    redirect("/account");
+  }
+
+  return user;
+}
+
+export async function requireAdminApiUser(request: Request) {
+  const user = await requireApiUser(request);
+  if (!user.isAdmin) {
+    throw new Error("Forbidden");
+  }
+
+  return user;
+}
+
+export async function ensureUserCanAccessPage(user: AuthUser, pageKey: ManagedPageKey) {
+  const accessMap = await getUserPageAccessMap(user.id, user.isAdmin);
+  return accessMap[pageKey];
+}
+
+export async function listRegisteredUsersWithAccess() {
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const [usersResult, accessResult] = await Promise.all([
+    db.execute({
+      sql: "select id, email, name, email_verified_at, is_admin from app_user order by is_admin desc, email asc",
+    }),
+    db.execute({
+      sql: "select user_id, page_key, can_access from app_page_access",
+    }),
+  ]);
+
+  const accessByUser = new Map<string, Record<ManagedPageKey, boolean>>();
+  for (const row of accessResult.rows) {
+    const userId = String((row as Record<string, unknown>).user_id);
+    const pageKey = String((row as Record<string, unknown>).page_key);
+    if (!MANAGEABLE_PAGES.some((page) => page.key === pageKey)) {
+      continue;
+    }
+
+    const existing = accessByUser.get(userId) || getDefaultPageAccessMap();
+    existing[pageKey as ManagedPageKey] = Number((row as Record<string, unknown>).can_access ?? 1) === 1;
+    accessByUser.set(userId, existing);
+  }
+
+  return usersResult.rows.map((row) => {
+    const user = mapUserRow(row as Record<string, unknown>);
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      emailVerifiedAt: user.emailVerifiedAt,
+      isAdmin: user.isAdmin,
+      pageAccess: user.isAdmin ? getDefaultPageAccessMap() : (accessByUser.get(user.id) || getDefaultPageAccessMap()),
+    } satisfies RegisteredUserAccess;
+  });
+}
+
+export async function updateRegisteredUserAccess(options: {
+  targetUserId: string;
+  pageKey: ManagedPageKey;
+  canAccess: boolean;
+  actingUserId: string;
+}) {
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const targetResult = await db.execute({
+    sql: "select id, is_admin from app_user where id = ? limit 1",
+    args: [options.targetUserId],
+  });
+  const target = targetResult.rows[0] as Record<string, unknown> | undefined;
+  if (!target) {
+    throw new Error("User not found");
+  }
+
+  if (Number(target.is_admin ?? 0) === 1) {
+    throw new Error("Admin access is fixed and cannot be edited here");
+  }
+
+  await db.execute({
+    sql: `
+      insert into app_page_access (user_id, page_key, can_access, updated_at, updated_by)
+      values (?, ?, ?, ?, ?)
+      on conflict(user_id, page_key)
+      do update set can_access = excluded.can_access, updated_at = excluded.updated_at, updated_by = excluded.updated_by
+    `,
+    args: [options.targetUserId, options.pageKey, options.canAccess ? 1 : 0, isoNow(), options.actingUserId],
+  });
 }
 
 async function createSession(userId: string) {
@@ -445,6 +614,7 @@ export async function registerUser(input: { name?: string | null; email: string;
     email,
     name,
     email_verified_at: null,
+    is_admin: isBootstrapAdminEmail(email) ? 1 : 0,
     password_hash: hashPassword(password),
     created_at: now,
     updated_at: now,
@@ -452,10 +622,10 @@ export async function registerUser(input: { name?: string | null; email: string;
 
   await db.execute({
     sql: `
-      insert into app_user (id, email, name, email_verified_at, password_hash, created_at, updated_at)
-      values (?, ?, ?, ?, ?, ?, ?)
+      insert into app_user (id, email, name, email_verified_at, is_admin, password_hash, created_at, updated_at)
+      values (?, ?, ?, ?, ?, ?, ?, ?)
     `,
-    args: [user.id, user.email, user.name, user.email_verified_at, user.password_hash, user.created_at, user.updated_at],
+    args: [user.id, user.email, user.name, user.email_verified_at, user.is_admin, user.password_hash, user.created_at, user.updated_at],
   });
 
   try {

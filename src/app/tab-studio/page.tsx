@@ -7,6 +7,7 @@ export default function TabStudioPage() {
       title="Guitar Pro Like App"
       eyebrow="Notation Workflow"
       description="Import multi-format tab files, inspect extracted markers, edit a fret grid, and export text or score metadata from the browser."
+      pageKey="tab-studio"
     >
       <TabStudioClient />
     </AppShell>

@@ -1,20 +1,24 @@
 import type { ReactNode } from "react";
 
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { requireCurrentUser } from "@/lib/auth";
+import { ensureUserCanAccessPage, requireCurrentUser } from "@/lib/auth";
+import type { ManagedPageKey } from "@/lib/access";
 import { LogoutButton } from "@/components/auth/logout-button";
-import { Music2, NotebookPen, PanelTop, RadioTower, ScrollText, Sparkles, Waves, Wrench } from "lucide-react";
+import { Music2, NotebookPen, PanelTop, RadioTower, ScrollText, Sparkles, User, Waves, Wrench } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home", icon: Music2 },
-  { href: "/song-studio", label: "Song Studio", icon: PanelTop },
-  { href: "/lyrics-library", label: "Lyrics Library", icon: ScrollText },
-  { href: "/ai-studio", label: "AI Studio", icon: Sparkles },
-  { href: "/daw", label: "DAW", icon: Waves },
-  { href: "/tab-studio", label: "Tab Studio", icon: RadioTower },
-  { href: "/templates", label: "Templates", icon: Wrench },
-  { href: "/prompt-library", label: "Prompt Library", icon: NotebookPen },
+  { href: "/account", label: "Account", icon: User },
+  { href: "/song-studio", label: "Song Studio", icon: PanelTop, pageKey: "song-studio" as ManagedPageKey },
+  { href: "/lyrics-library", label: "Lyrics Library", icon: ScrollText, pageKey: "lyrics-library" as ManagedPageKey },
+  { href: "/ai-studio", label: "AI Studio", icon: Sparkles, pageKey: "ai-studio" as ManagedPageKey },
+  { href: "/daw", label: "DAW", icon: Waves, pageKey: "daw" as ManagedPageKey },
+  { href: "/tab-studio", label: "Tab Studio", icon: RadioTower, pageKey: "tab-studio" as ManagedPageKey },
+  { href: "/templates", label: "Templates", icon: Wrench, pageKey: "templates" as ManagedPageKey },
+  { href: "/snapshots", label: "Snapshots", icon: Music2, pageKey: "snapshots" as ManagedPageKey },
+  { href: "/prompt-library", label: "Prompt Library", icon: NotebookPen, pageKey: "prompt-library" as ManagedPageKey },
 ];
 
 type AppShellProps = {
@@ -23,10 +27,26 @@ type AppShellProps = {
   description: string;
   children: ReactNode;
   aside?: ReactNode;
+  pageKey?: ManagedPageKey;
 };
 
-export async function AppShell({ title, eyebrow, description, children, aside }: AppShellProps) {
+export async function AppShell({ title, eyebrow, description, children, aside, pageKey }: AppShellProps) {
   const user = await requireCurrentUser();
+  if (pageKey && !(await ensureUserCanAccessPage(user, pageKey))) {
+    redirect(`/account?denied=${encodeURIComponent(pageKey)}`);
+  }
+
+  const visibleNavItems = (
+    await Promise.all(
+      navItems.map(async (item) => {
+        if (!item.pageKey) {
+          return item;
+        }
+
+        return (await ensureUserCanAccessPage(user, item.pageKey)) ? item : null;
+      }),
+    )
+  ).filter((item): item is (typeof navItems)[number] => Boolean(item));
 
   return (
     <div className="grain min-h-screen px-4 py-6 sm:px-6 lg:px-8">
@@ -47,7 +67,7 @@ export async function AppShell({ title, eyebrow, description, children, aside }:
               <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-sand-2)]">
                 {user.name || user.email}
               </span>
-              {navItems.map((item) => {
+              {visibleNavItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <Link

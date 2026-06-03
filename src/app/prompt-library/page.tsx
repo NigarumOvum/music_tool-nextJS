@@ -29,6 +29,7 @@ export default function PromptLibraryPage() {
       title="Prompt Library"
       eyebrow="Creative Recipes"
       description="A starter library of music-focused prompts for songwriting, arrangement design, bilingual adaptation, and production cleanup."
+      pageKey="prompt-library"
     >
       <section className="grid gap-4 md:grid-cols-2">
         {promptCards.map((card) => (

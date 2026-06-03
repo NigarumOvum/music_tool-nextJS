@@ -7,6 +7,7 @@ export default function DawPage() {
       title="DAW Web App"
       eyebrow="Browser Session Lab"
       description="A browser-native DAW workspace for asset intake, layer rack management, and lightweight session exports without leaving the app."
+      pageKey="daw"
     >
       <DawClient />
     </AppShell>

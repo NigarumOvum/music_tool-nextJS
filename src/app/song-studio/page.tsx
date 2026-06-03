@@ -7,6 +7,7 @@ export default function SongStudioPage() {
       title="Song Studio"
       eyebrow="Database Editing"
       description="Direct access to the music catalog with metadata editing, lyrics updates, JSON payload editing, and section and layer management."
+      pageKey="song-studio"
     >
       <SongStudioClient />
     </AppShell>

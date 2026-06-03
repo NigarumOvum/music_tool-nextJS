@@ -7,6 +7,7 @@ export default function AiStudioPage() {
       title="AI Studio"
       eyebrow="Generation + Rewrite"
       description="Generate structured song drafts and preview targeted field rewrites before applying them to the catalog."
+      pageKey="ai-studio"
     >
       <AiStudioClient />
     </AppShell>

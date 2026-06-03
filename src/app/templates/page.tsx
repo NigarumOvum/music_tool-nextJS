@@ -7,6 +7,7 @@ export default function TemplatesPage() {
       title="Templates"
       eyebrow="Reusable Workflows"
       description="Create and manage reusable music enhancement templates for field rewrites, section passes, and layer cleanups."
+      pageKey="templates"
     >
       <TemplatesClient />
     </AppShell>
