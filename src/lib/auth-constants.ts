@@ -1,0 +1,1 @@
+export const SESSION_COOKIE_NAME = "music_tool_session";
