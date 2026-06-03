@@ -103,20 +103,6 @@ export function restoreSnapshot(snapshotId: string, payload?: Record<string, unk
   });
 }
 
-export function generateDraft(payload: Record<string, unknown>) {
-  return requestJson<{ draft: Record<string, unknown> }>("/api/music/ai/generate", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function enhanceContent(payload: Record<string, unknown>) {
-  return requestJson<{ result: Record<string, unknown> }>("/api/music/ai/enhance", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
 export function fetchPartitures(songId: string) {
   return requestJson<{ partitures: MusicPartitureRecord[] }>(`/api/music/songs/${songId}/partitures`);
 }

@@ -6,7 +6,7 @@ export default function SongStudioPage() {
     <AppShell
       title="Song Studio"
       eyebrow="Database Editing"
-      description="Direct access to the music catalog with metadata editing, lyrics updates, JSON payload editing, and section and layer management."
+      description="The low-level editor for song records, metadata, JSON payloads, sections, and layers. Use Lyrics Library when you want a lyrics-first view with partitures."
       pageKey="song-studio"
     >
       <SongStudioClient />

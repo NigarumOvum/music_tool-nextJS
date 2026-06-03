@@ -41,18 +41,18 @@ export function VerifyEmailClient({ token }: VerifyEmailClientProps) {
   }
 
   return (
-    <div className="w-full space-y-4 rounded-[2rem] border border-white/10 bg-black/30 p-8 text-[var(--color-sand-2)] shadow-[0_24px_90px_rgba(0,0,0,0.3)] backdrop-blur-xl lg:p-10">
+    <div className="panel w-full space-y-4 rounded-[2.25rem] p-8 text-[var(--color-sand-2)] lg:p-10">
       <div className="eyebrow">Account verification</div>
-      <h1 className="text-3xl font-black tracking-tight text-white">
+      <h1 className="text-3xl font-black tracking-tight text-[var(--color-foreground)]">
         {status === "success" ? "Email confirmed" : "Confirm your email"}
       </h1>
       <p>{message}</p>
       {status !== "success" ? (
-        <Button type="button" radius="full" className="bg-[var(--color-copper)] text-white" isLoading={submitting} onPress={() => void handleVerify()}>
+        <Button type="button" radius="full" className="bg-[var(--color-copper)] text-white shadow-[var(--shadow-soft)]" isLoading={submitting} onPress={() => void handleVerify()}>
           Confirm email
         </Button>
       ) : null}
-      <Link href="/login" className="inline-block text-[var(--color-brass)] hover:text-white">Go to login</Link>
+      <Link href="/login" className="inline-block text-[var(--color-brass)] transition hover:text-[var(--color-foreground)]">Go to login</Link>
     </div>
   );
 }

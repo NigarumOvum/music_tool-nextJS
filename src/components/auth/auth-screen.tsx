@@ -75,25 +75,25 @@ export function AuthScreen({ mode }: AuthScreenProps) {
   return (
     <div className="grain min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-6xl items-center justify-center">
-        <Card className="w-full max-w-5xl border border-white/10 bg-black/30 shadow-[0_24px_90px_rgba(0,0,0,0.3)] backdrop-blur-xl">
+        <Card className="panel w-full max-w-5xl overflow-hidden rounded-[2.25rem] border-0 bg-transparent shadow-none">
           <CardBody className="grid gap-0 p-0 lg:grid-cols-[0.95fr_1.05fr]">
-            <section className="border-b border-white/10 bg-[linear-gradient(160deg,rgba(194,121,63,0.28),rgba(159,201,180,0.14),rgba(19,17,15,0.1))] p-8 lg:border-b-0 lg:border-r lg:p-10">
+            <section className="order-2 border-t border-[var(--color-border)] bg-[linear-gradient(155deg,var(--color-info-surface),transparent_58%)] p-6 sm:p-8 lg:order-1 lg:border-r lg:border-t-0 lg:p-10 xl:p-12">
               <div className="eyebrow">Music Tool</div>
-              <h1 className="mt-4 text-4xl font-black tracking-tight text-white">
+              <h1 className="mt-4 max-w-[11ch] text-4xl font-black tracking-[-0.05em] text-[var(--color-foreground)] sm:max-w-none sm:text-5xl">
                 {isRegister ? "Create your studio account" : "Sign in to your studio"}
               </h1>
               <p className="mt-4 max-w-lg text-sm leading-7 text-[var(--color-sand-2)]">
-                The full app is now private to authenticated users. Confirm your email to activate your account, then sign in to access Song Studio, Lyrics Library, AI tools, Web DAW, and the tab workflow pages.
+                The full app is now private to authenticated users. Confirm your email to activate your account, then sign in to access Prompt Library, Song Studio, Lyrics Library, the browser DAW, and the tab workflow pages.
               </p>
               <div className="mt-8 space-y-3 text-sm text-[var(--color-sand-2)]">
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">Private access to the full studio dashboard</div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">User-scoped templates, snapshots, and partitures</div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">Shared Turso-backed song catalog with protected APIs</div>
+                <div className="glass-card-soft rounded-[1.5rem] px-4 py-4">Private access to the full studio dashboard</div>
+                <div className="glass-card-soft rounded-[1.5rem] px-4 py-4">User-scoped templates, snapshots, and partitures</div>
+                <div className="glass-card-soft rounded-[1.5rem] px-4 py-4">Shared Turso-backed song catalog with protected APIs</div>
               </div>
             </section>
-            <section className="p-8 lg:p-10">
+            <section className="order-1 p-6 sm:p-8 lg:order-2 lg:p-10 xl:p-12">
               <form className="space-y-4" onSubmit={handleSubmit}>
-                <div className="flex items-center gap-3 text-white">
+                <div className="flex items-center gap-3 text-[var(--color-foreground)]">
                   {isRegister ? <UserRoundPlus className="h-5 w-5 text-[var(--color-brass)]" /> : <LockKeyhole className="h-5 w-5 text-[var(--color-brass)]" />}
                   <span className="text-xl font-bold">{isRegister ? "Register" : "Login"}</span>
                 </div>
@@ -111,18 +111,18 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                   <span className="text-xs uppercase tracking-[0.2em] text-[var(--color-sand-2)]">Password</span>
                   <input className="field" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" />
                 </label>
-                <Button type="submit" radius="full" className="w-full bg-[var(--color-copper)] text-white" isLoading={submitting}>
+                <Button type="submit" radius="full" className="w-full bg-[var(--color-copper)] text-white shadow-[var(--shadow-soft)]" isLoading={submitting}>
                   {isRegister ? "Create account" : "Login"}
                 </Button>
                 {!isRegister ? (
                   <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[var(--color-sand-2)]">
-                    <Link href="/forgot-password" className="text-[var(--color-brass)] hover:text-white">
+                    <Link href="/forgot-password" className="text-[var(--color-brass)] transition hover:text-[var(--color-foreground)]">
                       Forgot password?
                     </Link>
                     <button
                       type="button"
                       onClick={() => void handleResendConfirmation()}
-                      className="text-[var(--color-brass)] transition hover:text-white"
+                      className="text-[var(--color-brass)] transition hover:text-[var(--color-foreground)]"
                       disabled={resending}
                     >
                       {resending ? "Sending..." : "Resend confirmation"}
@@ -131,7 +131,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                 ) : null}
                 <div className="text-sm text-[var(--color-sand-2)]">
                   {isRegister ? "Already have an account?" : "Need an account?"}{" "}
-                  <Link href={isRegister ? "/login" : "/register"} className="text-[var(--color-brass)] hover:text-white">
+                  <Link href={isRegister ? "/login" : "/register"} className="text-[var(--color-brass)] transition hover:text-[var(--color-foreground)]">
                     {isRegister ? "Sign in" : "Register"}
                   </Link>
                 </div>

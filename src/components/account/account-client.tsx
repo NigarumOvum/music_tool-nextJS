@@ -106,7 +106,7 @@ export function AccountClient({ currentUser, deniedPage }: AccountClientProps) {
         <button
           type="button"
           onClick={() => setActiveTab("profile")}
-          className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] ${activeTab === "profile" ? "border-[var(--color-copper)] bg-[rgba(194,121,63,0.2)] text-white" : "border-white/10 bg-white/5 text-[var(--color-sand-2)]"}`}
+          className={`glass-pill px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${activeTab === "profile" ? "border-[var(--color-info-border)] bg-[var(--color-info-surface)] text-[var(--color-foreground)]" : "text-[var(--color-sand-2)] hover:-translate-y-0.5"}`}
         >
           Profile
         </button>
@@ -114,7 +114,7 @@ export function AccountClient({ currentUser, deniedPage }: AccountClientProps) {
           <button
             type="button"
             onClick={() => setActiveTab("access")}
-            className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] ${activeTab === "access" ? "border-[var(--color-copper)] bg-[rgba(194,121,63,0.2)] text-white" : "border-white/10 bg-white/5 text-[var(--color-sand-2)]"}`}
+            className={`glass-pill px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${activeTab === "access" ? "border-[var(--color-info-border)] bg-[var(--color-info-surface)] text-[var(--color-foreground)]" : "text-[var(--color-sand-2)] hover:-translate-y-0.5"}`}
           >
             Access Control
           </button>
@@ -124,42 +124,42 @@ export function AccountClient({ currentUser, deniedPage }: AccountClientProps) {
       {activeTab === "profile" ? (
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {deniedPage ? (
-            <div className="rounded-[1.5rem] border border-amber-400/30 bg-amber-500/10 p-5 text-sm text-[var(--color-sand-1)] md:col-span-2 xl:col-span-4">
+            <div className="surface-warning rounded-[1.5rem] p-5 text-sm text-[var(--color-foreground)] md:col-span-2 xl:col-span-4">
               Your account does not currently have access to <span className="font-semibold">{deniedPage}</span>. Ask the admin to enable that page from Access Control.
             </div>
           ) : null}
           <div className="panel rounded-[1.5rem] p-5">
             <div className="eyebrow">Email</div>
-            <p className="mt-3 text-lg font-semibold text-white">{currentUser.email}</p>
+            <p className="mt-3 text-lg font-semibold text-[var(--color-foreground)]">{currentUser.email}</p>
           </div>
           <div className="panel rounded-[1.5rem] p-5">
             <div className="eyebrow">Name</div>
-            <p className="mt-3 text-lg font-semibold text-white">{currentUser.name || "Not set"}</p>
+            <p className="mt-3 text-lg font-semibold text-[var(--color-foreground)]">{currentUser.name || "Not set"}</p>
           </div>
           <div className="panel rounded-[1.5rem] p-5">
             <div className="eyebrow">Verification</div>
-            <p className="mt-3 text-lg font-semibold text-white">{currentUser.emailVerifiedAt ? "Verified" : "Pending"}</p>
+            <p className="mt-3 text-lg font-semibold text-[var(--color-foreground)]">{currentUser.emailVerifiedAt ? "Verified" : "Pending"}</p>
           </div>
           <div className="panel rounded-[1.5rem] p-5">
             <div className="eyebrow">Role</div>
-            <p className="mt-3 text-lg font-semibold text-white">{currentUser.isAdmin ? "Admin" : "Member"}</p>
+            <p className="mt-3 text-lg font-semibold text-[var(--color-foreground)]">{currentUser.isAdmin ? "Admin" : "Member"}</p>
           </div>
         </section>
       ) : null}
 
       {activeTab === "access" && currentUser.isAdmin ? (
         <section className="space-y-4">
-          <div className="panel rounded-[1.5rem] p-5 text-sm text-[var(--color-sand-2)]">
+          <div className="glass-card-soft rounded-[1.5rem] p-5 text-sm text-[var(--color-sand-2)]">
             Admin access is fixed. Toggle page access for other registered users below.
           </div>
           {loading ? (
-            <div className="panel rounded-[1.5rem] p-5 text-[var(--color-sand-2)]">Loading access settings...</div>
+            <div className="glass-card-soft rounded-[1.5rem] p-5 text-[var(--color-sand-2)]">Loading access settings...</div>
           ) : (
             users.map((user) => (
               <div key={user.id} className="panel rounded-[1.5rem] p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] pb-4">
                   <div>
-                    <p className="text-lg font-semibold text-white">{user.name || user.email}</p>
+                    <p className="text-lg font-semibold text-[var(--color-foreground)]">{user.name || user.email}</p>
                     <p className="text-sm text-[var(--color-sand-2)]">{user.email}</p>
                   </div>
                   <div className="text-xs uppercase tracking-[0.18em] text-[var(--color-brass)]">
@@ -177,7 +177,7 @@ export function AccountClient({ currentUser, deniedPage }: AccountClientProps) {
                         type="button"
                         disabled={disabled || savingKey === rowKey}
                         onClick={() => void handleToggle(user.id, page.key, !enabled)}
-                        className={`rounded-[1.25rem] border p-4 text-left transition ${enabled ? "border-emerald-400/40 bg-emerald-500/10 text-white" : "border-white/10 bg-white/5 text-[var(--color-sand-2)]"} ${disabled ? "opacity-60" : "hover:border-[var(--color-copper)]"}`}
+                        className={`rounded-[1.25rem] border p-4 text-left transition ${enabled ? "surface-success text-[var(--color-foreground)]" : "glass-card-soft text-[var(--color-sand-2)]"} ${disabled ? "opacity-60" : "hover:-translate-y-0.5 hover:border-[var(--color-info-border)]"}`}
                       >
                         <div className="text-xs uppercase tracking-[0.18em] text-[var(--color-brass)]">{page.label}</div>
                         <div className="mt-2 text-sm font-semibold">{enabled ? "Access granted" : "Access blocked"}</div>

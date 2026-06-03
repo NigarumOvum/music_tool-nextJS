@@ -116,18 +116,18 @@ export function LyricsLibraryClient() {
   }
 
   return (
-    <div className="page-grid">
+    <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
       <aside className="panel rounded-[1.75rem] p-4">
         <div className="eyebrow">Songs</div>
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex-col xl:overflow-visible xl:pb-0">
           {songs.map((song) => (
             <button
               key={song.id}
               type="button"
               onClick={() => void loadSong(song.id)}
-              className={`w-full rounded-[1.25rem] border px-4 py-4 text-left transition ${song.id === selectedSongId ? "border-[var(--color-berry)] bg-white/8" : "border-white/8 bg-white/3"}`}
+              className={`min-w-[220px] rounded-[1.25rem] border px-4 py-4 text-left transition xl:w-full xl:min-w-0 ${song.id === selectedSongId ? "border-[var(--color-info-border)] bg-[var(--color-info-surface)]" : "glass-card-soft hover:-translate-y-0.5"}`}
             >
-              <div className="font-bold text-[var(--color-sand-1)]">{song.title}</div>
+              <div className="font-bold text-[var(--color-foreground)]">{song.title}</div>
               <div className="mt-1 text-xs text-[var(--color-sand-2)]">{song.genre || "No genre"}</div>
             </button>
           ))}
@@ -156,7 +156,7 @@ export function LyricsLibraryClient() {
               </p>
               <div className="mt-6 grid gap-4 xl:grid-cols-2">
                 {guitarSlots.map((slotRecord) => (
-                  <div key={`${slotRecord.instrument}-${slotRecord.slot}`} className="rounded-[1.25rem] border border-white/8 bg-white/4 p-4">
+                  <div key={`${slotRecord.instrument}-${slotRecord.slot}`} className="glass-card-soft rounded-[1.25rem] p-4">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
                         <div className="eyebrow">{slotRecord.instrument}</div>

@@ -6,7 +6,7 @@ const dashboardItems = [
     href: "/prompt-library",
     title: "Prompt Library",
     eyebrow: "Prompting",
-    description: "Curated music prompt recipes for song drafts, rewrite passes, arrangement cleanups, and mix prep.",
+    description: "Create, edit, and organize reusable prompts for songwriting passes, arrangement cleanups, and production prep.",
     accent: "var(--color-brass)",
   },
   {
@@ -20,15 +20,8 @@ const dashboardItems = [
     href: "/song-studio",
     title: "Song Studio",
     eyebrow: "Editing",
-    description: "Direct database-backed editing for song metadata, JSON payloads, sections, and layers.",
+    description: "The raw editor for song records, metadata, JSON payloads, sections, and layers when you need full control.",
     accent: "var(--color-copper)",
-  },
-  {
-    href: "/ai-studio",
-    title: "AI Studio",
-    eyebrow: "Generation",
-    description: "Generate structured drafts, preview field enhancements, and apply accepted AI rewrites.",
-    accent: "var(--color-mint)",
   },
   {
     href: "/daw",
@@ -65,9 +58,9 @@ export default function Home() {
     <AppShell
       title="Music Tool"
       eyebrow="Studio Hub"
-      description="A standalone home for songwriting, arrangement editing, lyrics management, browser DAW workflows, and Guitar Pro-like notation work."
+      description="A private workspace for prompt building, lyrics and partiture management, raw song editing, browser DAW workflows, and Guitar Pro-like notation work."
     >
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
         {dashboardItems.map((item) => (
           <DashboardCard key={item.href} {...item} />
         ))}

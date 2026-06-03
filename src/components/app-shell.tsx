@@ -7,14 +7,13 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ensureUserCanAccessPage, requireCurrentUser } from "@/lib/auth";
 import type { ManagedPageKey } from "@/lib/access";
-import { Music2, NotebookPen, PanelTop, RadioTower, ScrollText, Sparkles, User, Waves, Wrench } from "lucide-react";
+import { Music2, NotebookPen, PanelTop, RadioTower, ScrollText, User, Waves, Wrench } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home", icon: Music2 },
   { href: "/account", label: "Account", icon: User },
   { href: "/song-studio", label: "Song Studio", icon: PanelTop, pageKey: "song-studio" as ManagedPageKey },
   { href: "/lyrics-library", label: "Lyrics Library", icon: ScrollText, pageKey: "lyrics-library" as ManagedPageKey },
-  { href: "/ai-studio", label: "AI Studio", icon: Sparkles, pageKey: "ai-studio" as ManagedPageKey },
   { href: "/daw", label: "DAW", icon: Waves, pageKey: "daw" as ManagedPageKey },
   { href: "/tab-studio", label: "Tab Studio", icon: RadioTower, pageKey: "tab-studio" as ManagedPageKey },
   { href: "/templates", label: "Templates", icon: Wrench, pageKey: "templates" as ManagedPageKey },
@@ -53,48 +52,70 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
   return (
     <div className="grain min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <header className="panel rounded-[2.25rem] p-5 sm:p-7">
-          <div className="relative flex flex-col gap-6">
-            <div className="absolute right-0 top-0 hidden h-28 w-28 rounded-full bg-[var(--color-accent-soft)] blur-3xl lg:block" />
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-4">
-                <div className="eyebrow">{eyebrow}</div>
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:gap-6">
-                  <h1 className="max-w-[10ch] text-4xl font-black tracking-tight text-[var(--color-foreground)] sm:max-w-none sm:text-5xl">{title}</h1>
-                  <span className="glass-pill inline-flex rounded-full px-4 py-2 font-mono text-[0.72rem] uppercase tracking-[0.22em] text-[var(--color-copper)]">
-                    Spec-driven build
-                  </span>
+        <header className="panel sticky top-4 z-20 rounded-[2rem] p-4 sm:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center justify-between gap-3 xl:min-w-[220px] xl:justify-start">
+              <Link href="/" className="flex min-w-0 items-center gap-3">
+                <div className="glass-pill flex h-11 w-11 items-center justify-center text-[var(--color-copper)]">
+                  <Music2 className="h-5 w-5" />
                 </div>
-                <p className="max-w-3xl text-sm leading-7 text-[var(--color-sand-2)] sm:text-base">{description}</p>
-              </div>
-              <div className="flex items-start gap-2 self-start lg:self-auto">
+                <div className="min-w-0">
+                  <div className="eyebrow">Studio Hub</div>
+                  <div className="truncate text-lg font-black tracking-tight text-[var(--color-foreground)]">Music Tool</div>
+                </div>
+              </Link>
+              <div className="flex items-center gap-2 xl:hidden">
                 <ThemeToggle />
+                <LogoutButton />
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="glass-pill inline-flex w-fit rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-sand-2)]">
-                {user.name || user.email}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
+            <nav className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex-1">
+              <div className="flex min-w-max items-center gap-2 px-0.5 xl:justify-center">
                 {visibleNavItems.map((item) => {
                   const Icon = item.icon;
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className="glass-pill inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-foreground)] transition hover:-translate-y-0.5 hover:border-[var(--color-accent-soft)] hover:bg-[var(--color-surface-strong)]"
+                      className="glass-pill inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-foreground)] transition hover:-translate-y-0.5 hover:border-[var(--color-accent-soft)] hover:bg-[var(--color-surface-strong)] sm:px-4"
                     >
                       <Icon className="h-3.5 w-3.5" />
                       {item.label}
                     </Link>
                   );
                 })}
-                <LogoutButton />
               </div>
+            </nav>
+
+            <div className="hidden items-center gap-2 xl:flex">
+              <div className="glass-pill inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-sand-2)]">
+                {user.name || user.email}
+              </div>
+              <ThemeToggle />
+              <LogoutButton />
+            </div>
+          </div>
+
+          <div className="mt-3 xl:hidden">
+            <div className="glass-pill inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-sand-2)]">
+              {user.name || user.email}
             </div>
           </div>
         </header>
+
+        <section className="panel rounded-[2rem] p-5 sm:p-6 lg:p-7">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-3">
+              <div className="eyebrow">{eyebrow}</div>
+              <h1 className="max-w-[12ch] text-3xl font-black tracking-[-0.05em] text-[var(--color-foreground)] sm:max-w-none sm:text-4xl lg:text-[2.8rem]">{title}</h1>
+              <p className="max-w-3xl text-sm leading-7 text-[var(--color-sand-2)] sm:text-base">{description}</p>
+            </div>
+            <span className="glass-pill inline-flex w-fit rounded-full px-4 py-2 font-mono text-[0.72rem] uppercase tracking-[0.22em] text-[var(--color-copper)]">
+              Spec-driven build
+            </span>
+          </div>
+        </section>
 
         <main className={aside ? "page-grid" : "space-y-6"}>
           {aside ? <aside className="panel rounded-[1.75rem] p-4">{aside}</aside> : null}

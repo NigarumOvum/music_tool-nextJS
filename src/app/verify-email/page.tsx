@@ -22,11 +22,11 @@ export default async function VerifyEmailPage({ searchParams }: VerifyEmailPageP
         {token ? (
           <VerifyEmailClient token={token} />
         ) : (
-          <div className="w-full space-y-4 rounded-[2rem] border border-white/10 bg-black/30 p-8 text-[var(--color-sand-2)] shadow-[0_24px_90px_rgba(0,0,0,0.3)] backdrop-blur-xl lg:p-10">
+          <div className="panel w-full space-y-4 rounded-[2.25rem] p-8 text-[var(--color-sand-2)] lg:p-10">
             <div className="eyebrow">Account verification</div>
-            <h1 className="text-3xl font-black tracking-tight text-white">Email confirmation failed</h1>
+            <h1 className="text-3xl font-black tracking-tight text-[var(--color-foreground)]">Email confirmation failed</h1>
             <p>The confirmation link is missing or invalid. Request another confirmation email from the login screen.</p>
-            <Link href="/login" className="text-[var(--color-brass)] hover:text-white">Go to login</Link>
+            <Link href="/login" className="text-[var(--color-brass)] transition hover:text-[var(--color-foreground)]">Go to login</Link>
           </div>
         )}
       </div>

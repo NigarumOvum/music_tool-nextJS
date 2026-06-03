@@ -204,7 +204,72 @@ async function ensureMusicSupportTables() {
   }
 
   const db = getMusicClient();
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS songs (
+      id text PRIMARY KEY NOT NULL,
+      user_id text,
+      title text NOT NULL,
+      topic text,
+      emotion text,
+      genre text,
+      language text,
+      reference_text text,
+      lyrics_text text,
+      song_json text NOT NULL,
+      melody_json text,
+      midi_blueprints_json text,
+      production_json text,
+      metadata_json text,
+      bpm real,
+      musical_key text,
+      structure_text text,
+      hook_summary text,
+      vocal_style text,
+      instrumentation text,
+      mood_tags_json text,
+      project_slug text,
+      project_dir text,
+      saved_at text,
+      enhanced_from_song_id text,
+      enhanced_from_title text,
+      has_arrangement_midi integer NOT NULL DEFAULT 0,
+      arrangement_midi blob,
+      arrangement_midi_bytes integer,
+      arrangement_midi_sha256 text,
+      backup_run_id text NOT NULL DEFAULT 'manual',
+      synced_at text NOT NULL
+    )
+  `);
   await ensureColumn("songs", "user_id", "text");
+  await ensureColumn("songs", "topic", "text");
+  await ensureColumn("songs", "emotion", "text");
+  await ensureColumn("songs", "genre", "text");
+  await ensureColumn("songs", "language", "text");
+  await ensureColumn("songs", "reference_text", "text");
+  await ensureColumn("songs", "lyrics_text", "text");
+  await ensureColumn("songs", "song_json", "text NOT NULL DEFAULT '{}' ");
+  await ensureColumn("songs", "melody_json", "text");
+  await ensureColumn("songs", "midi_blueprints_json", "text");
+  await ensureColumn("songs", "production_json", "text");
+  await ensureColumn("songs", "metadata_json", "text");
+  await ensureColumn("songs", "bpm", "real");
+  await ensureColumn("songs", "musical_key", "text");
+  await ensureColumn("songs", "structure_text", "text");
+  await ensureColumn("songs", "hook_summary", "text");
+  await ensureColumn("songs", "vocal_style", "text");
+  await ensureColumn("songs", "instrumentation", "text");
+  await ensureColumn("songs", "mood_tags_json", "text");
+  await ensureColumn("songs", "project_slug", "text");
+  await ensureColumn("songs", "project_dir", "text");
+  await ensureColumn("songs", "saved_at", "text");
+  await ensureColumn("songs", "enhanced_from_song_id", "text");
+  await ensureColumn("songs", "enhanced_from_title", "text");
+  await ensureColumn("songs", "has_arrangement_midi", "integer NOT NULL DEFAULT 0");
+  await ensureColumn("songs", "arrangement_midi", "blob");
+  await ensureColumn("songs", "arrangement_midi_bytes", "integer");
+  await ensureColumn("songs", "arrangement_midi_sha256", "text");
+  await ensureColumn("songs", "backup_run_id", "text NOT NULL DEFAULT 'manual'");
+  await ensureColumn("songs", "synced_at", "text NOT NULL DEFAULT ''");
   await db.execute(`
     CREATE TABLE IF NOT EXISTS music_song_snapshot (
       id text PRIMARY KEY NOT NULL,
@@ -219,6 +284,34 @@ async function ensureMusicSupportTables() {
   await db.execute(`
     CREATE INDEX IF NOT EXISTS music_song_snapshot_song_idx
     ON music_song_snapshot (songId, createdAt)
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS song_sections (
+      song_id text NOT NULL,
+      section_name text NOT NULL,
+      section_json text NOT NULL,
+      section_text text,
+      synced_at text NOT NULL,
+      PRIMARY KEY (song_id, section_name)
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS song_layers (
+      song_id text NOT NULL,
+      layer_name text NOT NULL,
+      layer_json text NOT NULL,
+      layer_text text,
+      synced_at text NOT NULL,
+      PRIMARY KEY (song_id, layer_name)
+    )
+  `);
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS song_sections_song_idx
+    ON song_sections (song_id, synced_at)
+  `);
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS song_layers_song_idx
+    ON song_layers (song_id, synced_at)
   `);
   await db.execute(`
     CREATE TABLE IF NOT EXISTS music_task_template (

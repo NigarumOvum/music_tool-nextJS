@@ -20,6 +20,17 @@ type TemplateDraft = {
   instructions: string;
 };
 
+type TemplatesClientProps = {
+  libraryEyebrow?: string;
+  libraryTitle?: string;
+  editorEyebrow?: string;
+  createTitle?: string;
+  editTitle?: string;
+  itemLabel?: string;
+  namePlaceholder?: string;
+  instructionsPlaceholder?: string;
+};
+
 const emptyDraft: TemplateDraft = {
   name: "",
   category: "",
@@ -30,7 +41,16 @@ const emptyDraft: TemplateDraft = {
   instructions: "",
 };
 
-export function TemplatesClient() {
+export function TemplatesClient({
+  libraryEyebrow = "Template library",
+  libraryTitle = "Reusable enhancement workflows",
+  editorEyebrow = "Editor",
+  createTitle = "Create template",
+  editTitle = "Edit template",
+  itemLabel = "Template",
+  namePlaceholder = "Template name",
+  instructionsPlaceholder = "Instructions",
+}: TemplatesClientProps) {
   const [templates, setTemplates] = useState<MusicTaskTemplateRecord[]>([]);
   const [draft, setDraft] = useState<TemplateDraft>(emptyDraft);
   const [loading, setLoading] = useState(true);
@@ -80,10 +100,10 @@ export function TemplatesClient() {
     try {
       if (draft.id) {
         await updateTemplate(draft.id, draft);
-        toast.success("Template updated");
+        toast.success(`${itemLabel} updated`);
       } else {
         await createTemplate(draft);
-        toast.success("Template created");
+        toast.success(`${itemLabel} created`);
       }
       setDraft(emptyDraft);
       await loadTemplates();
@@ -95,7 +115,7 @@ export function TemplatesClient() {
   async function removeTemplate(id: string) {
     try {
       await deleteTemplate(id);
-      toast.success("Template deleted");
+      toast.success(`${itemLabel} deleted`);
       if (draft.id === id) {
         setDraft(emptyDraft);
       }
@@ -108,14 +128,19 @@ export function TemplatesClient() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
       <div className="panel rounded-[1.75rem] p-5">
-        <div className="eyebrow">Template library</div>
-        <h2 className="mt-2 text-3xl font-black">Reusable enhancement workflows</h2>
+        <div className="eyebrow">{libraryEyebrow}</div>
+        <h2 className="mt-2 text-3xl font-black">{libraryTitle}</h2>
         {loading ? (
           <div className="mt-6 flex justify-center"><Spinner color="warning" /></div>
         ) : (
           <div className="mt-6 space-y-3">
+            {templates.length === 0 ? (
+              <div className="glass-card-soft rounded-[1.25rem] p-4 text-sm text-[var(--color-sand-2)]">
+                No saved {itemLabel.toLowerCase()}s yet. Create one from the editor panel.
+              </div>
+            ) : null}
             {templates.map((template) => (
-              <div key={template.id} className="rounded-[1.25rem] border border-white/8 bg-white/4 p-4">
+              <div key={template.id} className="glass-card-soft rounded-[1.25rem] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-lg font-black">{template.name}</div>
@@ -149,10 +174,10 @@ export function TemplatesClient() {
       </div>
 
       <div className="panel rounded-[1.75rem] p-5">
-        <div className="eyebrow">Editor</div>
-        <h3 className="mt-2 text-2xl font-black">{draft.id ? "Edit template" : "Create template"}</h3>
+        <div className="eyebrow">{editorEyebrow}</div>
+        <h3 className="mt-2 text-2xl font-black">{draft.id ? editTitle : createTitle}</h3>
         <div className="mt-4 space-y-3">
-          <input className="field" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Template name" />
+          <input className="field" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder={namePlaceholder} />
           <input className="field" value={draft.category} onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))} placeholder="Category" />
           <input className="field" value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Description" />
           <select className="field" value={draft.targetType} onChange={(event) => setDraft((current) => ({ ...current, targetType: event.target.value as "song-field" | "part" }))}>
@@ -164,11 +189,11 @@ export function TemplatesClient() {
           ) : (
             <input className="field" value={draft.targetKinds.join(", ")} onChange={(event) => setDraft((current) => ({ ...current, targetKinds: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) }))} placeholder="section, layer" />
           )}
-          <textarea className="field min-h-56" value={draft.instructions} onChange={(event) => setDraft((current) => ({ ...current, instructions: event.target.value }))} placeholder="Instructions" />
+          <textarea className="field min-h-56" value={draft.instructions} onChange={(event) => setDraft((current) => ({ ...current, instructions: event.target.value }))} placeholder={instructionsPlaceholder} />
           <div className="flex gap-2">
             <Button className="bg-[var(--color-copper)] text-white" radius="full" onPress={persistTemplate}>
               {draft.id ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {draft.id ? "Update" : "Create"}
+              {draft.id ? `Update ${itemLabel}` : `Create ${itemLabel}`}
             </Button>
             {draft.id ? <Button radius="full" variant="bordered" onPress={() => setDraft(emptyDraft)}>Reset</Button> : null}
           </div>

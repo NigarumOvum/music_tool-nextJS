@@ -44,10 +44,10 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   return (
     <div className="grain min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-3rem)] max-w-3xl items-center justify-center">
-        <Card className="w-full border border-white/10 bg-black/30 shadow-[0_24px_90px_rgba(0,0,0,0.3)] backdrop-blur-xl">
+        <Card className="panel w-full rounded-[2.25rem] border-0 bg-transparent shadow-none">
           <CardBody className="space-y-6 p-8 lg:p-10">
             <div className="eyebrow">Account recovery</div>
-            <div className="flex items-center gap-3 text-white">
+            <div className="flex items-center gap-3 text-[var(--color-foreground)]">
               <KeyRound className="h-5 w-5 text-[var(--color-brass)]" />
               <h1 className="text-3xl font-black tracking-tight">Choose a new password</h1>
             </div>
@@ -59,12 +59,12 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
                 <span className="text-xs uppercase tracking-[0.2em] text-[var(--color-sand-2)]">New password</span>
                 <input className="field" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" />
               </label>
-              <Button type="submit" radius="full" className="w-full bg-[var(--color-copper)] text-white" isLoading={submitting}>
+              <Button type="submit" radius="full" className="w-full bg-[var(--color-copper)] text-white shadow-[var(--shadow-soft)]" isLoading={submitting}>
                 Update password
               </Button>
             </form>
             <div className="text-sm text-[var(--color-sand-2)]">
-              Return to <Link href="/login" className="text-[var(--color-brass)] hover:text-white">login</Link>
+              Return to <Link href="/login" className="text-[var(--color-brass)] transition hover:text-[var(--color-foreground)]">login</Link>
             </div>
           </CardBody>
         </Card>
