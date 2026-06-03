@@ -129,10 +129,3 @@ export interface MusicPartitureRecord {
   updatedAt: string;
 }
 
-export interface MusicSnapshotRecord {
-  id: string;
-  songId: string;
-  snapshotType: string;
-  note: string | null;
-  createdAt: string;
-}

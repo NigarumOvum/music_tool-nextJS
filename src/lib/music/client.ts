@@ -1,6 +1,5 @@
 import type {
   MusicPartitureRecord,
-  MusicSnapshotRecord,
   MusicSongDetail,
   MusicSongSummary,
   MusicTaskTemplateRecord,
@@ -82,24 +81,6 @@ export function updateTemplate(id: string, payload: Record<string, unknown>) {
 export function deleteTemplate(id: string) {
   return requestJson<{ ok: true }>(`/api/music/templates/${id}`, {
     method: "DELETE",
-  });
-}
-
-export function fetchSnapshots(songId: string) {
-  return requestJson<{ snapshots: MusicSnapshotRecord[] }>(`/api/music/songs/${songId}/snapshots`);
-}
-
-export function createSnapshot(songId: string, payload: Record<string, unknown>) {
-  return requestJson<{ snapshot: MusicSnapshotRecord }>(`/api/music/songs/${songId}/snapshots`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export function restoreSnapshot(snapshotId: string, payload?: Record<string, unknown>) {
-  return requestJson<{ song: MusicSongDetail }>(`/api/music/snapshots/${snapshotId}/restore`, {
-    method: "POST",
-    body: JSON.stringify(payload || {}),
   });
 }
 

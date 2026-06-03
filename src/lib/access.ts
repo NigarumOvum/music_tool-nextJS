@@ -4,8 +4,9 @@ export const MANAGEABLE_PAGES = [
   { key: "song-studio", label: "Song Studio", href: "/song-studio" },
   { key: "daw", label: "DAW", href: "/daw" },
   { key: "tab-studio", label: "Tab Studio", href: "/tab-studio" },
-  { key: "snapshots", label: "Snapshots", href: "/snapshots" },
-  { key: "templates", label: "Templates", href: "/templates" },
+  { key: "musician-helpers", label: "Musician Helpers", href: "/musician-helpers" },
+  { key: "theory-lab", label: "Theory Lab", href: "/theory-lab" },
+  { key: "progressions", label: "Progressions", href: "/progressions" },
 ] as const;
 
 export type ManagedPageKey = (typeof MANAGEABLE_PAGES)[number]["key"];

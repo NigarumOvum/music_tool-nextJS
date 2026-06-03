@@ -3,7 +3,6 @@ import { createClient } from "@libsql/client";
 import type {
   MusicPartRecord,
   MusicPartitureRecord,
-  MusicSnapshotRecord,
   MusicSongDetail,
   MusicSongDraftInput,
   MusicSongRecord,
@@ -271,21 +270,6 @@ async function ensureMusicSupportTables() {
   await ensureColumn("songs", "backup_run_id", "text NOT NULL DEFAULT 'manual'");
   await ensureColumn("songs", "synced_at", "text NOT NULL DEFAULT ''");
   await db.execute(`
-    CREATE TABLE IF NOT EXISTS music_song_snapshot (
-      id text PRIMARY KEY NOT NULL,
-      songId text NOT NULL,
-      user_id text,
-      snapshotType text NOT NULL,
-      note text,
-      payload text NOT NULL,
-      createdAt text NOT NULL
-    )
-  `);
-  await db.execute(`
-    CREATE INDEX IF NOT EXISTS music_song_snapshot_song_idx
-    ON music_song_snapshot (songId, createdAt)
-  `);
-  await db.execute(`
     CREATE TABLE IF NOT EXISTS song_sections (
       song_id text NOT NULL,
       section_name text NOT NULL,
@@ -354,13 +338,8 @@ async function ensureMusicSupportTables() {
     CREATE INDEX IF NOT EXISTS songs_user_idx
     ON songs (user_id, saved_at, synced_at)
   `);
-  await ensureColumn("music_song_snapshot", "user_id", "text");
   await ensureColumn("music_task_template", "user_id", "text");
   await ensureColumn("song_partitures", "user_id", "text");
-  await db.execute(`
-    CREATE INDEX IF NOT EXISTS music_song_snapshot_user_idx
-    ON music_song_snapshot (user_id, songId, createdAt)
-  `);
   await db.execute(`
     CREATE INDEX IF NOT EXISTS music_task_template_user_idx
     ON music_task_template (user_id, name)
@@ -695,30 +674,6 @@ export async function deleteSongPart(songId: string, userId: string, kind: "sect
   return getSongDetail(songId, userId);
 }
 
-export async function replaceSongFromSnapshot(detail: MusicSongDetail, userId: string) {
-  await requireOwnedSong(detail.song.id, userId);
-  const db = getMusicClient();
-  await updateSong(detail.song.id, userId, detail.song as unknown as Record<string, unknown>);
-
-  await db.execute({ sql: "delete from song_sections where song_id = ?", args: [detail.song.id] });
-  await db.execute({ sql: "delete from song_layers where song_id = ?", args: [detail.song.id] });
-
-  for (const section of detail.sections) {
-    await upsertSongPart(detail.song.id, userId, "section", section.name, section.text ?? null, section.json);
-  }
-
-  for (const layer of detail.layers) {
-    await upsertSongPart(detail.song.id, userId, "layer", layer.name, layer.text ?? null, layer.json);
-  }
-
-  const restored = await getSongDetail(detail.song.id, userId);
-  if (!restored) {
-    throw new Error("Song not found");
-  }
-
-  return restored;
-}
-
 function normalizeTargetKinds(value: unknown): MusicTemplatePartKind[] {
   if (!Array.isArray(value)) {
     return [];
@@ -920,77 +875,6 @@ export async function deleteMusicTaskTemplate(userId: string, templateId: string
   if ((result.rowsAffected ?? 0) === 0) {
     throw new Error("Template not found");
   }
-}
-
-export async function listMusicSnapshots(songId: string, userId: string) {
-  await ensureMusicSupportTables();
-  const db = getMusicClient();
-  const result = await db.execute({
-    sql: "select id, songId, snapshotType, note, createdAt from music_song_snapshot where songId = ? and user_id = ? order by createdAt desc limit 20",
-    args: [songId, userId],
-  });
-
-  return result.rows.map((row) => ({
-    id: String(row.id),
-    songId: String(row.songId),
-    snapshotType: String(row.snapshotType),
-    note: (row.note as string | null) ?? null,
-    createdAt: String(row.createdAt),
-  })) as MusicSnapshotRecord[];
-}
-
-export async function createMusicSnapshot(options: {
-  songId: string;
-  userId: string;
-  snapshotType: string;
-  note?: string | null;
-  payload?: MusicSongDetail;
-}) {
-  await ensureMusicSupportTables();
-  const db = getMusicClient();
-  await requireOwnedSong(options.songId, options.userId);
-  const payload = options.payload || (await getSongDetail(options.songId, options.userId));
-  if (!payload) {
-    throw new Error("Song not found");
-  }
-
-  const snapshot = {
-    id: crypto.randomUUID(),
-    songId: options.songId,
-    user_id: options.userId,
-    snapshotType: options.snapshotType,
-    note: options.note || null,
-    payload: JSON.stringify(payload),
-    createdAt: isoNow(),
-  };
-
-  await db.execute({
-    sql: `
-      insert into music_song_snapshot (id, songId, user_id, snapshotType, note, payload, createdAt)
-      values (?, ?, ?, ?, ?, ?, ?)
-    `,
-    args: [snapshot.id, snapshot.songId, snapshot.user_id, snapshot.snapshotType, snapshot.note, snapshot.payload, snapshot.createdAt],
-  });
-
-  return snapshot;
-}
-
-export async function restoreMusicSnapshot(snapshotId: string, userId: string) {
-  await ensureMusicSupportTables();
-  const db = getMusicClient();
-  const result = await db.execute({
-    sql: "select * from music_song_snapshot where id = ? and user_id = ? limit 1",
-    args: [snapshotId, userId],
-  });
-  const snapshot = result.rows[0];
-
-  if (!snapshot) {
-    throw new Error("Snapshot not found");
-  }
-
-  const payload = JSON.parse(String((snapshot as Record<string, unknown>).payload)) as MusicSongDetail;
-  await replaceSongFromSnapshot(payload, userId);
-  return payload.song.id;
 }
 
 function mapPartitureRow(row: Record<string, unknown>): MusicPartitureRecord {

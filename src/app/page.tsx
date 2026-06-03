@@ -38,18 +38,25 @@ const dashboardItems = [
     accent: "var(--color-brass)",
   },
   {
-    href: "/snapshots",
-    title: "Snapshots",
-    eyebrow: "Safety",
-    description: "Create manual checkpoints and restore an earlier song state when an experiment goes sideways.",
+    href: "/musician-helpers",
+    title: "Musician Helpers",
+    eyebrow: "Tools",
+    description: "Instrument-specific utilities like tuning standards, fretboard visuals, and advanced metronomes.",
     accent: "var(--color-berry)",
   },
   {
-    href: "/templates",
-    title: "Templates",
-    eyebrow: "Workflow",
-    description: "Manage reusable enhancement templates for lyrics, structure, production notes, sections, and layers.",
+    href: "/theory-lab",
+    title: "Theory Lab",
+    eyebrow: "Education",
+    description: "Interactive references for scales, modes, circle of fifths, and chord construction.",
     accent: "var(--color-copper)",
+  },
+  {
+    href: "/progressions",
+    title: "Progression Builder",
+    eyebrow: "Writing",
+    description: "Experiment with chord structures, roman numeral analysis, and discover new harmony paths.",
+    accent: "var(--color-mint)",
   },
 ];
 
