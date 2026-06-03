@@ -29,8 +29,9 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${headingFont.variable} ${monoFont.variable} h-full antialiased`}
+      data-theme="light"
     >
-      <body className="min-h-full flex flex-col bg-[var(--color-ink)] text-[var(--color-sand-1)]">
+      <body className="min-h-full flex flex-col bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
         <Providers>{children}</Providers>
       </body>
     </html>
