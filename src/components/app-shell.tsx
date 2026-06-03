@@ -90,18 +90,26 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
             </nav>
 
             <div className="hidden items-center gap-2 xl:flex">
-              <div className="glass-pill inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-sand-2)]">
+              <Link 
+                href="/account"
+                className="glass-pill inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-strong)] transition-colors"
+                title="Manage Account"
+              >
                 {user.name || user.email}
-              </div>
+              </Link>
               <ThemeToggle />
               <LogoutButton />
             </div>
           </div>
 
           <div className="mt-3 xl:hidden">
-            <div className="glass-pill inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-sand-2)]">
-              {user.name || user.email}
-            </div>
+              <Link 
+                href="/account"
+                className="glass-pill inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-strong)] transition-colors"
+                title="Manage Account"
+              >
+                {user.name || user.email}
+              </Link>
           </div>
         </header>
 
