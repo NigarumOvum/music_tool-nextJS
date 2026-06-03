@@ -9,7 +9,7 @@ export async function POST(request: Request) {
       email: body.email || "",
       password: body.password || "",
     });
-    return jsonResponse({ user }, 201);
+    return jsonResponse({ user, requiresEmailConfirmation: true }, 201);
   } catch (error) {
     return errorResponse((error as Error).message || "Failed to register", 400);
   }

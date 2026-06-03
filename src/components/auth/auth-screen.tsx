@@ -18,6 +18,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resending, setResending] = useState(false);
 
   const isRegister = mode === "register";
 
@@ -35,13 +36,39 @@ export function AuthScreen({ mode }: AuthScreenProps) {
         throw new Error((payload as { error?: string }).error || "Authentication failed");
       }
 
-      toast.success(isRegister ? "Account created" : "Logged in");
-      router.replace("/");
+      toast.success(isRegister ? "Check your email to confirm your account" : "Logged in");
+      router.replace(isRegister ? "/login" : "/");
       router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleResendConfirmation() {
+    if (!email.trim()) {
+      toast.error("Enter your email first");
+      return;
+    }
+
+    setResending(true);
+    try {
+      const response = await fetch("/api/auth/resend-confirmation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((payload as { error?: string }).error || "Failed to resend confirmation");
+      }
+
+      toast.success("If the account exists, a confirmation email has been sent");
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setResending(false);
     }
   }
 
@@ -56,7 +83,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                 {isRegister ? "Create your studio account" : "Sign in to your studio"}
               </h1>
               <p className="mt-4 max-w-lg text-sm leading-7 text-[var(--color-sand-2)]">
-                The full app is now private to authenticated users. Sign in to access Song Studio, Lyrics Library, AI tools, Web DAW, and the tab workflow pages.
+                The full app is now private to authenticated users. Confirm your email to activate your account, then sign in to access Song Studio, Lyrics Library, AI tools, Web DAW, and the tab workflow pages.
               </p>
               <div className="mt-8 space-y-3 text-sm text-[var(--color-sand-2)]">
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">Private access to the full studio dashboard</div>
@@ -87,6 +114,21 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                 <Button type="submit" radius="full" className="w-full bg-[var(--color-copper)] text-white" isLoading={submitting}>
                   {isRegister ? "Create account" : "Login"}
                 </Button>
+                {!isRegister ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[var(--color-sand-2)]">
+                    <Link href="/forgot-password" className="text-[var(--color-brass)] hover:text-white">
+                      Forgot password?
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => void handleResendConfirmation()}
+                      className="text-[var(--color-brass)] transition hover:text-white"
+                      disabled={resending}
+                    >
+                      {resending ? "Sending..." : "Resend confirmation"}
+                    </button>
+                  </div>
+                ) : null}
                 <div className="text-sm text-[var(--color-sand-2)]">
                   {isRegister ? "Already have an account?" : "Need an account?"}{" "}
                   <Link href={isRegister ? "/login" : "/register"} className="text-[var(--color-brass)] hover:text-white">

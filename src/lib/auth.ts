@@ -1,11 +1,16 @@
 import { createClient } from "@libsql/client";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 import { SESSION_COOKIE_NAME } from "@/lib/auth-constants";
+import { sendEmail } from "@/lib/email";
 
 const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 30;
+const EMAIL_CONFIRMATION_DURATION_MS = 1000 * 60 * 60 * 24;
+const PASSWORD_RESET_DURATION_MS = 1000 * 60 * 30;
+
+type AuthEmailTokenType = "email-confirmation" | "password-reset";
 
 type NullableString = string | null | undefined;
 
@@ -13,6 +18,7 @@ export type AuthUser = {
   id: string;
   email: string;
   name: string | null;
+  emailVerifiedAt: string | null;
 };
 
 export type AuthSession = {
@@ -23,6 +29,15 @@ export type AuthSession = {
 
 let client: ReturnType<typeof createClient> | null = null;
 let authTablesReady = false;
+
+async function ensureColumn(table: string, column: string, definition: string) {
+  const db = getAuthClient();
+  const info = await db.execute(`PRAGMA table_info(${table})`);
+  const exists = info.rows.some((row) => String((row as Record<string, unknown>).name) === column);
+  if (!exists) {
+    await db.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
 
 function getAuthClient() {
   if (client) {
@@ -55,6 +70,128 @@ function normalizeText(value: NullableString) {
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+function hashToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function getBaseUrl() {
+  const explicit = process.env.APP_BASE_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (explicit) {
+    return explicit.replace(/\/$/, "");
+  }
+
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  if (vercelUrl) {
+    return `https://${vercelUrl.replace(/\/$/, "")}`;
+  }
+
+  return "http://localhost:3000";
+}
+
+function mapUserRow(row: Record<string, unknown>): AuthUser {
+  return {
+    id: String(row.id),
+    email: String(row.email),
+    name: (row.name as string | null) ?? null,
+    emailVerifiedAt: (row.email_verified_at as string | null) ?? null,
+  };
+}
+
+async function createAuthEmailToken(userId: string, type: AuthEmailTokenType) {
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + (type === "email-confirmation" ? EMAIL_CONFIRMATION_DURATION_MS : PASSWORD_RESET_DURATION_MS)).toISOString();
+
+  await db.execute({
+    sql: `
+      insert into app_email_token (id, user_id, type, token_hash, expires_at, created_at, consumed_at)
+      values (?, ?, ?, ?, ?, ?, ?)
+    `,
+    args: [crypto.randomUUID(), userId, type, hashToken(token), expiresAt, isoNow(), null],
+  });
+
+  return token;
+}
+
+async function consumeAuthEmailToken(token: string, type: AuthEmailTokenType) {
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const result = await db.execute({
+    sql: `
+      select app_email_token.*, app_user.email as email, app_user.name as name, app_user.email_verified_at as email_verified_at
+      from app_email_token
+      join app_user on app_user.id = app_email_token.user_id
+      where app_email_token.token_hash = ? and app_email_token.type = ?
+      limit 1
+    `,
+    args: [hashToken(token), type],
+  });
+
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    throw new Error("Invalid or expired token");
+  }
+
+  if (row.consumed_at) {
+    throw new Error("Invalid or expired token");
+  }
+
+  if (new Date(String(row.expires_at)).getTime() <= Date.now()) {
+    throw new Error("Invalid or expired token");
+  }
+
+  await db.execute({
+    sql: "update app_email_token set consumed_at = ? where id = ?",
+    args: [isoNow(), String(row.id)],
+  });
+
+  return {
+    id: String(row.user_id),
+    email: String(row.email),
+    name: (row.name as string | null) ?? null,
+    emailVerifiedAt: (row.email_verified_at as string | null) ?? null,
+  } satisfies AuthUser;
+}
+
+async function sendVerificationEmail(user: AuthUser, token: string) {
+  const url = `${getBaseUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+  await sendEmail({
+    to: user.email,
+    subject: "Confirm your Music Tool email",
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+        <h1 style="font-size:24px">Confirm your email</h1>
+        <p>Hi ${user.name || user.email},</p>
+        <p>Confirm your Music Tool account to finish setup.</p>
+        <p><a href="${url}" style="display:inline-block;padding:12px 18px;background:#c2793f;color:#fff;text-decoration:none;border-radius:9999px">Confirm email</a></p>
+        <p>If the button does not work, open this link:</p>
+        <p>${url}</p>
+      </div>
+    `,
+    text: `Confirm your Music Tool email: ${url}`,
+  });
+}
+
+async function sendPasswordResetEmail(user: AuthUser, token: string) {
+  const url = `${getBaseUrl()}/reset-password?token=${encodeURIComponent(token)}`;
+  await sendEmail({
+    to: user.email,
+    subject: "Reset your Music Tool password",
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+        <h1 style="font-size:24px">Reset your password</h1>
+        <p>Hi ${user.name || user.email},</p>
+        <p>Use the link below to set a new Music Tool password.</p>
+        <p><a href="${url}" style="display:inline-block;padding:12px 18px;background:#c2793f;color:#fff;text-decoration:none;border-radius:9999px">Reset password</a></p>
+        <p>If the button does not work, open this link:</p>
+        <p>${url}</p>
+      </div>
+    `,
+    text: `Reset your Music Tool password: ${url}`,
+  });
 }
 
 function hashPassword(password: string) {
@@ -110,6 +247,7 @@ async function ensureAuthTables() {
       id text PRIMARY KEY NOT NULL,
       email text NOT NULL,
       name text,
+      email_verified_at text,
       password_hash text NOT NULL,
       created_at text NOT NULL,
       updated_at text NOT NULL
@@ -131,6 +269,26 @@ async function ensureAuthTables() {
     CREATE INDEX IF NOT EXISTS app_session_user_idx
     ON app_session (user_id, expires_at)
   `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS app_email_token (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL,
+      type text NOT NULL,
+      token_hash text NOT NULL,
+      expires_at text NOT NULL,
+      created_at text NOT NULL,
+      consumed_at text
+    )
+  `);
+  await db.execute(`
+    CREATE UNIQUE INDEX IF NOT EXISTS app_email_token_hash_idx
+    ON app_email_token (token_hash)
+  `);
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS app_email_token_user_idx
+    ON app_email_token (user_id, type, expires_at)
+  `);
+  await ensureColumn("app_user", "email_verified_at", "text");
 
   authTablesReady = true;
 }
@@ -150,7 +308,8 @@ async function getSessionRecord(sessionId: string | null) {
         app_session.expires_at as expires_at,
         app_user.id as id,
         app_user.email as email,
-        app_user.name as name
+        app_user.name as name,
+        app_user.email_verified_at as email_verified_at
       from app_session
       join app_user on app_user.id = app_session.user_id
       where app_session.id = ?
@@ -179,6 +338,7 @@ async function getSessionRecord(sessionId: string | null) {
       id: String(row.id),
       email: String(row.email),
       name: (row.name as string | null) ?? null,
+      emailVerifiedAt: (row.email_verified_at as string | null) ?? null,
     } satisfies AuthUser,
   };
 }
@@ -284,6 +444,7 @@ export async function registerUser(input: { name?: string | null; email: string;
     id: crypto.randomUUID(),
     email,
     name,
+    email_verified_at: null,
     password_hash: hashPassword(password),
     created_at: now,
     updated_at: now,
@@ -291,20 +452,21 @@ export async function registerUser(input: { name?: string | null; email: string;
 
   await db.execute({
     sql: `
-      insert into app_user (id, email, name, password_hash, created_at, updated_at)
-      values (?, ?, ?, ?, ?, ?)
+      insert into app_user (id, email, name, email_verified_at, password_hash, created_at, updated_at)
+      values (?, ?, ?, ?, ?, ?, ?)
     `,
-    args: [user.id, user.email, user.name, user.password_hash, user.created_at, user.updated_at],
+    args: [user.id, user.email, user.name, user.email_verified_at, user.password_hash, user.created_at, user.updated_at],
   });
 
-  const session = await createSession(user.id);
-  await setSessionCookie(session);
+  try {
+    const token = await createAuthEmailToken(user.id, "email-confirmation");
+    await sendVerificationEmail(mapUserRow(user), token);
+  } catch (error) {
+    await db.execute({ sql: "delete from app_user where id = ?", args: [user.id] });
+    throw error;
+  }
 
-  return {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-  } satisfies AuthUser;
+  return mapUserRow(user);
 }
 
 export async function loginUser(input: { email: string; password: string }) {
@@ -323,14 +485,99 @@ export async function loginUser(input: { email: string; password: string }) {
     throw new Error("Invalid email or password");
   }
 
+  if (!row.email_verified_at) {
+    throw new Error("Please confirm your email before logging in");
+  }
+
   const session = await createSession(String(row.id));
   await setSessionCookie(session);
 
+  return mapUserRow(row);
+}
+
+export async function resendEmailConfirmation(emailInput: string) {
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const email = normalizeEmail(emailInput);
+  if (!email || !email.includes("@")) {
+    throw new Error("A valid email is required");
+  }
+
+  const result = await db.execute({
+    sql: "select * from app_user where email = ? limit 1",
+    args: [email],
+  });
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    return;
+  }
+
+  if (row.email_verified_at) {
+    return;
+  }
+
+  const token = await createAuthEmailToken(String(row.id), "email-confirmation");
+  await sendVerificationEmail(mapUserRow(row), token);
+}
+
+export async function confirmEmail(token: string) {
+  const user = await consumeAuthEmailToken(token, "email-confirmation");
+  if (user.emailVerifiedAt) {
+    return user;
+  }
+
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const verifiedAt = isoNow();
+  await db.execute({
+    sql: "update app_user set email_verified_at = ?, updated_at = ? where id = ?",
+    args: [verifiedAt, verifiedAt, user.id],
+  });
+
   return {
-    id: String(row.id),
-    email: String(row.email),
-    name: (row.name as string | null) ?? null,
+    ...user,
+    emailVerifiedAt: verifiedAt,
   } satisfies AuthUser;
+}
+
+export async function requestPasswordReset(emailInput: string) {
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const email = normalizeEmail(emailInput);
+  if (!email || !email.includes("@")) {
+    throw new Error("A valid email is required");
+  }
+
+  const result = await db.execute({
+    sql: "select * from app_user where email = ? limit 1",
+    args: [email],
+  });
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    return;
+  }
+
+  const token = await createAuthEmailToken(String(row.id), "password-reset");
+  await sendPasswordResetEmail(mapUserRow(row), token);
+}
+
+export async function resetPassword(token: string, nextPassword: string) {
+  const password = nextPassword.trim();
+  if (password.length < 8) {
+    throw new Error("Password must be at least 8 characters");
+  }
+
+  const user = await consumeAuthEmailToken(token, "password-reset");
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const now = isoNow();
+  await db.execute({
+    sql: "update app_user set password_hash = ?, updated_at = ? where id = ?",
+    args: [hashPassword(password), now, user.id],
+  });
+  await db.execute({ sql: "delete from app_session where user_id = ?", args: [user.id] });
+
+  return user;
 }
 
 export async function logoutUser(request: Request) {

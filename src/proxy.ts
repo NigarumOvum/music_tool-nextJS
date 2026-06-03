@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 import { SESSION_COOKIE_NAME } from "@/lib/auth-constants";
 
-const AUTH_PAGES = new Set(["/login", "/register"]);
+const AUTH_PAGES = new Set(["/login", "/register", "/forgot-password", "/reset-password", "/verify-email"]);
 const PUBLIC_PREFIXES = ["/_next", "/favicon.ico"];
 
 function isPublicPath(pathname: string) {
