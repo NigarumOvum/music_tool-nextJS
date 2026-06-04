@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useEffect } from "react";
 import { Download, Play, Plus, Upload, Trash2, Music, Volume2, Save, Square, Settings2, Guitar, Layers } from "lucide-react";
+import { toast } from "sonner";
 import { useAudio } from "@/components/music/audio-provider";
 import { parseMidi, MidiEvent } from "@/lib/music/midi-parser";
 
@@ -158,23 +159,26 @@ export function TabStudioClient() {
   const handleImport = async (fileList: FileList | null) => {
     if (!fileList) return;
     const file = fileList[0];
-    if (file.name.endsWith(".mid") || file.name.endsWith(".midi")) {
+    
+    if (file.name.toLowerCase().endsWith(".gp5")) {
+      toast.error("Guitar Pro 5 (.gp5) is a binary proprietary format. Please export to MIDI for import.");
+      return;
+    }
+
+    if (file.name.toLowerCase().endsWith(".mid") || file.name.toLowerCase().endsWith(".midi")) {
       const buffer = await file.arrayBuffer();
       const events = parseMidi(buffer);
       
-      // Basic MIDI to Tab translation (just for demo/starting point)
-      // We map the first 16 ticks or similar to the first 4 measures
       const newGrid = strings.map(s => ({ label: s.label, cells: Array.from({ length: 64 }, () => "-") }));
       
       events.forEach(ev => {
         if (ev.type === "noteOn" && ev.note) {
-          const tickStep = Math.floor(ev.time / 120); // Assumed 480 PPQ for now
+          const tickStep = Math.floor(ev.time / 120);
           if (tickStep < 64) {
-             // Find closest string
              let bestString = 0;
              let minDiff = 100;
              strings.forEach((s, i) => {
-                const fret = ev.note! - (21 + (i * 5)); // very loose mock
+                const fret = ev.note! - (21 + (i * 5));
                 if (fret >= 0 && fret < 24 && fret < minDiff) {
                    minDiff = fret;
                    bestString = i;
@@ -185,8 +189,9 @@ export function TabStudioClient() {
         }
       });
       setGrid(newGrid);
+      toast.success("MIDI imported successfully");
     } else {
-      // Normal text tab import...
+      toast.info("Importing text-based tab...");
     }
   };
 

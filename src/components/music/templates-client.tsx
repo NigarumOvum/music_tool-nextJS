@@ -14,9 +14,6 @@ type TemplateDraft = {
   name: string;
   category: string;
   description: string;
-  targetType: "song-field" | "part";
-  targetField: string;
-  targetKinds: string[];
   instructions: string;
 };
 
@@ -35,9 +32,6 @@ const emptyDraft: TemplateDraft = {
   name: "",
   category: "",
   description: "",
-  targetType: "song-field",
-  targetField: "lyrics_text",
-  targetKinds: ["section"],
   instructions: "",
 };
 
@@ -180,15 +174,6 @@ export function TemplatesClient({
           <input className="field" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder={namePlaceholder} />
           <input className="field" value={draft.category} onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))} placeholder="Category" />
           <input className="field" value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Description" />
-          <select className="field" value={draft.targetType} onChange={(event) => setDraft((current) => ({ ...current, targetType: event.target.value as "song-field" | "part" }))}>
-            <option value="song-field">song-field</option>
-            <option value="part">part</option>
-          </select>
-          {draft.targetType === "song-field" ? (
-            <input className="field" value={draft.targetField} onChange={(event) => setDraft((current) => ({ ...current, targetField: event.target.value }))} placeholder="lyrics_text" />
-          ) : (
-            <input className="field" value={draft.targetKinds.join(", ")} onChange={(event) => setDraft((current) => ({ ...current, targetKinds: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) }))} placeholder="section, layer" />
-          )}
           <textarea className="field min-h-56" value={draft.instructions} onChange={(event) => setDraft((current) => ({ ...current, instructions: event.target.value }))} placeholder={instructionsPlaceholder} />
           <div className="flex gap-2">
             <Button className="bg-[var(--color-copper)] text-white" radius="full" onPress={persistTemplate}>
