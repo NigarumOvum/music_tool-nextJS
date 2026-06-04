@@ -12,6 +12,8 @@ const CHORDS = { "Major": [0, 4, 7], "Minor": [0, 3, 7], "Diminished": [0, 3, 6]
 export function TheoryLabClient() {
   const { getAudioContext } = useAudio();
   const [root, setRoot] = useState("C");
+  const [scaleType, setScaleType] = useState<keyof typeof SCALES>("Major");
+  const [chordType, setChordType] = useState<keyof typeof CHORDS>("Major");
 
   const playNote = (note: string, offset = 0) => {
     const ctx = getAudioContext();
