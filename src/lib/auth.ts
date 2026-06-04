@@ -117,7 +117,12 @@ function mapUserRow(row: Record<string, unknown>): AuthUser {
 }
 
 function getDefaultPageAccessMap() {
-  return Object.fromEntries(MANAGEABLE_PAGES.map((page) => [page.key, true])) as Record<ManagedPageKey, boolean>;
+  return Object.fromEntries(
+    MANAGEABLE_PAGES.map((page) => [
+      page.key,
+      page.key !== "song-studio" && page.key !== "prompt-library",
+    ]),
+  ) as Record<ManagedPageKey, boolean>;
 }
 
 async function ensureBootstrapAdmins() {
