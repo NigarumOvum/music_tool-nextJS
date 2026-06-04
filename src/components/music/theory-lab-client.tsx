@@ -1,21 +1,15 @@
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Music, Search } from "lucide-react";
+import { useAudio } from "@/components/music/audio-provider";
 
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-// ... (Scales/Chords maps remain the same)
+const SCALES = { "Major": [0, 2, 4, 5, 7, 9, 11], "Minor": [0, 2, 3, 5, 7, 8, 10], "Dorian": [0, 2, 3, 5, 7, 9, 10], "Phrygian": [0, 1, 3, 5, 7, 8, 10], "Lydian": [0, 2, 4, 6, 7, 9, 11], "Mixolydian": [0, 2, 4, 5, 7, 9, 10], "Aeolian": [0, 2, 3, 5, 7, 8, 10], "Locrian": [0, 1, 3, 5, 6, 8, 10] };
+const CHORDS = { "Major": [0, 4, 7], "Minor": [0, 3, 7], "Diminished": [0, 3, 6], "Augmented": [0, 4, 8], "Major 7": [0, 4, 7, 11], "Minor 7": [0, 3, 7, 10], "Dominant 7": [0, 4, 7, 10] };
 
 export function TheoryLabClient() {
+  const { getAudioContext } = useAudio();
   const [root, setRoot] = useState("C");
-  const [scaleType, setScaleType] = useState<keyof typeof SCALES>("Major");
-  const [chordType, setChordType] = useState<keyof typeof CHORDS>("Major");
-  const audioContextRef = useRef<AudioContext | null>(null);
-
-  const getAudioContext = () => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    return audioContextRef.current;
-  };
 
   const playNote = (note: string, offset = 0) => {
     const ctx = getAudioContext();

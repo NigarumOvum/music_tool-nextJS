@@ -1,27 +1,30 @@
+"use client";
+
 import { useState, useEffect, useRef } from "react";
 import { Play, Square, Activity, Radio, Volume2, Mic, MicOff } from "lucide-react";
+import { useAudio } from "@/components/music/audio-provider";
 
-// ... (Pitches map remains same)
+const REFERENCE_PITCHES = [
+  { name: "E4", freq: 329.63 },
+  { name: "B3", freq: 246.94 },
+  { name: "G3", freq: 196.00 },
+  { name: "D3", freq: 146.83 },
+  { name: "A2", freq: 110.00 },
+  { name: "E2", freq: 82.41 },
+];
 
 export function HelpersClient() {
+  const { getAudioContext } = useAudio();
   const [bpm, setBpm] = useState(120);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activePitch, setActivePitch] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   
-  const audioContextRef = useRef<AudioContext | null>(null);
   const oscillatorRef = useRef<OscillatorNode | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const analyzerRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const requestRef = useRef<number | null>(null);
-
-  const getAudioContext = () => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    return audioContextRef.current;
-  };
 
   // Metronome logic ...
   const playClick = () => {
@@ -114,7 +117,7 @@ export function HelpersClient() {
       setActivePitch(null);
       return;
     }
-    oscillatorRef.current?.stop();
+    if (oscillatorRef.current) oscillatorRef.current.stop();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.frequency.setValueAtTime(pitch.freq, ctx.currentTime);

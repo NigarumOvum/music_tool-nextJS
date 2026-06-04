@@ -1,18 +1,22 @@
+import { useState, useRef } from "react";
+import { Plus, Trash2, PlayCircle, Music, Layers, Zap } from "lucide-react";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
-// ... (Chord interface remains same)
+import { useAudio } from "@/components/music/audio-provider";
+
+const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const QUALITIES = ["Maj", "min", "7", "maj7", "min7", "dim", "sus4"];
+
+interface Chord {
+  id: string;
+  root: string;
+  quality: string;
+}
 
 export function ProgressionClient() {
+  const { getAudioContext } = useAudio();
   const [progression, setProgression] = useState<Chord[]>([]);
   const [root, setRoot] = useState("C");
   const [quality, setQuality] = useState("Maj");
-  const audioContextRef = useRef<AudioContext | null>(null);
-
-  const getAudioContext = () => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    return audioContextRef.current;
-  };
 
   const playNote = (freq: number, startTime: number, delay: number, duration = 1.5) => {
     const ctx = getAudioContext();
