@@ -10,8 +10,6 @@ import type { ManagedPageKey } from "@/lib/access";
 import { BookOpen, Drum, Guitar, Music, Music2, NotebookPen, PanelTop, RadioTower, ScrollText, User, Waves, Wrench } from "lucide-react";
 
 const navItems = [
-  { href: "/", label: "Home", icon: Music2 },
-  { href: "/account", label: "Account", icon: User },
   { href: "/song-studio", label: "Song Studio", icon: PanelTop, pageKey: "song-studio" as ManagedPageKey },
   { href: "/lyrics-library", label: "Lyrics Library", icon: ScrollText, pageKey: "lyrics-library" as ManagedPageKey },
   { href: "/daw", label: "DAW", icon: Waves, pageKey: "daw" as ManagedPageKey },
