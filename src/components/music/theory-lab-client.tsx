@@ -1,3 +1,5 @@
+"use client";
+
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
 import { useEffect, useRef, useState } from "react";
 import { Music, Search } from "lucide-react";

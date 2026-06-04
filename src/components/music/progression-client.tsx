@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useRef } from "react";
 import { Plus, Trash2, PlayCircle, Music, Layers, Zap } from "lucide-react";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
