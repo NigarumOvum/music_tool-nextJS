@@ -156,6 +156,25 @@ export function TabStudioClient() {
     }
   }, [isPlaying]);
 
+  const exportAsciiTab = () => {
+    if (grid.length === 0) return;
+    const lines = grid.map((row) => {
+      const content = row.cells
+        .map((cell) => (cell === "-" || cell === "" ? "-" : cell.toString()))
+        .join("-");
+      return `${row.label.toUpperCase()} |${content}|`;
+    });
+    const tab = [`Tab Studio Export (${instrument})`, `Tempo: ${bpm} BPM`, "", ...lines, ""].join("\n");
+    const blob = new Blob([tab], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "tab-export.txt";
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success("Tab exported as ASCII text");
+  };
+
   const handleImport = async (fileList: FileList | null) => {
     if (!fileList) return;
     const file = fileList[0];
@@ -228,6 +247,10 @@ export function TabStudioClient() {
          <div className="flex gap-2">
             <input ref={inputRef} type="file" className="hidden" onChange={(e) => handleImport(e.target.files)} />
             <button onClick={() => inputRef.current?.click()} className="glass-pill px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black">Import MIDI/Tab</button>
+            <button onClick={exportAsciiTab} className="glass-pill px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black">
+              <Download className="h-3.5 w-3.5 mr-1 inline" />
+              Export Tab
+            </button>
          </div>
       </div>
 

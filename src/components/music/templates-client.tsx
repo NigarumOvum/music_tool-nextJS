@@ -15,6 +15,9 @@ type TemplateDraft = {
   category: string;
   description: string;
   instructions: string;
+  targetType: MusicTaskTemplateRecord["targetType"];
+  targetField: string;
+  targetKinds: MusicTaskTemplateRecord["targetKinds"];
 };
 
 type TemplatesClientProps = {
@@ -33,6 +36,9 @@ const emptyDraft: TemplateDraft = {
   category: "",
   description: "",
   instructions: "",
+  targetType: "song-field",
+  targetField: "",
+  targetKinds: [],
 };
 
 export function TemplatesClient({
@@ -92,11 +98,20 @@ export function TemplatesClient({
 
   async function persistTemplate() {
     try {
+      const payload = {
+        name: draft.name,
+        category: draft.category || null,
+        description: draft.description || null,
+        targetType: draft.targetType,
+        targetField: draft.targetField || (draft.targetType === "song-field" ? "lyrics_text" : null),
+        targetKinds: draft.targetKinds,
+        instructions: draft.instructions,
+      };
       if (draft.id) {
-        await updateTemplate(draft.id, draft);
+        await updateTemplate(draft.id, payload);
         toast.success(`${itemLabel} updated`);
       } else {
-        await createTemplate(draft);
+        await createTemplate(payload);
         toast.success(`${itemLabel} created`);
       }
       setDraft(emptyDraft);
@@ -142,6 +157,9 @@ export function TemplatesClient({
                       {template.category ? <Chip size="sm" variant="flat">{template.category}</Chip> : null}
                       <Chip size="sm" variant="flat">{template.targetType}</Chip>
                       {template.targetField ? <Chip size="sm" variant="flat">{template.targetField}</Chip> : null}
+                      {template.targetKinds.length > 0 ? (
+                        <Chip size="sm" variant="flat">{template.targetKinds.join(", ")}</Chip>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -151,7 +169,7 @@ export function TemplatesClient({
                       category: template.category || "",
                       description: template.description || "",
                       targetType: template.targetType,
-                      targetField: template.targetField || "lyrics_text",
+                      targetField: template.targetField || "",
                       targetKinds: template.targetKinds,
                       instructions: template.instructions,
                     })}>Edit</Button>
@@ -174,6 +192,54 @@ export function TemplatesClient({
           <input className="field" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder={namePlaceholder} />
           <input className="field" value={draft.category} onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))} placeholder="Category" />
           <input className="field" value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Description" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <select
+              className="field"
+              value={draft.targetType}
+              onChange={(event) => setDraft((current) => ({ ...current, targetType: event.target.value as MusicTaskTemplateRecord["targetType"] }))}
+            >
+              <option value="song-field">Song field</option>
+              <option value="part">Song part (section/layer)</option>
+            </select>
+            <input
+              className="field"
+              value={draft.targetField}
+              onChange={(event) => setDraft((current) => ({ ...current, targetField: event.target.value }))}
+              placeholder={draft.targetType === "part" ? "Part name (e.g. verse_1)" : "Field (e.g. lyrics_text)"}
+            />
+          </div>
+          {draft.targetType === "part" ? (
+            <div className="flex flex-wrap gap-2">
+              {(["section", "layer"] as const).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  onClick={() => setDraft((current) => ({
+                    ...current,
+                    targetKinds: current.targetKinds.includes(kind)
+                      ? current.targetKinds.filter((item) => item !== kind)
+                      : [...current.targetKinds, kind],
+                  }))}
+                  className={`glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition ${
+                    draft.targetKinds.includes(kind)
+                      ? "bg-[var(--color-copper)] text-white"
+                      : "opacity-50 hover:opacity-100"
+                  }`}
+                >
+                  {kind}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <textarea
+            className="field min-h-32 font-mono text-xs"
+            value={draft.targetType === "part" && draft.targetKinds.length > 0
+              ? `Applies to ${draft.targetKinds.join(" + ")} named ${draft.targetField || "(all)"}`
+              : draft.targetField
+                ? `Applies to field: ${draft.targetField}`
+                : "Targets the primary song record"}
+            readOnly
+          />
           <textarea className="field min-h-56" value={draft.instructions} onChange={(event) => setDraft((current) => ({ ...current, instructions: event.target.value }))} placeholder={instructionsPlaceholder} />
           <div className="flex gap-2">
             <Button className="bg-[var(--color-copper)] text-white" radius="full" onPress={persistTemplate}>

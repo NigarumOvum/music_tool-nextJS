@@ -5,7 +5,7 @@ import { Button, Spinner } from "@heroui/react";
 import { Save, Trash2, FileText, Pickaxe, Book, Layout } from "lucide-react";
 import { toast } from "sonner";
 
-import { createPartiture, deletePartiture, fetchPartitures, fetchSongDetail, fetchSongs, updatePartiture } from "@/lib/music/client";
+import { createPartiture, deletePartiture, fetchPartitures, fetchSongDetail, fetchSongs, updatePartiture, updateSong } from "@/lib/music/client";
 import type { MusicSongDetail, MusicSongSummary } from "@/lib/music/types";
 
 type EditablePartiture = {
@@ -23,6 +23,24 @@ export function LyricsLibraryClient() {
   const [selectedSongId, setSelectedSongId] = useState("");
   const [partitures, setPartitures] = useState<EditablePartiture[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [genre, setGenre] = useState("");
+  const [language, setLanguage] = useState("");
+
+  const filteredSongs = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const genreQuery = genre.trim().toLowerCase();
+    const languageQuery = language.trim().toLowerCase();
+    return songs.filter((song) => {
+      if (query && !song.title.toLowerCase().includes(query)) return false;
+      if (genreQuery && !(song.genre || "").toLowerCase().includes(genreQuery)) return false;
+      if (languageQuery && !(song.language || "").toLowerCase().includes(languageQuery)) return false;
+      return true;
+    });
+  }, [songs, search, genre, language]);
+
+  const genres = useMemo(() => Array.from(new Set(songs.map((s) => s.genre).filter((g): g is string => Boolean(g)))).sort(), [songs]);
+  const languages = useMemo(() => Array.from(new Set(songs.map((s) => s.language).filter((l): l is string => Boolean(l)))).sort(), [songs]);
 
   const guitarSlots = useMemo(() => {
     const bySlot = new Map<number, EditablePartiture>();
@@ -82,6 +100,26 @@ export function LyricsLibraryClient() {
     })();
   }, []);
 
+  async function persistLyrics() {
+    if (!selectedSong) return;
+    try {
+      const payload = await updateSong(selectedSong.song.id, {
+        lyrics_text: selectedSong.song.lyrics_text,
+        structure_text: selectedSong.song.structure_text,
+      });
+      setSelectedSong(payload.song);
+      toast.success("Lyrics saved");
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
+
+  function updateLyricsField(field: "lyrics_text" | "structure_text", value: string) {
+    setSelectedSong((current) => current
+      ? { ...current, song: { ...current.song, [field]: value } }
+      : current);
+  }
+
   async function persistPartiture(partiture: EditablePartiture) {
     if (!selectedSongId) return;
     try {
@@ -112,8 +150,29 @@ export function LyricsLibraryClient() {
     <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
       <aside className="panel rounded-[1.75rem] p-4">
         <div className="eyebrow">Catalog</div>
-        <div className="mt-4 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex-col xl:overflow-visible xl:pb-0">
-          {songs.map((song) => (
+        <div className="mt-3 space-y-2">
+          <input
+            className="field"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search title..."
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <select value={genre} onChange={(e) => setGenre(e.target.value)} className="field">
+              <option value="">All genres</option>
+              {genres.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="field">
+              <option value="">All languages</option>
+              {languages.map((l) => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="mt-4 text-[10px] font-bold uppercase tracking-widest text-[var(--color-sand-2)]">
+          {filteredSongs.length} of {songs.length} songs
+        </div>
+        <div className="mt-2 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex-col xl:overflow-visible xl:pb-0">
+          {filteredSongs.map((song) => (
             <button
               key={song.id}
               type="button"
@@ -124,6 +183,9 @@ export function LyricsLibraryClient() {
               <div className="mt-1 text-[10px] uppercase font-bold tracking-widest text-[var(--color-sand-2)]">{song.genre || "N/A"}</div>
             </button>
           ))}
+          {filteredSongs.length === 0 ? (
+            <div className="py-4 text-sm text-[var(--color-sand-2)]">No songs match the filters.</div>
+          ) : null}
         </div>
       </aside>
 
@@ -133,18 +195,35 @@ export function LyricsLibraryClient() {
         ) : selectedSong ? (
           <>
             <div className="panel rounded-[2rem] p-6 border border-white/5 bg-zinc-900/10">
-              <div className="flex items-center gap-3 mb-6">
-                <Book className="h-5 w-5 text-[var(--color-brass)]" />
-                <h2 className="text-3xl font-black tracking-tighter">{selectedSong.song.title}</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div className="flex items-center gap-3">
+                  <Book className="h-5 w-5 text-[var(--color-brass)]" />
+                  <h2 className="text-3xl font-black tracking-tighter">{selectedSong.song.title}</h2>
+                </div>
+                <button
+                  onClick={() => void persistLyrics()}
+                  className="glass-pill px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-[var(--color-copper)] text-white hover:scale-105 transition-all"
+                >
+                  <Save className="h-3.5 w-3.5 mr-1 inline" />
+                  Save Lyrics
+                </button>
               </div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="relative">
                    <span className="absolute left-3 top-3 eyebrow text-[8px] opacity-40">Lyrics</span>
-                   <textarea className="field min-h-72 pt-8" value={selectedSong.song.lyrics_text ?? ""} readOnly />
+                   <textarea
+                     className="field min-h-72 pt-8"
+                     value={selectedSong.song.lyrics_text ?? ""}
+                     onChange={(e) => updateLyricsField("lyrics_text", e.target.value)}
+                   />
                 </div>
                 <div className="relative">
                    <span className="absolute left-3 top-3 eyebrow text-[8px] opacity-40">Structure</span>
-                   <textarea className="field min-h-72 pt-8" value={selectedSong.song.structure_text ?? ""} readOnly />
+                   <textarea
+                     className="field min-h-72 pt-8"
+                     value={selectedSong.song.structure_text ?? ""}
+                     onChange={(e) => updateLyricsField("structure_text", e.target.value)}
+                   />
                 </div>
               </div>
             </div>

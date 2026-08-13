@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
-import { MANAGEABLE_PAGES, type ManagedPageKey } from "@/lib/access";
+import { ALL_ACCESS_PAGE_MAP, MANAGEABLE_PAGES, type ManagedPageKey } from "@/lib/access";
 import { SESSION_COOKIE_NAME } from "@/lib/auth-constants";
 import { sendEmail } from "@/lib/email";
 
@@ -106,22 +106,31 @@ function getBaseUrl() {
   return "http://localhost:3000";
 }
 
-function mapUserRow(row: Record<string, unknown>): AuthUser {
+function resolveIsAdmin(email: string, isAdminFromDb: boolean) {
+  return isAdminFromDb || isBootstrapAdminEmail(email);
+}
+
+function normalizeAuthUser(user: AuthUser): AuthUser {
   return {
+    ...user,
+    isAdmin: resolveIsAdmin(user.email, user.isAdmin),
+  };
+}
+
+function mapUserRow(row: Record<string, unknown>): AuthUser {
+  const email = String(row.email);
+  return normalizeAuthUser({
     id: String(row.id),
-    email: String(row.email),
+    email,
     name: (row.name as string | null) ?? null,
     emailVerifiedAt: (row.email_verified_at as string | null) ?? null,
     isAdmin: Number(row.is_admin ?? 0) === 1,
-  };
+  });
 }
 
 function getDefaultPageAccessMap() {
   return Object.fromEntries(
-    MANAGEABLE_PAGES.map((page) => [
-      page.key,
-      page.key !== "song-studio" && page.key !== "prompt-library",
-    ]),
+    MANAGEABLE_PAGES.map((page) => [page.key, false]),
   ) as Record<ManagedPageKey, boolean>;
 }
 
@@ -137,7 +146,7 @@ async function ensureBootstrapAdmins() {
 
 async function getUserPageAccessMap(userId: string, isAdmin: boolean) {
   if (isAdmin) {
-    return getDefaultPageAccessMap();
+    return ALL_ACCESS_PAGE_MAP;
   }
 
   await ensureAuthTables();
@@ -209,13 +218,13 @@ async function consumeAuthEmailToken(token: string, type: AuthEmailTokenType) {
     args: [isoNow(), String(row.id)],
   });
 
-  return {
+  return normalizeAuthUser({
     id: String(row.user_id),
     email: String(row.email),
     name: (row.name as string | null) ?? null,
     emailVerifiedAt: (row.email_verified_at as string | null) ?? null,
     isAdmin: Number(row.is_admin ?? 0) === 1,
-  } satisfies AuthUser;
+  });
 }
 
 async function sendVerificationEmail(user: AuthUser, token: string) {
@@ -299,11 +308,13 @@ function parseCookieValue(header: string | null, name: string) {
 }
 
 async function ensureAuthTables() {
+  const db = getAuthClient();
+
   if (authTablesReady) {
+    await ensureBootstrapAdmins();
     return;
   }
 
-  const db = getAuthClient();
   await db.execute(`
     CREATE TABLE IF NOT EXISTS app_user (
       id text PRIMARY KEY NOT NULL,
@@ -414,13 +425,13 @@ async function getSessionRecord(sessionId: string | null) {
       userId: String(row.user_id),
       expiresAt: String(row.expires_at),
     } satisfies AuthSession,
-    user: {
+    user: normalizeAuthUser({
       id: String(row.id),
       email: String(row.email),
       name: (row.name as string | null) ?? null,
       emailVerifiedAt: (row.email_verified_at as string | null) ?? null,
       isAdmin: Number(row.is_admin ?? 0) === 1,
-    } satisfies AuthUser,
+    }),
   };
 }
 
@@ -500,13 +511,15 @@ export async function listRegisteredUsersWithAccess() {
 
   return usersResult.rows.map((row) => {
     const user = mapUserRow(row as Record<string, unknown>);
+    const pageAccess = user.isAdmin ? ALL_ACCESS_PAGE_MAP : (accessByUser.get(user.id) || getDefaultPageAccessMap());
+
     return {
       id: user.id,
       email: user.email,
       name: user.name,
       emailVerifiedAt: user.emailVerifiedAt,
       isAdmin: user.isAdmin,
-      pageAccess: user.isAdmin ? getDefaultPageAccessMap() : (accessByUser.get(user.id) || getDefaultPageAccessMap()),
+      pageAccess,
     } satisfies RegisteredUserAccess;
   });
 }

@@ -13,27 +13,38 @@ const REFERENCE_PITCHES = [
   { name: "E2", freq: 82.41 },
 ];
 
+const TIME_SIGNATURES = ["4/4", "3/4", "2/4", "6/8"] as const;
+
 export function HelpersClient() {
   const { getAudioContext } = useAudio();
   const [bpm, setBpm] = useState(120);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activePitch, setActivePitch] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
+  const [timeSignature, setTimeSignature] = useState<(typeof TIME_SIGNATURES)[number]>("4/4");
+  const [subdivision, setSubdivision] = useState<1 | 2 | 4>(1);
+  const [beatCount, setBeatCount] = useState(0);
   
   const oscillatorRef = useRef<OscillatorNode | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const analyzerRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const requestRef = useRef<number | null>(null);
+  const stepRef = useRef(0);
+
+  const getBeatsPerBar = (sig: (typeof TIME_SIGNATURES)[number]) => {
+    if (sig === "6/8") return 6;
+    return Number(sig.split("/")[0]);
+  };
 
   // Metronome logic ...
-  const playClick = () => {
+  const playClick = (isAccent: boolean, volume = 1) => {
     const ctx = getAudioContext();
     const osc = ctx.createOscillator();
     const envelope = ctx.createGain();
     osc.type = "sine";
-    osc.frequency.setValueAtTime(1200, ctx.currentTime);
-    envelope.gain.setValueAtTime(0.5, ctx.currentTime);
+    osc.frequency.setValueAtTime(isAccent ? 1600 : 1200, ctx.currentTime);
+    envelope.gain.setValueAtTime(0.5 * volume, ctx.currentTime);
     envelope.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
     osc.connect(envelope);
     envelope.connect(ctx.destination);
@@ -43,16 +54,36 @@ export function HelpersClient() {
 
   useEffect(() => {
     if (isPlaying) {
-      const interval = (60 / bpm) * 1000;
-      timerRef.current = setInterval(playClick, interval);
-      playClick();
+      stepRef.current = 0;
+      const beatsPerBar = getBeatsPerBar(timeSignature);
+      const baseIntervalMs = (60 / bpm) * 1000;
+      const stepIntervalMs = baseIntervalMs / subdivision;
+
+      const tick = () => {
+        const step = stepRef.current;
+        const beatInBar = Math.floor(step / subdivision) % beatsPerBar;
+        const isSubdivisionStep = step % subdivision !== 0;
+        if (subdivision === 1) {
+          playClick(beatInBar === 0, 1);
+        } else if (isSubdivisionStep) {
+          playClick(false, 0.35);
+        } else {
+          playClick(beatInBar === 0, 1);
+        }
+        setBeatCount(beatInBar);
+        stepRef.current += 1;
+      };
+
+      tick();
+      timerRef.current = setInterval(tick, stepIntervalMs);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
+      setBeatCount(0);
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, bpm]);
+  }, [isPlaying, bpm, timeSignature, subdivision]);
 
   // Tuner Logic (Visualizer)
   const toggleListening = async () => {
@@ -142,9 +173,53 @@ export function HelpersClient() {
           <div className={`h-2 w-2 rounded-full ${isPlaying ? "bg-[var(--color-mint)] shadow-[0_0_10px_var(--color-mint)] mb-1" : "bg-zinc-800"}`} />
         </div>
 
-        <div className="flex flex-col items-center gap-6 py-2">
-          <div className="text-6xl font-black tabular-nums tracking-tighter text-[var(--color-foreground)]">
-            {bpm} <span className="text-sm font-bold text-[var(--color-sand-2)] ml-[-8px]">BPM</span>
+        <div className="flex flex-col items-center gap-4 py-2">
+          <div className="flex items-baseline gap-3 text-6xl font-black tabular-nums tracking-tighter text-[var(--color-foreground)]">
+            {bpm}
+            <span className="text-sm font-bold text-[var(--color-sand-2)] ml-[-8px]">BPM</span>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex flex-col">
+              <span className="text-[8px] font-black uppercase tracking-widest opacity-40 mb-1">Signature</span>
+              <select
+                value={timeSignature}
+                onChange={(e) => setTimeSignature(e.target.value as (typeof TIME_SIGNATURES)[number])}
+                className="glass-pill px-3 py-1.5 text-xs font-bold border-none outline-none"
+              >
+                {TIME_SIGNATURES.map((sig) => (
+                  <option key={sig} value={sig}>{sig}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[8px] font-black uppercase tracking-widest opacity-40 mb-1">Subdivision</span>
+              <select
+                value={subdivision}
+                onChange={(e) => setSubdivision(Number(e.target.value) as 1 | 2 | 4)}
+                className="glass-pill px-3 py-1.5 text-xs font-bold border-none outline-none"
+              >
+                <option value={1}>Quarter</option>
+                <option value={2}>Eighths</option>
+                <option value={4}>Sixteenths</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-1.5">
+            {Array.from({ length: getBeatsPerBar(timeSignature) }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIsPlaying(!isPlaying)}
+                className={`h-2.5 rounded-full transition-all ${
+                  isPlaying && beatCount === i
+                    ? "w-6 bg-[var(--color-mint)]"
+                    : "w-2.5 bg-zinc-700"
+                }`}
+                aria-label={`Beat ${i + 1}`}
+              />
+            ))}
           </div>
 
           <input

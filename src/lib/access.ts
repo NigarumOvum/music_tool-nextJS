@@ -14,3 +14,8 @@ export type ManagedPageKey = (typeof MANAGEABLE_PAGES)[number]["key"];
 export function isManagedPageKey(value: string): value is ManagedPageKey {
   return MANAGEABLE_PAGES.some((page) => page.key === value);
 }
+
+/** Every page is accessible (used for admins). */
+export const ALL_ACCESS_PAGE_MAP: Record<ManagedPageKey, boolean> = Object.fromEntries(
+  MANAGEABLE_PAGES.map((page) => [page.key, true]),
+) as Record<ManagedPageKey, boolean>;

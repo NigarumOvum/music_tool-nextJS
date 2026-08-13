@@ -88,6 +88,37 @@ export function DawClient() {
     };
   }, []);
 
+  const exportManifest = () => {
+    const manifest = {
+      app: "music-tool-daw",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      bpm: 120,
+      layers: layers.map((layer) => ({
+        name: layer.name,
+        kind: layer.kind,
+        asset: assets.find((asset) => asset.id === layer.assetId)?.name || null,
+        gain: layer.gain,
+        pan: layer.pan,
+        mute: layer.mute,
+        solo: layer.solo,
+      })),
+      assets: assets.map((asset) => ({
+        name: asset.name,
+        kind: asset.kind,
+        format: asset.format,
+        size: asset.size,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "daw-session.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4">
       {/* Top Toolbar */}
@@ -107,6 +138,10 @@ export function DawClient() {
         <div className="flex items-center gap-2">
           <input ref={inputRef} type="file" multiple className="hidden" onChange={(e) => importFiles(e.target.files)} />
           <button onClick={() => inputRef.current?.click()} className="glass-pill px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all">Import Assets</button>
+          <button onClick={exportManifest} className="glass-pill px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+            <Download className="h-3.5 w-3.5 mr-1 inline" />
+            Export Session
+          </button>
           <div className="h-4 w-[1px] bg-white/10 mx-2" />
           <div className="flex gap-1">
              <button onClick={() => addTrack("audio")} className="glass-pill px-3 py-2 text-[8px] font-black uppercase text-[var(--color-mint)] border-[var(--color-mint)]/20 hover:bg-[var(--color-mint)] hover:text-black transition-all">+ Audio</button>
