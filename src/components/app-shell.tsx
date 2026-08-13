@@ -4,17 +4,25 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
-import { AppNavLinks } from "@/components/app-nav-links";
+import { AppNavLinks, type AppNavIconId } from "@/components/app-nav-links";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ensureUserCanAccessPage, requireCurrentUser } from "@/lib/auth";
 import type { ManagedPageKey } from "@/lib/access";
 import { canAccessMusicToolkit, canAccessProductionStudio } from "@/lib/hub-access";
-import { BookOpen, Music2, NotebookPen, PanelTop } from "lucide-react";
+import { Music2 } from "lucide-react";
 
-const navItems = [
-  { href: "/production-studio", label: "Production Studio", icon: PanelTop, hub: "production" as const },
-  { href: "/music-toolkit", label: "Music Toolkit", icon: BookOpen, hub: "toolkit" as const },
-  { href: "/prompt-library", label: "Prompt Library", icon: NotebookPen, pageKey: "prompt-library" as const },
+type NavItemConfig = {
+  href: string;
+  label: string;
+  icon: AppNavIconId;
+  hub?: "production" | "toolkit";
+  pageKey?: ManagedPageKey;
+};
+
+const navItems: NavItemConfig[] = [
+  { href: "/production-studio", label: "Production Studio", icon: "production", hub: "production" },
+  { href: "/music-toolkit", label: "Music Toolkit", icon: "toolkit", hub: "toolkit" },
+  { href: "/prompt-library", label: "Prompt Library", icon: "prompt-library", pageKey: "prompt-library" },
 ];
 
 type AppShellProps = {
@@ -51,7 +59,9 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
         return item;
       }),
     )
-  ).filter((item): item is (typeof navItems)[number] => Boolean(item));
+  ).filter((item): item is NavItemConfig => Boolean(item));
+
+  const navLinks = visibleNavItems.map(({ href, label, icon }) => ({ href, label, icon }));
 
   return (
     <div className="grain min-h-screen px-4 py-6 sm:px-6 lg:px-8">
@@ -75,7 +85,7 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
             </div>
 
             <nav className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex-1">
-              <AppNavLinks items={visibleNavItems} />
+              <AppNavLinks items={navLinks} />
             </nav>
 
             <div className="hidden items-center gap-2 xl:flex">

@@ -2,12 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
+import { BookOpen, NotebookPen, PanelTop, type LucideIcon } from "lucide-react";
+
+export type AppNavIconId = "production" | "toolkit" | "prompt-library";
+
+const NAV_ICONS: Record<AppNavIconId, LucideIcon> = {
+  production: PanelTop,
+  toolkit: BookOpen,
+  "prompt-library": NotebookPen,
+};
 
 type NavItem = {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: AppNavIconId;
 };
 
 type AppNavLinksProps = {
@@ -20,7 +28,7 @@ export function AppNavLinks({ items }: AppNavLinksProps) {
   return (
     <div className="flex min-w-max items-center gap-2 px-0.5 xl:justify-center">
       {items.map((item) => {
-        const Icon = item.icon;
+        const Icon = NAV_ICONS[item.icon];
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
         return (
