@@ -1,12 +1,12 @@
 export const MANAGEABLE_PAGES = [
   { key: "prompt-library", label: "Prompt Library", href: "/prompt-library" },
-  { key: "lyrics-library", label: "Lyrics Library", href: "/lyrics-library" },
-  { key: "song-studio", label: "Song Studio", href: "/song-studio" },
-  { key: "daw", label: "DAW", href: "/daw" },
-  { key: "tab-studio", label: "Tab Studio", href: "/tab-studio" },
-  { key: "musician-helpers", label: "Musician Helpers", href: "/musician-helpers" },
-  { key: "theory-lab", label: "Theory Lab", href: "/theory-lab" },
-  { key: "progressions", label: "Progressions", href: "/progressions" },
+  { key: "lyrics-library", label: "Lyrics Library", href: "/production-studio?tab=lyrics" },
+  { key: "song-studio", label: "Song Studio", href: "/production-studio?tab=song" },
+  { key: "daw", label: "DAW", href: "/production-studio?tab=audio" },
+  { key: "tab-studio", label: "Tab Studio", href: "/production-studio?tab=notation" },
+  { key: "musician-helpers", label: "Musician Helpers", href: "/music-toolkit?tab=practice" },
+  { key: "theory-lab", label: "Theory Lab", href: "/music-toolkit?tab=harmony" },
+  { key: "progressions", label: "Progressions", href: "/music-toolkit?tab=progressions" },
 ] as const;
 
 export type ManagedPageKey = (typeof MANAGEABLE_PAGES)[number]["key"];

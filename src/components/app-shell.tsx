@@ -7,17 +7,13 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ensureUserCanAccessPage, requireCurrentUser } from "@/lib/auth";
 import type { ManagedPageKey } from "@/lib/access";
-import { BookOpen, Drum, Guitar, Music, Music2, NotebookPen, PanelTop, RadioTower, ScrollText, User, Waves, Wrench } from "lucide-react";
+import { canAccessMusicToolkit, canAccessProductionStudio } from "@/lib/hub-access";
+import { BookOpen, Music2, NotebookPen, PanelTop } from "lucide-react";
 
 const navItems = [
-  { href: "/song-studio", label: "Song Studio", icon: PanelTop, pageKey: "song-studio" as ManagedPageKey },
-  { href: "/lyrics-library", label: "Lyrics Library", icon: ScrollText, pageKey: "lyrics-library" as ManagedPageKey },
-  { href: "/daw", label: "DAW", icon: Waves, pageKey: "daw" as ManagedPageKey },
-  { href: "/tab-studio", label: "Tab Studio", icon: RadioTower, pageKey: "tab-studio" as ManagedPageKey },
-  { href: "/musician-helpers", label: "Musician Helpers", icon: Guitar, pageKey: "musician-helpers" as ManagedPageKey },
-  { href: "/theory-lab", label: "Theory Lab", icon: BookOpen, pageKey: "theory-lab" as ManagedPageKey },
-  { href: "/progressions", label: "Progressions", icon: Music, pageKey: "progressions" as ManagedPageKey },
-  { href: "/prompt-library", label: "Prompt Library", icon: NotebookPen, pageKey: "prompt-library" as ManagedPageKey },
+  { href: "/production-studio", label: "Production Studio", icon: PanelTop, hub: "production" as const },
+  { href: "/music-toolkit", label: "Music Toolkit", icon: BookOpen, hub: "toolkit" as const },
+  { href: "/prompt-library", label: "Prompt Library", icon: NotebookPen, pageKey: "prompt-library" as const },
 ];
 
 type AppShellProps = {
@@ -39,11 +35,19 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
   const visibleNavItems = (
     await Promise.all(
       navItems.map(async (item) => {
-        if (!item.pageKey) {
-          return item;
+        if ("pageKey" in item && item.pageKey) {
+          return (await ensureUserCanAccessPage(user, item.pageKey)) ? item : null;
         }
 
-        return (await ensureUserCanAccessPage(user, item.pageKey)) ? item : null;
+        if (item.hub === "production") {
+          return (await canAccessProductionStudio(user)) ? item : null;
+        }
+
+        if (item.hub === "toolkit") {
+          return (await canAccessMusicToolkit(user)) ? item : null;
+        }
+
+        return item;
       }),
     )
   ).filter((item): item is (typeof navItems)[number] => Boolean(item));

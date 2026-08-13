@@ -108,6 +108,7 @@ export interface MusicTaskTemplateRecord {
   id: string;
   name: string;
   category: string | null;
+  genre: string | null;
   description: string | null;
   targetType: MusicTemplateTargetType;
   targetField: MusicTemplateSongField | null;

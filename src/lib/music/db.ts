@@ -339,6 +339,7 @@ async function ensureMusicSupportTables() {
     ON songs (user_id, saved_at, synced_at)
   `);
   await ensureColumn("music_task_template", "user_id", "text");
+  await ensureColumn("music_task_template", "genre", "text");
   await ensureColumn("song_partitures", "user_id", "text");
   await db.execute(`
     CREATE INDEX IF NOT EXISTS music_task_template_user_idx
@@ -691,6 +692,7 @@ function normalizeTargetKinds(value: unknown): MusicTemplatePartKind[] {
 function normalizeTemplatePayload(input: Record<string, unknown>) {
   const name = String(input.name || "").trim();
   const category = typeof input.category === "string" ? input.category.trim() : "";
+  const genre = typeof input.genre === "string" ? input.genre.trim() : "";
   const description = typeof input.description === "string" ? input.description.trim() : "";
   const instructions = String(input.instructions || "").trim();
   const targetType = String(input.targetType || "") as MusicTemplateTargetType;
@@ -717,6 +719,7 @@ function normalizeTemplatePayload(input: Record<string, unknown>) {
     return {
       name,
       category: category || null,
+      genre: genre || null,
       description: description || null,
       targetType,
       targetField: targetField as MusicTemplateSongField,
@@ -732,6 +735,7 @@ function normalizeTemplatePayload(input: Record<string, unknown>) {
   return {
     name,
     category: category || null,
+    genre: genre || null,
     description: description || null,
     targetType,
     targetField: null,
@@ -752,6 +756,7 @@ function mapTemplateRow(row: Record<string, unknown>): MusicTaskTemplateRecord {
     id: String(row.id),
     name: String(row.name),
     category: (row.category as string | null) ?? null,
+    genre: (row.genre as string | null) ?? null,
     description: (row.description as string | null) ?? null,
     targetType: row.targetType as MusicTemplateTargetType,
     targetField: (row.targetField as MusicTemplateSongField | null) ?? null,
@@ -783,6 +788,7 @@ export async function createMusicTaskTemplate(userId: string, input: Record<stri
     user_id: userId,
     name: payload.name,
     category: payload.category,
+    genre: payload.genre,
     description: payload.description,
     targetType: payload.targetType,
     targetField: payload.targetField,
@@ -795,14 +801,15 @@ export async function createMusicTaskTemplate(userId: string, input: Record<stri
   await db.execute({
     sql: `
       insert into music_task_template (
-        id, user_id, name, category, description, targetType, targetField, targetKinds, instructions, createdAt, updatedAt
-      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, user_id, name, category, genre, description, targetType, targetField, targetKinds, instructions, createdAt, updatedAt
+      ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     args: [
       row.id,
       row.user_id,
       row.name,
       row.category,
+      row.genre,
       row.description,
       row.targetType,
       row.targetField,
@@ -833,6 +840,7 @@ export async function updateMusicTaskTemplate(userId: string, templateId: string
     id: templateId,
     name: payload.name,
     category: payload.category,
+    genre: payload.genre,
     description: payload.description,
     targetType: payload.targetType,
     targetField: payload.targetField,
@@ -845,12 +853,13 @@ export async function updateMusicTaskTemplate(userId: string, templateId: string
   await db.execute({
     sql: `
       update music_task_template
-      set name = ?, category = ?, description = ?, targetType = ?, targetField = ?, targetKinds = ?, instructions = ?, updatedAt = ?
+      set name = ?, category = ?, genre = ?, description = ?, targetType = ?, targetField = ?, targetKinds = ?, instructions = ?, updatedAt = ?
       where id = ?
     `,
     args: [
       updatedRow.name,
       updatedRow.category,
+      updatedRow.genre,
       updatedRow.description,
       updatedRow.targetType,
       updatedRow.targetField,

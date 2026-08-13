@@ -1,23 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { Button, Chip, Spinner } from "@heroui/react";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Button, Chip, Modal, ModalBody, ModalContent, ModalFooter, ModalHeader, Spinner, useDisclosure } from "@heroui/react";
+import { ChevronRight, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { createTemplate, deleteTemplate, fetchTemplates, updateTemplate } from "@/lib/music/client";
-import type { MusicTaskTemplateRecord } from "@/lib/music/types";
+import type { MusicTaskTemplateRecord, MusicTemplateTargetType } from "@/lib/music/types";
 
 type TemplateDraft = {
   id?: string;
   name: string;
   category: string;
+  genre: string;
   description: string;
   instructions: string;
   targetType: MusicTaskTemplateRecord["targetType"];
   targetField: string;
   targetKinds: MusicTaskTemplateRecord["targetKinds"];
+};
+
+type TemplateFilters = {
+  search: string;
+  genre: string;
+  category: string;
+  targetType: "" | MusicTemplateTargetType;
+  targetField: string;
 };
 
 type TemplatesClientProps = {
@@ -34,12 +43,42 @@ type TemplatesClientProps = {
 const emptyDraft: TemplateDraft = {
   name: "",
   category: "",
+  genre: "",
   description: "",
   instructions: "",
   targetType: "song-field",
   targetField: "",
   targetKinds: [],
 };
+
+const emptyFilters: TemplateFilters = {
+  search: "",
+  genre: "",
+  category: "",
+  targetType: "",
+  targetField: "",
+};
+
+function templateToDraft(template: MusicTaskTemplateRecord): TemplateDraft {
+  return {
+    id: template.id,
+    name: template.name,
+    category: template.category || "",
+    genre: template.genre || "",
+    description: template.description || "",
+    targetType: template.targetType,
+    targetField: template.targetField || "",
+    targetKinds: template.targetKinds,
+    instructions: template.instructions,
+  };
+}
+
+function formatTimestamp(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
 
 export function TemplatesClient({
   libraryEyebrow = "Template library",
@@ -53,7 +92,81 @@ export function TemplatesClient({
 }: TemplatesClientProps) {
   const [templates, setTemplates] = useState<MusicTaskTemplateRecord[]>([]);
   const [draft, setDraft] = useState<TemplateDraft>(emptyDraft);
+  const [filters, setFilters] = useState<TemplateFilters>(emptyFilters);
   const [loading, setLoading] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState<MusicTaskTemplateRecord | null>(null);
+  const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure({
+    onClose: () => setSelectedTemplate(null),
+  });
+
+  const genres = useMemo(
+    () => Array.from(new Set(templates.map((template) => template.genre).filter((value): value is string => Boolean(value)))).sort(),
+    [templates],
+  );
+
+  const categories = useMemo(
+    () => Array.from(new Set(templates.map((template) => template.category).filter((value): value is string => Boolean(value)))).sort(),
+    [templates],
+  );
+
+  const targetFields = useMemo(
+    () => Array.from(new Set(
+      templates
+        .map((template) => template.targetField)
+        .filter((value): value is NonNullable<MusicTaskTemplateRecord["targetField"]> => Boolean(value)),
+    )).sort(),
+    [templates],
+  );
+
+  const filteredTemplates = useMemo(() => {
+    const query = filters.search.trim().toLowerCase();
+    const genreQuery = filters.genre.trim().toLowerCase();
+    const categoryQuery = filters.category.trim().toLowerCase();
+    const targetFieldQuery = filters.targetField.trim().toLowerCase();
+
+    return templates.filter((template) => {
+      if (query) {
+        const haystack = [
+          template.name,
+          template.category,
+          template.genre,
+          template.description,
+          template.instructions,
+          template.targetField,
+          template.targetKinds.join(" "),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        if (!haystack.includes(query)) {
+          return false;
+        }
+      }
+
+      if (genreQuery && (template.genre || "").toLowerCase() !== genreQuery) {
+        return false;
+      }
+
+      if (categoryQuery && (template.category || "").toLowerCase() !== categoryQuery) {
+        return false;
+      }
+
+      if (filters.targetType && template.targetType !== filters.targetType) {
+        return false;
+      }
+
+      if (targetFieldQuery && (template.targetField || "").toLowerCase() !== targetFieldQuery) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [filters, templates]);
+
+  const hasActiveFilters = Boolean(
+    filters.search || filters.genre || filters.category || filters.targetType || filters.targetField,
+  );
 
   async function loadTemplates(showSpinner = true) {
     if (showSpinner) {
@@ -101,6 +214,7 @@ export function TemplatesClient({
       const payload = {
         name: draft.name,
         category: draft.category || null,
+        genre: draft.genre || null,
         description: draft.description || null,
         targetType: draft.targetType,
         targetField: draft.targetField || (draft.targetType === "song-field" ? "lyrics_text" : null),
@@ -128,10 +242,25 @@ export function TemplatesClient({
       if (draft.id === id) {
         setDraft(emptyDraft);
       }
+      if (selectedTemplate?.id === id) {
+        setSelectedTemplate(null);
+        onClose();
+      }
       await loadTemplates();
     } catch (error) {
       toast.error((error as Error).message);
     }
+  }
+
+  function openTemplate(template: MusicTaskTemplateRecord) {
+    setSelectedTemplate(template);
+    onOpen();
+  }
+
+  function startEditing(template: MusicTaskTemplateRecord) {
+    setDraft(templateToDraft(template));
+    setSelectedTemplate(null);
+    onClose();
   }
 
   return (
@@ -139,47 +268,99 @@ export function TemplatesClient({
       <div className="panel rounded-[1.75rem] p-5">
         <div className="eyebrow">{libraryEyebrow}</div>
         <h2 className="mt-2 text-3xl font-black">{libraryTitle}</h2>
+        <div className="mt-4 space-y-3">
+          <input
+            className="field"
+            value={filters.search}
+            onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+            placeholder="Search name, genre, category, instructions..."
+          />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <select
+              className="field"
+              value={filters.genre}
+              onChange={(event) => setFilters((current) => ({ ...current, genre: event.target.value }))}
+            >
+              <option value="">All genres</option>
+              {genres.map((genre) => (
+                <option key={genre} value={genre}>{genre}</option>
+              ))}
+            </select>
+            <select
+              className="field"
+              value={filters.category}
+              onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
+            >
+              <option value="">All categories</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+            <select
+              className="field"
+              value={filters.targetType}
+              onChange={(event) => setFilters((current) => ({ ...current, targetType: event.target.value as TemplateFilters["targetType"] }))}
+            >
+              <option value="">All target types</option>
+              <option value="song-field">Song field</option>
+              <option value="part">Song part</option>
+            </select>
+            <select
+              className="field"
+              value={filters.targetField}
+              onChange={(event) => setFilters((current) => ({ ...current, targetField: event.target.value }))}
+            >
+              <option value="">All target fields</option>
+              {targetFields.map((targetField) => (
+                <option key={targetField} value={targetField}>{targetField}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--color-sand-2)]">
+            <span>
+              Showing {filteredTemplates.length} of {templates.length} {itemLabel.toLowerCase()}s
+            </span>
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={() => setFilters(emptyFilters)}
+                className="glass-pill inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition hover:-translate-y-0.5"
+              >
+                <X className="h-3 w-3" />
+                Clear filters
+              </button>
+            ) : null}
+          </div>
+        </div>
         {loading ? (
           <div className="mt-6 flex justify-center"><Spinner color="warning" /></div>
         ) : (
-          <div className="mt-6 space-y-3">
-            {templates.length === 0 ? (
+          <div className="mt-4 space-y-1.5">
+            {filteredTemplates.length === 0 ? (
               <div className="glass-card-soft rounded-[1.25rem] p-4 text-sm text-[var(--color-sand-2)]">
-                No saved {itemLabel.toLowerCase()}s yet. Create one from the editor panel.
+                {templates.length === 0
+                  ? `No saved ${itemLabel.toLowerCase()}s yet. Create one from the editor panel.`
+                  : "No prompts match the current filters."}
               </div>
             ) : null}
-            {templates.map((template) => (
-              <div key={template.id} className="glass-card-soft rounded-[1.25rem] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-lg font-black">{template.name}</div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {template.category ? <Chip size="sm" variant="flat">{template.category}</Chip> : null}
-                      <Chip size="sm" variant="flat">{template.targetType}</Chip>
-                      {template.targetField ? <Chip size="sm" variant="flat">{template.targetField}</Chip> : null}
-                      {template.targetKinds.length > 0 ? (
-                        <Chip size="sm" variant="flat">{template.targetKinds.join(", ")}</Chip>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button radius="full" variant="bordered" onPress={() => setDraft({
-                      id: template.id,
-                      name: template.name,
-                      category: template.category || "",
-                      description: template.description || "",
-                      targetType: template.targetType,
-                      targetField: template.targetField || "",
-                      targetKinds: template.targetKinds,
-                      instructions: template.instructions,
-                    })}>Edit</Button>
-                    <Button radius="full" variant="bordered" color="danger" onPress={() => void removeTemplate(template.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+            {filteredTemplates.map((template) => (
+              <button
+                key={template.id}
+                type="button"
+                onClick={() => openTemplate(template)}
+                className="group flex w-full items-center gap-3 rounded-xl border border-[var(--color-border)] px-3 py-2.5 text-left transition hover:border-[var(--color-info-border)] hover:bg-[var(--color-info-surface)]"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-[var(--color-foreground)]">{template.name}</div>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-[var(--color-sand-2)]">
+                    {template.genre ? <span className="truncate">{template.genre}</span> : null}
+                    {template.genre && template.category ? <span aria-hidden="true">·</span> : null}
+                    {template.category ? <span className="truncate">{template.category}</span> : null}
+                    {!template.genre && !template.category ? <span className="truncate">{template.targetType}</span> : null}
                   </div>
                 </div>
-                <p className="mt-3 text-sm leading-7 text-[var(--color-sand-2)]">{template.description || template.instructions}</p>
-              </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-[var(--color-sand-2)] transition group-hover:text-[var(--color-foreground)]" />
+              </button>
             ))}
           </div>
         )}
@@ -190,7 +371,10 @@ export function TemplatesClient({
         <h3 className="mt-2 text-2xl font-black">{draft.id ? editTitle : createTitle}</h3>
         <div className="mt-4 space-y-3">
           <input className="field" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder={namePlaceholder} />
-          <input className="field" value={draft.category} onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))} placeholder="Category" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input className="field" value={draft.genre} onChange={(event) => setDraft((current) => ({ ...current, genre: event.target.value }))} placeholder="Genre (e.g. rock, cumbia, pop)" />
+            <input className="field" value={draft.category} onChange={(event) => setDraft((current) => ({ ...current, category: event.target.value }))} placeholder="Category" />
+          </div>
           <input className="field" value={draft.description} onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))} placeholder="Description" />
           <div className="grid gap-3 sm:grid-cols-2">
             <select
@@ -250,6 +434,88 @@ export function TemplatesClient({
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
+        scrollBehavior="inside"
+        size="2xl"
+        classNames={{
+          base: "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-foreground)]",
+          header: "border-b border-[var(--color-border)]",
+          footer: "border-t border-[var(--color-border)]",
+          body: "py-5",
+        }}
+      >
+        <ModalContent>
+          {(close) => selectedTemplate ? (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-brass)]">{itemLabel}</span>
+                <span className="text-2xl font-black">{selectedTemplate.name}</span>
+              </ModalHeader>
+              <ModalBody className="gap-5">
+                <div className="flex flex-wrap gap-2">
+                  {selectedTemplate.genre ? <Chip size="sm" variant="flat">{selectedTemplate.genre}</Chip> : null}
+                  {selectedTemplate.category ? <Chip size="sm" variant="flat">{selectedTemplate.category}</Chip> : null}
+                  <Chip size="sm" variant="flat">{selectedTemplate.targetType}</Chip>
+                  {selectedTemplate.targetField ? <Chip size="sm" variant="flat">{selectedTemplate.targetField}</Chip> : null}
+                  {selectedTemplate.targetKinds.length > 0 ? (
+                    <Chip size="sm" variant="flat">{selectedTemplate.targetKinds.join(", ")}</Chip>
+                  ) : null}
+                </div>
+
+                {selectedTemplate.description ? (
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-brass)]">Description</div>
+                    <p className="mt-2 text-sm leading-7 text-[var(--color-sand-2)]">{selectedTemplate.description}</p>
+                  </div>
+                ) : null}
+
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-brass)]">{instructionsPlaceholder}</div>
+                  <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-[1rem] border border-[var(--color-border)] bg-[var(--color-info-surface)] p-4 font-mono text-xs leading-6 text-[var(--color-foreground)]">
+                    {selectedTemplate.instructions}
+                  </pre>
+                </div>
+
+                <div className="grid gap-3 text-xs text-[var(--color-sand-2)] sm:grid-cols-2">
+                  <div>
+                    <span className="font-semibold uppercase tracking-[0.14em] text-[var(--color-brass)]">Created</span>
+                    <p className="mt-1">{formatTimestamp(selectedTemplate.createdAt)}</p>
+                  </div>
+                  <div>
+                    <span className="font-semibold uppercase tracking-[0.14em] text-[var(--color-brass)]">Updated</span>
+                    <p className="mt-1">{formatTimestamp(selectedTemplate.updatedAt)}</p>
+                  </div>
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button radius="full" variant="bordered" onPress={close}>
+                  Close
+                </Button>
+                <Button
+                  radius="full"
+                  variant="bordered"
+                  color="danger"
+                  startContent={<Trash2 className="h-4 w-4" />}
+                  onPress={() => void removeTemplate(selectedTemplate.id)}
+                >
+                  Delete
+                </Button>
+                <Button
+                  className="bg-[var(--color-copper)] text-white"
+                  radius="full"
+                  startContent={<Pencil className="h-4 w-4" />}
+                  onPress={() => startEditing(selectedTemplate)}
+                >
+                  Edit
+                </Button>
+              </ModalFooter>
+            </>
+          ) : null}
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

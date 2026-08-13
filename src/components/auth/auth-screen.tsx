@@ -83,7 +83,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                 {isRegister ? "Create your studio account" : "Sign in to your studio"}
               </h1>
               <p className="mt-4 max-w-lg text-sm leading-7 text-[var(--color-sand-2)]">
-                The full app is now private to authenticated users. Confirm your email to activate your account, then sign in to access Prompt Library, Song Studio, Lyrics Library, the browser DAW, and the tab workflow pages.
+                The full app is now private to authenticated users. Confirm your email to activate your account, then sign in to access the Production Studio, Music Toolkit, and Prompt Library.
               </p>
               <div className="mt-8 space-y-3 text-sm text-[var(--color-sand-2)]">
                 <div className="glass-card-soft rounded-[1.5rem] px-4 py-4">Private access to the full studio dashboard</div>
