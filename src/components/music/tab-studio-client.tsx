@@ -1,19 +1,29 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect } from "react";
-import { Download, Play, Plus, Upload, Trash2, Music, Volume2, Save, Square, Settings2, Guitar, Layers } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Copy,
+  Download,
+  Eraser,
+  Minus,
+  Music,
+  Play,
+  Plus,
+  RefreshCw,
+  Save,
+  Square,
+  Timer,
+  Upload,
+  Volume2,
+} from "lucide-react";
 import { toast } from "sonner";
-import { useAudio } from "@/components/music/audio-provider";
-import { parseMidi, MidiEvent } from "@/lib/music/midi-parser";
 
-type TabFile = {
-  id: string;
-  name: string;
-  extension: string;
-  preview: string;
-  markers: string[];
-  size: number;
-};
+import { useAudio } from "@/components/music/audio-provider";
+import { useProductionSong } from "@/components/music/production-song-context";
+import { createPartiture, downloadBlob, fetchPartitures } from "@/lib/music/client";
+import type { MusicPartitureRecord } from "@/lib/music/types";
+import { parseMidi } from "@/lib/music/midi-parser";
 
 type InstrumentType = "Steel" | "Nylon" | "Bass" | "Overdrive";
 
@@ -22,61 +32,102 @@ interface StringFreq {
   base: number;
 }
 
+type GridRow = {
+  label: string;
+  cells: string[];
+};
+
 const GUITAR_STRINGS: StringFreq[] = [
   { label: "e", base: 329.63 },
   { label: "B", base: 246.94 },
-  { label: "G", base: 196.00 },
+  { label: "G", base: 196.0 },
   { label: "D", base: 146.83 },
-  { label: "A", base: 110.00 },
+  { label: "A", base: 110.0 },
   { label: "E", base: 82.41 },
 ];
 
 const BASS_STRINGS: StringFreq[] = [
-  { label: "G", base: 98.00 },
+  { label: "G", base: 98.0 },
   { label: "D", base: 73.42 },
-  { label: "A", base: 55.00 },
-  { label: "E", base: 41.20 },
+  { label: "A", base: 55.0 },
+  { label: "E", base: 41.2 },
 ];
+
+function buildEmptyGrid(strings: StringFreq[], columns: number): GridRow[] {
+  return strings.map((string) => ({
+    label: string.label,
+    cells: Array.from({ length: columns }, () => "-"),
+  }));
+}
+
+function parseAsciiTab(content: string, strings: StringFreq[]): GridRow[] | null {
+  const lines = content.split("\n").map((line) => line.trim()).filter(Boolean);
+  const parsed = lines
+    .map((line) => {
+      const match = line.match(/^([A-Ga-g])\s*\|(.+)\|$/);
+      if (!match) return null;
+      const label = match[1].toLowerCase();
+      const cells = match[2].split("-").map((cell) => (cell.trim() === "" ? "-" : cell.trim()));
+      return { label, cells };
+    })
+    .filter((row): row is GridRow => Boolean(row));
+
+  if (parsed.length === 0) return null;
+
+  const columnCount = Math.max(...parsed.map((row) => row.cells.length));
+  return strings.map((string) => {
+    const found = parsed.find((row) => row.label === string.label.toLowerCase());
+    if (!found) {
+      return { label: string.label, cells: Array.from({ length: columnCount }, () => "-") };
+    }
+    while (found.cells.length < columnCount) found.cells.push("-");
+    return found;
+  });
+}
+
+function gridToAscii(grid: GridRow[], instrument: string, bpm: number) {
+  const lines = grid.map((row) => {
+    const content = row.cells.map((cell) => (cell === "-" || cell === "" ? "-" : cell)).join("-");
+    return `${row.label.toUpperCase()} |${content}|`;
+  });
+  return [`Tab Studio Export (${instrument})`, `Tempo: ${bpm} BPM`, "", ...lines, ""].join("\n");
+}
 
 export function TabStudioClient() {
   const { getAudioContext } = useAudio();
+  const { selectedSongId } = useProductionSong();
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [files, setFiles] = useState<TabFile[]>([]);
-  const [activeFileId, setActiveFileId] = useState("");
+  const playingRef = useRef(false);
+
   const [instrument, setInstrument] = useState<InstrumentType>("Steel");
   const [strings, setStrings] = useState(GUITAR_STRINGS);
-  const [grid, setGrid] = useState(() => GUITAR_STRINGS.map(s => ({ label: s.label, cells: Array.from({ length: 16 }, () => "-") })));
+  const [columnCount, setColumnCount] = useState(16);
+  const [grid, setGrid] = useState(() => buildEmptyGrid(GUITAR_STRINGS, 16));
   const [isPlaying, setIsPlaying] = useState(false);
+  const [loopPlayback, setLoopPlayback] = useState(false);
   const [bpm, setBpm] = useState(120);
   const [playhead, setPlayhead] = useState(-1);
   const [metronome, setMetronome] = useState(false);
+  const [savedPartitures, setSavedPartitures] = useState<MusicPartitureRecord[]>([]);
+  const [loadingPartitures, setLoadingPartitures] = useState(false);
 
-  useEffect(() => {
-    if (instrument === "Bass") {
-      setStrings(BASS_STRINGS);
-      setGrid(BASS_STRINGS.map(s => ({ label: s.label, cells: Array.from({ length: grid[0]?.cells.length || 16 }, () => "-") })));
-    } else {
-      setStrings(GUITAR_STRINGS);
-      setGrid(GUITAR_STRINGS.map(s => ({ label: s.label, cells: Array.from({ length: grid[0]?.cells.length || 16 }, () => "-") })));
-    }
-  }, [instrument]);
+  const asciiPreview = useMemo(() => gridToAscii(grid, instrument, bpm), [grid, instrument, bpm]);
 
-  const createOverdriveCurve = () => {
-    const n_samples = 44100;
-    const curve = new Float32Array(n_samples);
+  const createOverdriveCurve = useCallback(() => {
+    const nSamples = 44100;
+    const curve = new Float32Array(nSamples);
     const deg = Math.PI / 180;
-    for (let i = 0 ; i < n_samples; ++i ) {
-      const x = i * 2 / n_samples - 1;
-      curve[i] = ( 3 + 20 ) * x * 20 * deg / ( Math.PI + 20 * Math.abs(x) );
+    for (let i = 0; i < nSamples; i += 1) {
+      const x = (i * 2) / nSamples - 1;
+      curve[i] = ((3 + 20) * x * 20 * deg) / (Math.PI + 20 * Math.abs(x));
     }
     return curve;
-  };
+  }, []);
 
-  const playPluck = (fret: number, stringIdx: number, time: number) => {
-    if (fret < 0 || isNaN(fret)) return;
+  const playPluck = useCallback((fret: number, stringIdx: number, time: number) => {
+    if (fret < 0 || Number.isNaN(fret)) return;
     const ctx = getAudioContext();
-    const freq = strings[stringIdx].base * Math.pow(2, fret / 12);
-
+    const freq = strings[stringIdx].base * 2 ** (fret / 12);
     const masterGain = ctx.createGain();
     masterGain.gain.setValueAtTime(0.3, time);
 
@@ -90,10 +141,9 @@ export function TabStudioClient() {
       masterGain.connect(ctx.destination);
     }
 
-    // Synthesis based on type
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    
+
     if (instrument === "Nylon") {
       osc.type = "sine";
       gain.gain.setValueAtTime(0, time);
@@ -104,7 +154,7 @@ export function TabStudioClient() {
       gain.gain.setValueAtTime(0, time);
       gain.gain.linearRampToValueAtTime(0.25, time + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.001, time + 2.0);
-      
+
       const sub = ctx.createOscillator();
       sub.type = "sine";
       sub.frequency.setValueAtTime(freq / 2, time);
@@ -127,160 +177,455 @@ export function TabStudioClient() {
     gain.connect(masterGain);
     osc.start(time);
     osc.stop(time + 2.0);
-  };
+  }, [createOverdriveCurve, getAudioContext, instrument, strings]);
+
+  const playMetronomeClick = useCallback((time: number, accent: boolean) => {
+    const ctx = getAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(accent ? 1200 : 800, time);
+    gain.gain.setValueAtTime(accent ? 0.08 : 0.05, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.05);
+  }, [getAudioContext]);
 
   useEffect(() => {
-    if (isPlaying) {
-      let currentStep = 0;
-      const stepDuration = (60 / bpm) / 4;
-      
-      const playNextStep = () => {
-        if (!isPlaying) return;
-        const ctx = getAudioContext();
-        setPlayhead(currentStep);
+    const nextStrings = instrument === "Bass" ? BASS_STRINGS : GUITAR_STRINGS;
+    setStrings(nextStrings);
+    setGrid((current) => {
+      const columns = current[0]?.cells.length || columnCount;
+      return buildEmptyGrid(nextStrings, columns);
+    });
+  }, [instrument]);
 
-        grid.forEach((row, sIdx) => {
-          const cell = row.cells[currentStep];
-          if (cell !== "-" && cell !== "") playPluck(parseInt(cell), sIdx, ctx.currentTime);
-        });
-
-        currentStep++;
-        if (currentStep < grid[0].cells.length) {
-          setTimeout(playNextStep, stepDuration * 1000);
-        } else {
-          setIsPlaying(false);
-          setPlayhead(-1);
-        }
-      };
-      playNextStep();
-    }
+  useEffect(() => {
+    playingRef.current = isPlaying;
   }, [isPlaying]);
 
+  useEffect(() => {
+    if (!isPlaying) return undefined;
+
+    let currentStep = 0;
+    const stepDuration = 60 / bpm / 4;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const playNextStep = () => {
+      if (!playingRef.current) return;
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+      setPlayhead(currentStep);
+
+      if (metronome) {
+        playMetronomeClick(now, currentStep % 4 === 0);
+      }
+
+      grid.forEach((row, stringIdx) => {
+        const cell = row.cells[currentStep];
+        if (cell !== "-" && cell !== "") {
+          playPluck(parseInt(cell, 10), stringIdx, now);
+        }
+      });
+
+      currentStep += 1;
+      if (currentStep < grid[0].cells.length) {
+        timeoutId = setTimeout(playNextStep, stepDuration * 1000);
+        return;
+      }
+
+      if (loopPlayback && playingRef.current) {
+        currentStep = 0;
+        timeoutId = setTimeout(playNextStep, stepDuration * 1000);
+        return;
+      }
+
+      setIsPlaying(false);
+      setPlayhead(-1);
+    };
+
+    playNextStep();
+    return () => clearTimeout(timeoutId);
+  }, [isPlaying, bpm, grid, loopPlayback, metronome, getAudioContext, playMetronomeClick, playPluck]);
+
+  useEffect(() => {
+    if (!selectedSongId) {
+      setSavedPartitures([]);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingPartitures(true);
+    void fetchPartitures(selectedSongId)
+      .then((payload) => {
+        if (!cancelled) setSavedPartitures(payload.partitures);
+      })
+      .catch(() => {
+        if (!cancelled) setSavedPartitures([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPartitures(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSongId]);
+
+  function addColumns(count = 4) {
+    setGrid((current) => current.map((row) => ({
+      ...row,
+      cells: [...row.cells, ...Array.from({ length: count }, () => "-")],
+    })));
+    setColumnCount((current) => current + count);
+  }
+
+  function removeColumns(count = 4) {
+    setGrid((current) => current.map((row) => ({
+      ...row,
+      cells: row.cells.slice(0, Math.max(4, row.cells.length - count)),
+    })));
+    setColumnCount((current) => Math.max(4, current - count));
+  }
+
+  function clearGrid() {
+    setGrid((current) => current.map((row) => ({
+      ...row,
+      cells: row.cells.map(() => "-"),
+    })));
+    toast.message("Grid cleared");
+  }
+
+  function duplicateMeasure() {
+    if (playhead < 0) {
+      toast.error("Move playhead to a measure first by playing or scrubbing");
+      return;
+    }
+    setGrid((current) => current.map((row) => {
+      const value = row.cells[playhead] ?? "-";
+      const cells = [...row.cells];
+      cells.splice(playhead + 1, 0, value);
+      return { ...row, cells };
+    }));
+    setColumnCount((current) => current + 1);
+  }
+
+  function loadPartiture(partiture: MusicPartitureRecord) {
+    const parsed = parseAsciiTab(partiture.content, strings);
+    if (!parsed) {
+      toast.error("Could not parse this partiture as ASCII tab");
+      return;
+    }
+    setGrid(parsed);
+    setColumnCount(parsed[0]?.cells.length || 16);
+    toast.success(`Loaded "${partiture.title}"`);
+  }
+
   const exportAsciiTab = () => {
-    if (grid.length === 0) return;
-    const lines = grid.map((row) => {
-      const content = row.cells
-        .map((cell) => (cell === "-" || cell === "" ? "-" : cell.toString()))
-        .join("-");
-      return `${row.label.toUpperCase()} |${content}|`;
-    });
-    const tab = [`Tab Studio Export (${instrument})`, `Tempo: ${bpm} BPM`, "", ...lines, ""].join("\n");
-    const blob = new Blob([tab], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "tab-export.txt";
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadBlob("tab-export.txt", asciiPreview, "text/plain");
     toast.success("Tab exported as ASCII text");
   };
 
+  async function saveToSongPartiture() {
+    if (!selectedSongId) {
+      toast.error("Select an active song in Production Studio first");
+      return;
+    }
+
+    try {
+      await createPartiture(selectedSongId, {
+        instrument: instrument === "Bass" ? "bass" : "guitar",
+        slot: instrument === "Bass" ? 2 : 1,
+        title: `${instrument} tab ${new Date().toLocaleDateString()}`,
+        content: asciiPreview,
+        format: "text-tab",
+      });
+      toast.success("Tab saved to song partitures");
+      const payload = await fetchPartitures(selectedSongId);
+      setSavedPartitures(payload.partitures);
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
+
   const handleImport = async (fileList: FileList | null) => {
-    if (!fileList) return;
+    if (!fileList?.[0]) return;
     const file = fileList[0];
-    
+
     if (file.name.toLowerCase().endsWith(".gp5")) {
-      toast.error("Guitar Pro 5 (.gp5) is a binary proprietary format. Please export to MIDI for import.");
+      toast.error("Guitar Pro 5 (.gp5) is binary. Export to MIDI or ASCII tab first.");
       return;
     }
 
     if (file.name.toLowerCase().endsWith(".mid") || file.name.toLowerCase().endsWith(".midi")) {
       const buffer = await file.arrayBuffer();
       const events = parseMidi(buffer);
-      
-      const newGrid = strings.map(s => ({ label: s.label, cells: Array.from({ length: 64 }, () => "-") }));
-      
-      events.forEach(ev => {
+      const newGrid = buildEmptyGrid(strings, Math.max(columnCount, 64));
+
+      events.forEach((ev) => {
         if (ev.type === "noteOn" && ev.note) {
           const tickStep = Math.floor(ev.time / 120);
-          if (tickStep < 64) {
-             let bestString = 0;
-             let minDiff = 100;
-             strings.forEach((s, i) => {
-                const fret = ev.note! - (21 + (i * 5));
-                if (fret >= 0 && fret < 24 && fret < minDiff) {
-                   minDiff = fret;
-                   bestString = i;
-                }
-             });
-             newGrid[bestString].cells[tickStep] = String(Math.max(0, ev.note - 40));
+          if (tickStep < newGrid[0].cells.length) {
+            let bestString = 0;
+            let minDiff = 100;
+            strings.forEach((stringRef, stringIdx) => {
+              const fret = ev.note! - (21 + stringIdx * 5);
+              if (fret >= 0 && fret < 24 && fret < minDiff) {
+                minDiff = fret;
+                bestString = stringIdx;
+              }
+            });
+            newGrid[bestString].cells[tickStep] = String(Math.max(0, ev.note - 40));
           }
         }
       });
+
       setGrid(newGrid);
+      setColumnCount(newGrid[0].cells.length);
       toast.success("MIDI imported successfully");
+      return;
+    }
+
+    const text = await file.text();
+    const parsed = parseAsciiTab(text, strings);
+    if (parsed) {
+      setGrid(parsed);
+      setColumnCount(parsed[0].cells.length);
+      toast.success("ASCII tab imported");
     } else {
-      toast.info("Importing text-based tab...");
+      toast.error("Unsupported tab format");
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Tab Toolbar */}
-      <div className="panel p-3 rounded-2xl flex items-center justify-between border border-white/5 bg-zinc-900/40 backdrop-blur-md">
-         <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsPlaying(!isPlaying)} 
-              className={`h-10 w-10 flex items-center justify-center rounded-full transition-all ${isPlaying ? "bg-red-500 text-white shadow-lg" : "bg-[var(--color-mint)] text-black shadow-lg"}`}
-            >
-              {isPlaying ? <Square className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}
-            </button>
-            <div className="flex flex-col">
-               <span className="text-[10px] font-black opacity-40 uppercase">Instrument</span>
-               <select 
-                value={instrument} 
-                onChange={(e) => setInstrument(e.target.value as any)}
-                className="bg-transparent border-none p-0 text-xs font-black text-[var(--color-mint)] focus:ring-0 outline-none"
-               >
-                 <option value="Steel">Steel String</option>
-                 <option value="Nylon">Nylon String</option>
-                 <option value="Bass">Electric Bass</option>
-                 <option value="Overdrive">Overdrive Elec</option>
-               </select>
-            </div>
-            <div className="flex flex-col">
-               <span className="text-[10px] font-black opacity-40 uppercase">BPM</span>
-               <input type="number" value={bpm} onChange={(e) => setBpm(Number(e.target.value))} className="bg-transparent border-none p-0 w-12 text-lg font-black text-white" />
-            </div>
-         </div>
+    <div className="space-y-4 animate-fade-up">
+      <div className="panel glass-shine flex flex-wrap items-center justify-between gap-4 rounded-[1.75rem] p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            onClick={() => setIsPlaying((current) => !current)}
+            className={`flex h-11 w-11 items-center justify-center rounded-full transition-all ${
+              isPlaying
+                ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
+                : "bg-[var(--color-mint)] text-black shadow-lg shadow-emerald-500/20"
+            }`}
+            type="button"
+          >
+            {isPlaying ? <Square className="h-5 w-5 fill-current" /> : <Play className="h-5 w-5 fill-current" />}
+          </button>
 
-         <div className="flex gap-2">
-            <input ref={inputRef} type="file" className="hidden" onChange={(e) => handleImport(e.target.files)} />
-            <button onClick={() => inputRef.current?.click()} className="glass-pill px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black">Import MIDI/Tab</button>
-            <button onClick={exportAsciiTab} className="glass-pill px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-white hover:text-black">
-              <Download className="h-3.5 w-3.5 mr-1 inline" />
-              Export Tab
+          <div className="field-group">
+            <span className="field-label">Instrument</span>
+            <select
+              value={instrument}
+              onChange={(event) => setInstrument(event.target.value as InstrumentType)}
+              className="field min-w-[160px] py-2"
+            >
+              <option value="Steel">Steel string</option>
+              <option value="Nylon">Nylon string</option>
+              <option value="Bass">Electric bass</option>
+              <option value="Overdrive">Overdrive electric</option>
+            </select>
+          </div>
+
+          <div className="field-group">
+            <span className="field-label">BPM</span>
+            <input
+              type="number"
+              value={bpm}
+              min={40}
+              max={240}
+              onChange={(event) => setBpm(Number(event.target.value) || 120)}
+              className="field w-20 py-2 text-center font-black"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              className={`glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest ${metronome ? "glass-pill-active" : ""}`}
+              onClick={() => setMetronome((current) => !current)}
+              type="button"
+            >
+              <Timer className="mr-1 inline h-3.5 w-3.5" />
+              Click
             </button>
-         </div>
+            <button
+              className={`glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest ${loopPlayback ? "glass-pill-active" : ""}`}
+              onClick={() => setLoopPlayback((current) => !current)}
+              type="button"
+            >
+              <RefreshCw className="mr-1 inline h-3.5 w-3.5" />
+              Loop
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => addColumns(4)} className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest" type="button">
+            <Plus className="mr-1 inline h-3.5 w-3.5" />
+            Measures
+          </button>
+          <button onClick={() => removeColumns(4)} className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest" type="button">
+            <Minus className="mr-1 inline h-3.5 w-3.5" />
+            Trim
+          </button>
+          <button onClick={clearGrid} className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest" type="button">
+            <Eraser className="mr-1 inline h-3.5 w-3.5" />
+            Clear
+          </button>
+          <button onClick={duplicateMeasure} className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest" type="button">
+            <Copy className="mr-1 inline h-3.5 w-3.5" />
+            Dup step
+          </button>
+          <input ref={inputRef} type="file" className="hidden" accept=".mid,.midi,.txt,.tab" onChange={(event) => void handleImport(event.target.files)} />
+          <button onClick={() => inputRef.current?.click()} className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest" type="button">
+            <Upload className="mr-1 inline h-3.5 w-3.5" />
+            Import
+          </button>
+          <button onClick={exportAsciiTab} className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest" type="button">
+            <Download className="mr-1 inline h-3.5 w-3.5" />
+            Export
+          </button>
+          <button onClick={() => void saveToSongPartiture()} className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest" type="button">
+            <Save className="mr-1 inline h-3.5 w-3.5" />
+            Save to song
+          </button>
+        </div>
       </div>
 
-      <div className="panel p-6 rounded-3xl border border-white/5 bg-zinc-900/20 space-y-8 overflow-hidden min-h-[400px]">
-         <div className="relative">
-            <div className="absolute inset-y-0 left-0 w-8 flex flex-col justify-between py-[2px] z-20 bg-zinc-900/80 backdrop-blur-md rounded-l-lg border-r border-white/10">
-               {strings.map(s => <span key={s.label} className="h-8 flex items-center justify-center text-xs font-black text-[var(--color-sand-2)]">{s.label}</span>)}
+      <div className="page-grid !grid-cols-1 xl:!grid-cols-[minmax(0,1fr)_280px]">
+        <div className="panel glass-shine overflow-hidden rounded-[1.75rem] p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="eyebrow">Fretboard grid</div>
+              <h3 className="text-xl font-black">{columnCount} steps · {strings.length} strings</h3>
             </div>
-            <div className="pl-8 overflow-x-auto">
-               <div className="flex min-w-max relative pb-8">
-                  {grid[0].cells.map((_, cIdx) => (
-                    <div key={cIdx} className={`w-10 relative flex flex-col justify-between transition-colors ${playhead === cIdx ? "bg-[var(--color-mint)]/20" : "hover:bg-white/5"}`}>
-                       {grid.map((row, rIdx) => (
-                         <div key={rIdx} className="h-8 flex items-center justify-center">
-                            <input 
-                               className={`w-7 h-7 rounded-md text-center text-xs font-black outline-none border ${row.cells[cIdx] === "-" ? "bg-transparent border-transparent text-zinc-700" : "bg-white text-black border-white"}`}
-                               value={row.cells[cIdx] === "-" ? "" : row.cells[cIdx]}
-                               onChange={(e) => setGrid(grid.map((r, i) => i === rIdx ? { ...r, cells: r.cells.map((c, j) => j === cIdx ? e.target.value.replace(/[^0-9]/g, "") || "-" : c) } : r))}
-                               placeholder="-"
-                            />
-                         </div>
-                       ))}
+            <Volume2 className="h-4 w-4 text-[var(--color-brass)] opacity-70" />
+          </div>
+
+          <div className="relative overflow-x-auto rounded-[1.25rem] border border-white/8 bg-black/20 p-3">
+            <div className="mb-2 flex min-w-max pl-8">
+              {grid[0]?.cells.map((_, columnIdx) => (
+                <button
+                  key={columnIdx}
+                  className={`w-10 text-center text-[10px] font-black uppercase tracking-wider ${
+                    playhead === columnIdx ? "text-[var(--color-mint)]" : "text-[var(--color-sand-2)]"
+                  }`}
+                  onClick={() => setPlayhead(columnIdx)}
+                  type="button"
+                >
+                  {columnIdx + 1}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative min-w-max">
+              <div className="absolute inset-y-0 left-0 z-20 flex w-8 flex-col justify-between rounded-l-lg border-r border-white/10 bg-zinc-900/70 py-[2px] backdrop-blur-md">
+                {strings.map((stringRef) => (
+                  <span key={stringRef.label} className="flex h-9 items-center justify-center text-xs font-black text-[var(--color-sand-2)]">
+                    {stringRef.label}
+                  </span>
+                ))}
+              </div>
+
+              {strings.slice(0, -1).map((stringRef, idx) => (
+                <div
+                  key={stringRef.label}
+                  className="notation-string-line"
+                  style={{ top: `${(idx + 1) * 36 - 18}px` }}
+                />
+              ))}
+
+              <div className="flex min-w-max pl-8">
+                {grid[0]?.cells.map((_, columnIdx) => (
+                  <div
+                    key={columnIdx}
+                    className={`relative w-10 transition-colors ${
+                      playhead === columnIdx ? "bg-[var(--color-mint)]/15" : "hover:bg-white/5"
+                    }`}
+                  >
+                    {grid.map((row, rowIdx) => (
+                      <div key={row.label} className="flex h-9 items-center justify-center">
+                        <input
+                          className={`h-7 w-7 rounded-md border text-center text-xs font-black outline-none transition ${
+                            row.cells[columnIdx] === "-"
+                              ? "border-transparent bg-transparent text-zinc-600"
+                              : "border-white bg-white text-black shadow-md"
+                          }`}
+                          value={row.cells[columnIdx] === "-" ? "" : row.cells[columnIdx]}
+                          onChange={(event) => {
+                            const next = event.target.value.replace(/[^0-9]/g, "") || "-";
+                            setGrid((current) => current.map((gridRow, gridRowIdx) => (
+                              gridRowIdx === rowIdx
+                                ? {
+                                    ...gridRow,
+                                    cells: gridRow.cells.map((cell, cellIdx) => (cellIdx === columnIdx ? next : cell)),
+                                  }
+                                : gridRow
+                            )));
+                          }}
+                          placeholder="-"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+
+              <AnimatePresence>
+                {playhead >= 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="pointer-events-none absolute bottom-0 top-6 z-30 w-[2px] bg-[var(--color-mint)] shadow-[0_0_12px_var(--color-mint)]"
+                    style={{ left: `${32 + playhead * 40}px` }}
+                  />
+                ) : null}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        <aside className="space-y-4">
+          <div className="panel glass-shine rounded-[1.75rem] p-4">
+            <div className="eyebrow">ASCII preview</div>
+            <pre className="mt-3 max-h-64 overflow-auto rounded-[1rem] border border-white/8 bg-black/25 p-3 font-mono text-[11px] leading-5 text-[var(--color-sand-1)]">
+              {asciiPreview}
+            </pre>
+          </div>
+
+          <div className="panel glass-shine rounded-[1.75rem] p-4">
+            <div className="flex items-center justify-between">
+              <div className="eyebrow">Song partitures</div>
+              <Music className="h-4 w-4 text-[var(--color-brass)]" />
+            </div>
+            {loadingPartitures ? (
+              <p className="mt-3 text-sm text-[var(--color-sand-2)]">Loading...</p>
+            ) : !selectedSongId ? (
+              <p className="mt-3 text-sm text-[var(--color-sand-2)]">Pick an active song above to load saved tabs.</p>
+            ) : savedPartitures.length === 0 ? (
+              <p className="mt-3 text-sm text-[var(--color-sand-2)]">No saved partitures for this song yet.</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {savedPartitures.map((partiture) => (
+                  <button
+                    key={partiture.id}
+                    className="song-list-item w-full rounded-[1rem] px-3 py-2.5 text-left"
+                    onClick={() => loadPartiture(partiture)}
+                    type="button"
+                  >
+                    <div className="text-sm font-bold">{partiture.title}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-[var(--color-sand-2)]">
+                      {partiture.instrument} · slot {partiture.slot}
                     </div>
-                  ))}
-               </div>
-            </div>
-            {playhead !== -1 && (
-               <div className="absolute top-0 bottom-8 w-[2px] bg-[var(--color-mint)] z-30 pointer-events-none transition-all ml-8" style={{ left: `${playhead * 40}px` }} />
+                  </button>
+                ))}
+              </div>
             )}
-         </div>
+          </div>
+        </aside>
       </div>
     </div>
   );

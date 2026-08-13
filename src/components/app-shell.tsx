@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
+import { AppNavLinks } from "@/components/app-nav-links";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ensureUserCanAccessPage, requireCurrentUser } from "@/lib/auth";
 import type { ManagedPageKey } from "@/lib/access";
@@ -55,7 +56,7 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
   return (
     <div className="grain min-h-screen px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <header className="panel sticky top-4 z-20 rounded-[2rem] p-4 sm:p-5">
+        <header className="panel glass-shine sticky top-4 z-20 rounded-[2rem] p-4 sm:p-5 animate-fade-up">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center justify-between gap-3 xl:min-w-[220px] xl:justify-start">
               <Link href="/" className="flex min-w-0 items-center gap-3">
@@ -74,21 +75,7 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
             </div>
 
             <nav className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex-1">
-              <div className="flex min-w-max items-center gap-2 px-0.5 xl:justify-center">
-                {visibleNavItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="glass-pill inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-foreground)] transition hover:-translate-y-0.5 hover:border-[var(--color-accent-soft)] hover:bg-[var(--color-surface-strong)] sm:px-4"
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
+              <AppNavLinks items={visibleNavItems} />
             </nav>
 
             <div className="hidden items-center gap-2 xl:flex">

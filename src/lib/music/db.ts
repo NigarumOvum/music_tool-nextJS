@@ -608,6 +608,21 @@ export async function updateSong(id: string, userId: string, updates: Record<str
   return updated;
 }
 
+export async function deleteSong(id: string, userId: string) {
+  await ensureMusicSupportTables();
+  const db = getMusicClient();
+  const existing = await getSongDetail(id, userId);
+
+  if (!existing) {
+    throw new Error("Song not found");
+  }
+
+  await db.execute({ sql: "delete from song_sections where song_id = ?", args: [id] });
+  await db.execute({ sql: "delete from song_layers where song_id = ?", args: [id] });
+  await db.execute({ sql: "delete from song_partitures where song_id = ? and user_id = ?", args: [id, userId] });
+  await db.execute({ sql: "delete from songs where id = ? and user_id = ?", args: [id, userId] });
+}
+
 export async function upsertSongPart(
   songId: string,
   userId: string,
@@ -776,6 +791,22 @@ export async function listMusicTaskTemplates(userId: string) {
   });
 
   return result.rows.map((row) => mapTemplateRow(row as Record<string, unknown>));
+}
+
+export async function getMusicTaskTemplateById(userId: string, templateId: string) {
+  await ensureMusicSupportTables();
+  const db = getMusicClient();
+  const result = await db.execute({
+    sql: "select * from music_task_template where id = ? and user_id = ? limit 1",
+    args: [templateId, userId],
+  });
+
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    throw new Error("Template not found");
+  }
+
+  return mapTemplateRow(row);
 }
 
 export async function createMusicTaskTemplate(userId: string, input: Record<string, unknown>) {

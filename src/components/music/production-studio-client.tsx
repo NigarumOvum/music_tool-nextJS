@@ -3,9 +3,11 @@
 import dynamic from "next/dynamic";
 import { Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 
 import { Spinner } from "@heroui/react";
 
+import { ProductionSongPicker, ProductionSongProvider } from "@/components/music/production-song-context";
 import type { ProductionStudioTabId } from "@/lib/hub-access";
 
 const tabLoaders = {
@@ -65,6 +67,7 @@ function ProductionStudioInner({ allowedTabs, initialTab }: ProductionStudioClie
 
   return (
     <div className="space-y-4">
+      <ProductionSongPicker />
       <div className="flex flex-wrap gap-2">
         {allowedTabs.map((tab) => (
           <button
@@ -73,7 +76,7 @@ function ProductionStudioInner({ allowedTabs, initialTab }: ProductionStudioClie
             onClick={() => selectTab(tab.id)}
             className={`glass-pill px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
               activeTab === tab.id
-                ? "border-[var(--color-info-border)] bg-[var(--color-info-surface)] text-[var(--color-foreground)]"
+                ? "glass-pill-active text-[var(--color-foreground)]"
                 : "text-[var(--color-sand-2)] hover:-translate-y-0.5"
             }`}
           >
@@ -82,17 +85,26 @@ function ProductionStudioInner({ allowedTabs, initialTab }: ProductionStudioClie
         ))}
       </div>
 
-      <Suspense fallback={<TabSpinner />}>
-        {ActivePanel ? <ActivePanel /> : null}
-      </Suspense>
+      <motion.div
+        key={activeTab}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24 }}
+      >
+        <Suspense fallback={<TabSpinner />}>
+          {ActivePanel ? <ActivePanel /> : null}
+        </Suspense>
+      </motion.div>
     </div>
   );
 }
 
 export function ProductionStudioClient(props: ProductionStudioClientProps) {
   return (
-    <Suspense fallback={<TabSpinner />}>
-      <ProductionStudioInner {...props} />
-    </Suspense>
+    <ProductionSongProvider>
+      <Suspense fallback={<TabSpinner />}>
+        <ProductionStudioInner {...props} />
+      </Suspense>
+    </ProductionSongProvider>
   );
 }

@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 
 import { Spinner } from "@heroui/react";
 
@@ -71,7 +72,7 @@ function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps)
             onClick={() => selectTab(tab.id)}
             className={`glass-pill px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
               activeTab === tab.id
-                ? "border-[var(--color-info-border)] bg-[var(--color-info-surface)] text-[var(--color-foreground)]"
+                ? "glass-pill-active text-[var(--color-foreground)]"
                 : "text-[var(--color-sand-2)] hover:-translate-y-0.5"
             }`}
           >
@@ -80,9 +81,16 @@ function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps)
         ))}
       </div>
 
-      <Suspense fallback={<TabSpinner />}>
-        {ActivePanel ? <ActivePanel /> : null}
-      </Suspense>
+      <motion.div
+        key={activeTab}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24 }}
+      >
+        <Suspense fallback={<TabSpinner />}>
+          {ActivePanel ? <ActivePanel /> : null}
+        </Suspense>
+      </motion.div>
     </div>
   );
 }

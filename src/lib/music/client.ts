@@ -46,6 +46,12 @@ export function updateSong(id: string, payload: Record<string, unknown>) {
   });
 }
 
+export function deleteSong(id: string) {
+  return requestJson<{ ok: true }>(`/api/music/songs/${id}`, {
+    method: "DELETE",
+  });
+}
+
 export function saveSongPart(id: string, payload: Record<string, unknown>) {
   return requestJson<{ song: MusicSongDetail }>(`/api/music/songs/${id}/parts`, {
     method: "POST",
@@ -105,6 +111,19 @@ export function updatePartiture(id: string, payload: Record<string, unknown>) {
 export function deletePartiture(id: string) {
   return requestJson<{ ok: true }>(`/api/music/partitures/${id}`, {
     method: "DELETE",
+  });
+}
+
+export function runPromptOnSong(payload: { templateId: string; songId: string; apply?: boolean }) {
+  return requestJson<{
+    output: string;
+    targetLabel: string;
+    templateId: string;
+    songId: string;
+    applied: boolean;
+  }>("/api/music/prompts/run", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

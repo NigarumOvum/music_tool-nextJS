@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { createTemplate, deleteTemplate, fetchTemplates, updateTemplate } from "@/lib/music/client";
 import type { MusicTaskTemplateRecord, MusicTemplateTargetType } from "@/lib/music/types";
+import { PromptRunnerPanel } from "@/components/music/prompt-runner-panel";
 
 type TemplateDraft = {
   id?: string;
@@ -440,11 +441,14 @@ export function TemplatesClient({
         onOpenChange={onOpenChange}
         scrollBehavior="inside"
         size="2xl"
+        backdrop="opaque"
         classNames={{
-          base: "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-foreground)]",
+          backdrop: "modal-backdrop-solid",
+          base: "modal-solid max-h-[90vh]",
           header: "border-b border-[var(--color-border)]",
           footer: "border-t border-[var(--color-border)]",
           body: "py-5",
+          closeButton: "hover:bg-[var(--color-surface-soft)]",
         }}
       >
         <ModalContent>
@@ -468,18 +472,18 @@ export function TemplatesClient({
                 {selectedTemplate.description ? (
                   <div>
                     <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-brass)]">Description</div>
-                    <p className="mt-2 text-sm leading-7 text-[var(--color-sand-2)]">{selectedTemplate.description}</p>
+                    <p className="mt-2 text-sm leading-7 text-[var(--color-foreground)] opacity-90">{selectedTemplate.description}</p>
                   </div>
                 ) : null}
 
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-brass)]">{instructionsPlaceholder}</div>
-                  <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-[1rem] border border-[var(--color-border)] bg-[var(--color-info-surface)] p-4 font-mono text-xs leading-6 text-[var(--color-foreground)]">
+                  <pre className="modal-inset-panel mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-[1rem] p-4 font-mono text-xs leading-6">
                     {selectedTemplate.instructions}
                   </pre>
                 </div>
 
-                <div className="grid gap-3 text-xs text-[var(--color-sand-2)] sm:grid-cols-2">
+                <div className="grid gap-3 text-sm text-[var(--color-foreground)] opacity-90 sm:grid-cols-2">
                   <div>
                     <span className="font-semibold uppercase tracking-[0.14em] text-[var(--color-brass)]">Created</span>
                     <p className="mt-1">{formatTimestamp(selectedTemplate.createdAt)}</p>
@@ -488,6 +492,14 @@ export function TemplatesClient({
                     <span className="font-semibold uppercase tracking-[0.14em] text-[var(--color-brass)]">Updated</span>
                     <p className="mt-1">{formatTimestamp(selectedTemplate.updatedAt)}</p>
                   </div>
+                </div>
+
+                <div className="modal-inset-panel rounded-[1rem] p-4">
+                  <PromptRunnerPanel
+                    templateId={selectedTemplate.id}
+                    templateName={selectedTemplate.name}
+                    targetLabel={selectedTemplate.targetField || selectedTemplate.targetType}
+                  />
                 </div>
               </ModalBody>
               <ModalFooter>

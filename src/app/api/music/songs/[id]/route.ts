@@ -1,6 +1,6 @@
 import { errorResponse, jsonResponse, parseJsonBody } from "@/lib/api";
 import { requireApiUser } from "@/lib/auth";
-import { getSongDetail, updateSong } from "@/lib/music/db";
+import { getSongDetail, updateSong, deleteSong } from "@/lib/music/db";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -31,6 +31,18 @@ export async function PATCH(request: Request, context: RouteContext) {
     return jsonResponse({ song });
   } catch (error) {
     const message = (error as Error).message || "Failed to update song";
+    return errorResponse(message, message === "Song not found" ? 404 : 400);
+  }
+}
+
+export async function DELETE(request: Request, context: RouteContext) {
+  try {
+    const user = await requireApiUser(request);
+    const { id } = await context.params;
+    await deleteSong(id, user.id);
+    return jsonResponse({ ok: true });
+  } catch (error) {
+    const message = (error as Error).message || "Failed to delete song";
     return errorResponse(message, message === "Song not found" ? 404 : 400);
   }
 }
