@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { createTemplate, deleteTemplate, fetchTemplates, updateTemplate } from "@/lib/music/client";
 import type { MusicTaskTemplateRecord, MusicTemplateTargetType } from "@/lib/music/types";
 import { PromptRunnerPanel } from "@/components/music/prompt-runner-panel";
+import { opaqueModalProps } from "@/lib/ui/modal-styles";
 
 type TemplateDraft = {
   id?: string;
@@ -441,15 +442,7 @@ export function TemplatesClient({
         onOpenChange={onOpenChange}
         scrollBehavior="inside"
         size="2xl"
-        backdrop="opaque"
-        classNames={{
-          backdrop: "modal-backdrop-solid",
-          base: "modal-solid max-h-[90vh]",
-          header: "border-b border-[var(--color-border)]",
-          footer: "border-t border-[var(--color-border)]",
-          body: "py-5",
-          closeButton: "hover:bg-[var(--color-surface-soft)]",
-        }}
+        {...opaqueModalProps}
       >
         <ModalContent>
           {(close) => selectedTemplate ? (

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, Guitar, Mic, MicOff, Play, Radio, Square, Volume2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Activity, Guitar, Hand, Mic, MicOff, Play, Square, Volume2 } from "lucide-react";
 
 import { useAudio } from "@/components/music/audio-provider";
 import { detectPitchAutocorrelation, type PitchDetection } from "@/lib/music/pitch";
@@ -9,6 +9,7 @@ import { playReferencePluck, type PluckInstrument } from "@/lib/music/instrument
 import {
   BASS_TUNINGS,
   GUITAR_TUNINGS,
+  bassTuningsForStringCount,
   centsFromTarget,
   findClosestString,
   type TuningPreset,
@@ -18,12 +19,18 @@ import {
 const TIME_SIGNATURES = ["4/4", "3/4", "2/4", "6/8"] as const;
 
 type InstrumentMode = "guitar" | "bass";
+type BassStringCount = 4 | 5 | 6;
 
 function tuningStatus(cents: number) {
   const abs = Math.abs(cents);
   if (abs <= 5) return { label: "In tune", tone: "text-[var(--color-mint)]", bg: "bg-[var(--color-success-surface)]" };
   if (abs <= 15) return { label: "Close", tone: "text-yellow-400", bg: "bg-yellow-500/10" };
   return { label: cents > 0 ? "Sharp" : "Flat", tone: "text-red-400", bg: "bg-red-500/10" };
+}
+
+function getBeatsPerBar(sig: (typeof TIME_SIGNATURES)[number]) {
+  if (sig === "6/8") return 6;
+  return Number(sig.split("/")[0]);
 }
 
 export function HelpersClient() {
@@ -33,24 +40,36 @@ export function HelpersClient() {
   const [timeSignature, setTimeSignature] = useState<(typeof TIME_SIGNATURES)[number]>("4/4");
   const [subdivision, setSubdivision] = useState<1 | 2 | 4>(1);
   const [beatCount, setBeatCount] = useState(0);
+  const [clickVolume, setClickVolume] = useState(0.7);
+  const [countInBars, setCountInBars] = useState(0);
+  const [tapTimes, setTapTimes] = useState<number[]>([]);
+  const [accentFlash, setAccentFlash] = useState(false);
 
   const [instrumentMode, setInstrumentMode] = useState<InstrumentMode>("guitar");
+  const [bassStringCount, setBassStringCount] = useState<BassStringCount>(4);
+  const [showExtendedBass, setShowExtendedBass] = useState(false);
   const [tuningId, setTuningId] = useState(GUITAR_TUNINGS[0].id);
   const [pluckVoice, setPluckVoice] = useState<PluckInstrument>("guitar-steel");
   const [activeStringLabel, setActiveStringLabel] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [detectedPitch, setDetectedPitch] = useState<PitchDetection | null>(null);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const nextStepTimeRef = useRef(0);
+  const schedulerTimerRef = useRef<number | null>(null);
+  const stepRef = useRef(0);
+
   const analyzerRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const requestRef = useRef<number | null>(null);
-  const stepRef = useRef(0);
   const listeningRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const timeDomainRef = useRef(new Float32Array(2048));
 
-  const tuningOptions = instrumentMode === "guitar" ? GUITAR_TUNINGS : BASS_TUNINGS;
+  const tuningOptions = useMemo(() => {
+    if (instrumentMode === "guitar") return GUITAR_TUNINGS;
+    if (!showExtendedBass) return bassTuningsForStringCount(4);
+    return BASS_TUNINGS.filter((preset) => preset.strings.length === bassStringCount);
+  }, [instrumentMode, bassStringCount, showExtendedBass]);
 
   const activeTuning = useMemo(
     () => tuningOptions.find((preset) => preset.id === tuningId) || tuningOptions[0],
@@ -69,63 +88,115 @@ export function HelpersClient() {
   }, [closestMatch]);
 
   useEffect(() => {
-    const defaults = instrumentMode === "guitar" ? GUITAR_TUNINGS[0] : BASS_TUNINGS[0];
-    setTuningId(defaults.id);
-    setPluckVoice(instrumentMode === "guitar" ? "guitar-steel" : "bass");
+    if (instrumentMode === "guitar") {
+      setTuningId(GUITAR_TUNINGS[0].id);
+      setPluckVoice("guitar-steel");
+      return;
+    }
+    setBassStringCount(4);
+    setShowExtendedBass(false);
+    setTuningId(bassTuningsForStringCount(4)[0].id);
+    setPluckVoice("bass");
   }, [instrumentMode]);
 
-  const getBeatsPerBar = (sig: (typeof TIME_SIGNATURES)[number]) => {
-    if (sig === "6/8") return 6;
-    return Number(sig.split("/")[0]);
-  };
+  useEffect(() => {
+    if (instrumentMode !== "bass") return;
+    if (!tuningOptions.some((preset) => preset.id === tuningId)) {
+      setTuningId(tuningOptions[0]?.id ?? bassTuningsForStringCount(4)[0].id);
+    }
+  }, [instrumentMode, tuningId, tuningOptions]);
 
-  const playClick = (isAccent: boolean, volume = 1) => {
+  const playClick = useCallback((isAccent: boolean, volume = 1) => {
     const ctx = getAudioContext();
+    const when = ctx.currentTime;
     const osc = ctx.createOscillator();
     const envelope = ctx.createGain();
     osc.type = "sine";
-    osc.frequency.setValueAtTime(isAccent ? 1600 : 1200, ctx.currentTime);
-    envelope.gain.setValueAtTime(0.5 * volume, ctx.currentTime);
-    envelope.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    osc.frequency.setValueAtTime(isAccent ? 1800 : 1300, when);
+    envelope.gain.setValueAtTime(0.55 * clickVolume * volume, when);
+    envelope.gain.exponentialRampToValueAtTime(0.001, when + 0.06);
     osc.connect(envelope);
     envelope.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.05);
-  };
+    osc.start(when);
+    osc.stop(when + 0.07);
+    if (isAccent) {
+      setAccentFlash(true);
+      window.setTimeout(() => setAccentFlash(false), 80);
+    }
+  }, [clickVolume, getAudioContext]);
 
-  useEffect(() => {
-    if (isPlaying) {
-      stepRef.current = 0;
-      const beatsPerBar = getBeatsPerBar(timeSignature);
-      const baseIntervalMs = (60 / bpm) * 1000;
-      const stepIntervalMs = baseIntervalMs / subdivision;
+  const scheduleMetronome = useCallback(() => {
+    const ctx = getAudioContext();
+    const beatsPerBar = getBeatsPerBar(timeSignature);
+    const baseInterval = 60 / bpm;
+    const stepInterval = baseInterval / subdivision;
+    const scheduleAhead = 0.12;
 
-      const tick = () => {
-        const step = stepRef.current;
-        const beatInBar = Math.floor(step / subdivision) % beatsPerBar;
-        const isSubdivisionStep = step % subdivision !== 0;
+    while (nextStepTimeRef.current < ctx.currentTime + scheduleAhead) {
+      const countInSteps = countInBars * beatsPerBar * subdivision;
+      const step = stepRef.current;
+      const inCountIn = step < countInSteps;
+
+      if (inCountIn) {
+        const countBeat = Math.floor(step / subdivision) % beatsPerBar;
+        playClick(countBeat === 0, 0.55);
+      } else {
+        const activeStep = step - countInSteps;
+        const beatInBar = Math.floor(activeStep / subdivision) % beatsPerBar;
+        const isSubdivisionStep = activeStep % subdivision !== 0;
         if (subdivision === 1) {
           playClick(beatInBar === 0, 1);
+          setBeatCount(beatInBar);
         } else if (isSubdivisionStep) {
           playClick(false, 0.35);
         } else {
           playClick(beatInBar === 0, 1);
+          setBeatCount(beatInBar);
         }
-        setBeatCount(beatInBar);
-        stepRef.current += 1;
-      };
+      }
 
-      tick();
-      timerRef.current = setInterval(tick, stepIntervalMs);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
-      setBeatCount(0);
+      stepRef.current += 1;
+      nextStepTimeRef.current += stepInterval;
+    }
+  }, [bpm, countInBars, playClick, subdivision, timeSignature, getAudioContext]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      if (schedulerTimerRef.current) {
+        window.clearInterval(schedulerTimerRef.current);
+        schedulerTimerRef.current = null;
+      }
+    stepRef.current = 0;
+    setBeatCount(0);
+      return;
     }
 
+    const ctx = getAudioContext();
+    stepRef.current = 0;
+    nextStepTimeRef.current = ctx.currentTime + 0.05;
+    schedulerTimerRef.current = window.setInterval(scheduleMetronome, 25);
+
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (schedulerTimerRef.current) {
+        window.clearInterval(schedulerTimerRef.current);
+        schedulerTimerRef.current = null;
+      }
     };
-  }, [isPlaying, bpm, timeSignature, subdivision]);
+  }, [isPlaying, scheduleMetronome, getAudioContext]);
+
+  function handleTapTempo() {
+    const now = performance.now();
+    setTapTimes((current) => {
+      const recent = [...current, now].filter((time) => now - time < 2500);
+      if (recent.length >= 2) {
+        const intervals = recent.slice(1).map((time, index) => time - recent[index]);
+        const average = intervals.reduce((sum, value) => sum + value, 0) / intervals.length;
+        const nextBpm = Math.round(60000 / average);
+        setBpm(Math.max(40, Math.min(240, nextBpm)));
+      }
+      return recent;
+    });
+  }
 
   const toggleListening = async () => {
     if (isListening) {
@@ -243,7 +314,7 @@ export function HelpersClient() {
 
   return (
     <div className="grid animate-fade-up gap-4 xl:grid-cols-2">
-      <div className="panel glass-shine space-y-6 rounded-[1.75rem] p-5">
+      <div className={`panel glass-shine space-y-6 rounded-[1.75rem] p-5 transition ${accentFlash ? "ring-2 ring-[var(--color-mint)]/40" : ""}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="glass-pill p-2 text-[var(--color-mint)]">
@@ -278,6 +349,14 @@ export function HelpersClient() {
                 <option value={4}>Sixteenths</option>
               </select>
             </label>
+            <label className="field-group">
+              <span className="field-label">Count-in</span>
+              <select value={countInBars} onChange={(event) => setCountInBars(Number(event.target.value))} className="field py-2">
+                <option value={0}>Off</option>
+                <option value={1}>1 bar</option>
+                <option value={2}>2 bars</option>
+              </select>
+            </label>
           </div>
 
           <div className="flex gap-1.5">
@@ -292,26 +371,52 @@ export function HelpersClient() {
             ))}
           </div>
 
-          <input
-            type="range"
-            min="40"
-            max="240"
-            value={bpm}
-            onChange={(event) => setBpm(parseInt(event.target.value, 10))}
-            className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-[var(--color-mint)]"
-          />
+          <div className="grid w-full gap-3 sm:grid-cols-2">
+            <label className="field-group">
+              <span className="field-label">Tempo</span>
+              <input
+                type="range"
+                min="40"
+                max="240"
+                value={bpm}
+                onChange={(event) => setBpm(parseInt(event.target.value, 10))}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-[var(--color-mint)]"
+              />
+            </label>
+            <label className="field-group">
+              <span className="field-label">Click volume</span>
+              <input
+                type="range"
+                min="0.2"
+                max="1"
+                step="0.05"
+                value={clickVolume}
+                onChange={(event) => setClickVolume(Number(event.target.value))}
+                className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-[var(--color-mint)]"
+              />
+            </label>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setIsPlaying(!isPlaying)}
-            className={`flex h-20 w-20 items-center justify-center rounded-full transition-all ${
-              isPlaying
-                ? "border border-red-500/30 bg-red-500/10 text-red-500"
-                : "bg-[var(--color-mint)] text-black shadow-lg hover:scale-105"
-            }`}
-          >
-            {isPlaying ? <Square className="h-8 w-8 fill-current" /> : <Play className="ml-1 h-8 w-8 fill-current" />}
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={handleTapTempo}
+              className="glass-pill px-4 py-2 text-[10px] font-black uppercase tracking-widest"
+            >
+              Tap tempo {tapTimes.length >= 2 ? "✓" : ""}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsPlaying(!isPlaying)}
+              className={`flex h-20 w-20 items-center justify-center rounded-full transition-all ${
+                isPlaying
+                  ? "border border-red-500/30 bg-red-500/10 text-red-500"
+                  : "bg-[var(--color-mint)] text-black shadow-lg hover:scale-105"
+              }`}
+            >
+              {isPlaying ? <Square className="h-8 w-8 fill-current" /> : <Play className="ml-1 h-8 w-8 fill-current" />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -319,7 +424,7 @@ export function HelpersClient() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="glass-pill p-2 text-[var(--color-copper)]">
-              <Radio className="h-4 w-4" />
+              <Hand className="h-4 w-4" />
             </div>
             <div>
               <div className="eyebrow">Pitch lab</div>
@@ -351,6 +456,33 @@ export function HelpersClient() {
             </button>
           ))}
         </div>
+
+        {instrumentMode === "bass" ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">Strings</span>
+            <button
+              type="button"
+              onClick={() => { setShowExtendedBass(false); setBassStringCount(4); }}
+              className={`tab-editor-pill ${!showExtendedBass ? "tab-editor-pill-active" : ""}`}
+            >
+              4-string
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowExtendedBass(true); setBassStringCount(5); }}
+              className={`tab-editor-pill ${showExtendedBass && bassStringCount === 5 ? "tab-editor-pill-active" : ""}`}
+            >
+              5-string
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowExtendedBass(true); setBassStringCount(6); }}
+              className={`tab-editor-pill ${showExtendedBass && bassStringCount === 6 ? "tab-editor-pill-active" : ""}`}
+            >
+              6-string
+            </button>
+          </div>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="field-group">
@@ -427,7 +559,7 @@ export function HelpersClient() {
 
         <div>
           <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">
-            {activeTuning.name} · tap string for reference tone
+            {activeTuning.name} · {activeTuning.strings.length} strings · tap for reference tone
           </div>
           <div className={`grid gap-2 ${instrumentMode === "bass" ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
             {activeTuning.strings.map((tuningString) => renderStringRow(tuningString))}

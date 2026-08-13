@@ -7,6 +7,8 @@ import { toast } from "sonner";
 
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
 import { useAudio } from "@/components/music/audio-provider";
+import { playKeyboardNote, type KeyboardVoice } from "@/lib/music/keyboard-synth";
+import { CHROMATIC, intervalsToPitchClasses, noteFrequency } from "@/lib/music/notes";
 import {
   PROGRESSION_CATEGORIES,
   PROGRESSION_PRESETS,
@@ -14,7 +16,7 @@ import {
   type ProgressionPreset,
 } from "@/lib/music/progression-presets";
 
-const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const NOTES: string[] = [...CHROMATIC];
 const QUALITIES = ["Maj", "min", "7", "maj7", "min7", "dim", "sus4", "sus2", "aug", "dim7"];
 const ROMAN_NUMERALS = ["I", "ii", "iii", "IV", "V", "vi", "vii°"];
 const DEGREE_ROOTS = [0, 2, 4, 5, 7, 9, 11];
@@ -35,8 +37,8 @@ interface Chord {
 }
 
 function analyzeChord(chord: Chord, keyRoot: string): { numeral: string; functionLabel: string } | null {
-  const keyIndex = NOTES.indexOf(keyRoot);
-  const chordIndex = NOTES.indexOf(chord.root);
+  const keyIndex = NOTES.indexOf(keyRoot as (typeof NOTES)[number]);
+  const chordIndex = NOTES.indexOf(chord.root as (typeof NOTES)[number]);
   if (keyIndex === -1 || chordIndex === -1) return null;
 
   const distance = (chordIndex - keyIndex + 12) % 12;
@@ -75,7 +77,27 @@ export function ProgressionClient() {
   const [loopPlayback, setLoopPlayback] = useState(false);
   const [presetCategory, setPresetCategory] = useState<string>("All");
   const [activeChordId, setActiveChordId] = useState<string | null>(null);
+  const [keyboardVoice, setKeyboardVoice] = useState<KeyboardVoice>("electric-piano");
+  const [keyboardOctave, setKeyboardOctave] = useState(3);
   const playingRef = useRef(false);
+
+  const chordIntervals: Record<string, number[]> = {
+    Maj: [0, 4, 7],
+    min: [0, 3, 7],
+    "7": [0, 4, 7, 10],
+    maj7: [0, 4, 7, 11],
+    min7: [0, 3, 7, 10],
+    dim: [0, 3, 6],
+    sus4: [0, 5, 7],
+    sus2: [0, 2, 7],
+    aug: [0, 4, 8],
+    dim7: [0, 3, 6, 9],
+  };
+
+  const previewActiveNotes = useMemo(
+    () => intervalsToPitchClasses(root, chordIntervals[quality] ?? [0, 4, 7]),
+    [root, quality],
+  );
 
   useEffect(() => {
     playingRef.current = isPlaying;
@@ -86,41 +108,16 @@ export function ProgressionClient() {
     return PROGRESSION_PRESETS.filter((preset) => preset.category === presetCategory);
   }, [presetCategory]);
 
-  const playNote = (freq: number, startTime: number, delay: number, duration = 1.5) => {
-    const ctx = getAudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sawtooth";
-    osc.frequency.setValueAtTime(freq, startTime + delay);
-    gain.gain.setValueAtTime(0, startTime + delay);
-    gain.gain.linearRampToValueAtTime(0.08, startTime + delay + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001, startTime + delay + duration);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(startTime + delay);
-    osc.stop(startTime + delay + duration);
-  };
-
   const playChord = (chord: Chord, delay = 0) => {
     const ctx = getAudioContext();
     const startTime = ctx.currentTime + delay;
-    const baseFreq = 261.63 * 2 ** (NOTES.indexOf(chord.root) / 12);
-
-    const intervals: Record<string, number[]> = {
-      Maj: [0, 4, 7],
-      min: [0, 3, 7],
-      "7": [0, 4, 7, 10],
-      maj7: [0, 4, 7, 11],
-      min7: [0, 3, 7, 10],
-      dim: [0, 3, 6],
-      sus4: [0, 5, 7],
-      sus2: [0, 2, 7],
-      aug: [0, 4, 8],
-      dim7: [0, 3, 6, 9],
-    };
-
-    intervals[chord.quality]?.forEach((interval, idx) => {
-      playNote(baseFreq * 2 ** (interval / 12), startTime, idx * 0.02);
+    const intervals = chordIntervals[chord.quality] ?? [0, 4, 7];
+    const rootIndex = CHROMATIC.indexOf(chord.root as (typeof CHROMATIC)[number]);
+    const frequencies = intervals.map((interval) =>
+      noteFrequency(CHROMATIC[(rootIndex + interval) % 12], keyboardOctave),
+    );
+    frequencies.forEach((frequency, idx) => {
+      playKeyboardNote(ctx, frequency, keyboardVoice, startTime + idx * 0.03);
     });
   };
 
@@ -369,10 +366,30 @@ export function ProgressionClient() {
       </div>
 
       <div className="panel glass-shine rounded-[1.75rem] p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="eyebrow">Interactive master keyboard</div>
+            <h4 className="text-lg font-black">Preview {root}{quality === "Maj" ? "" : quality}</h4>
+          </div>
+          <button
+            type="button"
+            onClick={() => playChord({ id: "preview", root, quality })}
+            className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest"
+          >
+            Play chord
+          </button>
+        </div>
         <PianoKeyboard
-          onNotePlay={(note) => {
+          activeNotes={previewActiveNotes}
+          startOctave={keyboardOctave}
+          voice={keyboardVoice}
+          onVoiceChange={setKeyboardVoice}
+          showInstrumentSelector
+          onNotePlay={(note, frequency) => {
             setRoot(note);
-            playChord({ id: "preview", root: note, quality });
+            const midi = 69 + 12 * Math.log2(frequency / 440);
+            setKeyboardOctave(Math.max(1, Math.min(6, Math.floor(midi / 12) - 1)));
+            playKeyboardNote(getAudioContext(), frequency, keyboardVoice);
           }}
         />
       </div>

@@ -524,6 +524,28 @@ export async function listRegisteredUsersWithAccess() {
   });
 }
 
+export async function updateRegisteredUserProfile(options: {
+  targetUserId: string;
+  name: string | null;
+  actingUserId: string;
+}) {
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const targetResult = await db.execute({
+    sql: "select id from app_user where id = ? limit 1",
+    args: [options.targetUserId],
+  });
+  if (!targetResult.rows[0]) {
+    throw new Error("User not found");
+  }
+
+  const name = normalizeText(options.name);
+  await db.execute({
+    sql: "update app_user set name = ?, updated_at = ? where id = ?",
+    args: [name, isoNow(), options.targetUserId],
+  });
+}
+
 export async function updateRegisteredUserAccess(options: {
   targetUserId: string;
   pageKey: ManagedPageKey;
@@ -554,6 +576,48 @@ export async function updateRegisteredUserAccess(options: {
     `,
     args: [options.targetUserId, options.pageKey, options.canAccess ? 1 : 0, isoNow(), options.actingUserId],
   });
+}
+
+export async function setRegisteredUserPageAccessMap(options: {
+  targetUserId: string;
+  pageAccess: Record<ManagedPageKey, boolean>;
+  actingUserId: string;
+}) {
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const targetResult = await db.execute({
+    sql: "select id, is_admin from app_user where id = ? limit 1",
+    args: [options.targetUserId],
+  });
+  const target = targetResult.rows[0] as Record<string, unknown> | undefined;
+  if (!target) {
+    throw new Error("User not found");
+  }
+
+  if (Number(target.is_admin ?? 0) === 1) {
+    throw new Error("Admin access is fixed and cannot be edited here");
+  }
+
+  const now = isoNow();
+  await Promise.all(
+    MANAGEABLE_PAGES.map((page) =>
+      db.execute({
+        sql: `
+          insert into app_page_access (user_id, page_key, can_access, updated_at, updated_by)
+          values (?, ?, ?, ?, ?)
+          on conflict(user_id, page_key)
+          do update set can_access = excluded.can_access, updated_at = excluded.updated_at, updated_by = excluded.updated_by
+        `,
+        args: [
+          options.targetUserId,
+          page.key,
+          options.pageAccess[page.key] ? 1 : 0,
+          now,
+          options.actingUserId,
+        ],
+      }),
+    ),
+  );
 }
 
 async function createSession(userId: string) {

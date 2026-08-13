@@ -19,3 +19,21 @@ export function isManagedPageKey(value: string): value is ManagedPageKey {
 export const ALL_ACCESS_PAGE_MAP: Record<ManagedPageKey, boolean> = Object.fromEntries(
   MANAGEABLE_PAGES.map((page) => [page.key, true]),
 ) as Record<ManagedPageKey, boolean>;
+
+export const HUB_ACCESS_GROUPS = [
+  {
+    id: "production-studio",
+    label: "Production Studio",
+    pageKeys: ["lyrics-library", "song-studio", "daw", "tab-studio"] as const satisfies readonly ManagedPageKey[],
+  },
+  {
+    id: "music-toolkit",
+    label: "Music Toolkit",
+    pageKeys: ["musician-helpers", "theory-lab", "progressions"] as const satisfies readonly ManagedPageKey[],
+  },
+  {
+    id: "prompt-library",
+    label: "Prompt Library",
+    pageKeys: ["prompt-library"] as const satisfies readonly ManagedPageKey[],
+  },
+] as const;

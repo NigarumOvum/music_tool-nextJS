@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@plugin "../hero.ts";
+@source "../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
+
+@custom-variant dark (&:is([data-theme="dark"], [data-theme="dark"] *));
 
 :root {
   --background: #f5f7fb;
@@ -369,12 +373,14 @@ html[data-theme="dark"] .panel-interactive:hover {
 }
 
 .modal-solid {
-  background: var(--color-modal-surface) !important;
+  background-color: var(--color-modal-surface) !important;
+  background-image: none !important;
   color: var(--color-foreground) !important;
   border: 1px solid var(--color-border) !important;
   box-shadow: var(--shadow-panel) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  opacity: 1 !important;
 }
 
 .modal-solid::before {
@@ -382,9 +388,27 @@ html[data-theme="dark"] .panel-interactive:hover {
 }
 
 .modal-backdrop-solid {
-  background: var(--color-modal-backdrop) !important;
+  background-color: var(--color-modal-backdrop) !important;
+  background-image: none !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
+  opacity: 1 !important;
+}
+
+/* Fallback when modal classNames are not passed */
+section[aria-modal="true"] {
+  background-color: var(--color-modal-surface) !important;
+  background-image: none !important;
+  color: var(--color-foreground) !important;
+  border: 1px solid var(--color-border) !important;
+  box-shadow: var(--shadow-panel) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.fixed.inset-0.z-50.bg-overlay\/50,
+.fixed.inset-0.z-50.modal-backdrop-solid {
+  background-color: var(--color-modal-backdrop) !important;
 }
 
 .modal-inset-panel {

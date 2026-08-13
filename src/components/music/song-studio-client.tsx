@@ -41,6 +41,7 @@ import {
   updateSong,
 } from "@/lib/music/client";
 import type { MusicSongDetail, MusicSongSummary, MusicTaskTemplateRecord } from "@/lib/music/types";
+import { opaqueModalProps } from "@/lib/ui/modal-styles";
 
 type EditorTab = "overview" | "lyrics" | "arrangement" | "advanced";
 type PartKind = "section" | "layer";
@@ -721,7 +722,7 @@ export function SongStudioClient() {
         )}
       </section>
 
-      <Modal isOpen={deleteOpen} onOpenChange={onDeleteOpenChange} placement="center">
+      <Modal isOpen={deleteOpen} onOpenChange={onDeleteOpenChange} placement="center" {...opaqueModalProps}>
         <ModalContent>
           {(onClose) => (
             <>

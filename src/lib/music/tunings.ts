@@ -263,6 +263,10 @@ export function centsFromTarget(frequency: number, targetFrequency: number) {
   return Math.round(1200 * Math.log2(frequency / targetFrequency));
 }
 
+export function bassTuningsForStringCount(count: 4 | 5 | 6) {
+  return BASS_TUNINGS.filter((preset) => preset.strings.length === count);
+}
+
 export function findClosestString(frequency: number, strings: TuningString[]) {
   if (frequency <= 0) return null;
 
