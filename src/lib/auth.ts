@@ -229,7 +229,7 @@ async function consumeAuthEmailToken(token: string, type: AuthEmailTokenType) {
 
 async function sendVerificationEmail(user: AuthUser, token: string) {
   const url = `${getBaseUrl()}/verify-email?token=${encodeURIComponent(token)}`;
-  await sendEmail({
+  const result = await sendEmail({
     to: user.email,
     subject: "Confirm your Music Tool email",
     html: `
@@ -244,11 +244,12 @@ async function sendVerificationEmail(user: AuthUser, token: string) {
     `,
     text: `Confirm your Music Tool email: ${url}`,
   });
+  return { sent: result.ok, url };
 }
 
 async function sendPasswordResetEmail(user: AuthUser, token: string) {
   const url = `${getBaseUrl()}/reset-password?token=${encodeURIComponent(token)}`;
-  await sendEmail({
+  const result = await sendEmail({
     to: user.email,
     subject: "Reset your Music Tool password",
     html: `
@@ -263,6 +264,7 @@ async function sendPasswordResetEmail(user: AuthUser, token: string) {
     `,
     text: `Reset your Music Tool password: ${url}`,
   });
+  return { sent: result.ok, url };
 }
 
 function hashPassword(password: string) {
@@ -710,15 +712,20 @@ export async function registerUser(input: { name?: string | null; email: string;
     args: [user.id, user.email, user.name, user.email_verified_at, user.is_admin, user.password_hash, user.created_at, user.updated_at],
   });
 
+  let verificationUrl: string | null = null;
   try {
     const token = await createAuthEmailToken(user.id, "email-confirmation");
-    await sendVerificationEmail(mapUserRow(user), token);
+    const { sent, url } = await sendVerificationEmail(mapUserRow(user), token);
+    if (!sent) {
+      console.error("Confirmation email could not be delivered; surfacing fallback link", url);
+      verificationUrl = url;
+    }
   } catch (error) {
     await db.execute({ sql: "delete from app_user where id = ?", args: [user.id] });
     throw error;
   }
 
-  return mapUserRow(user);
+  return { user: mapUserRow(user), verificationUrl };
 }
 
 export async function loginUser(input: { email: string; password: string }) {
@@ -761,15 +768,21 @@ export async function resendEmailConfirmation(emailInput: string) {
   });
   const row = result.rows[0] as Record<string, unknown> | undefined;
   if (!row) {
-    return;
+    return null;
   }
 
   if (row.email_verified_at) {
-    return;
+    return null;
   }
 
   const token = await createAuthEmailToken(String(row.id), "email-confirmation");
-  await sendVerificationEmail(mapUserRow(row), token);
+  const { sent, url } = await sendVerificationEmail(mapUserRow(row), token);
+  if (!sent) {
+    console.error("Confirmation email could not be delivered; surfacing fallback link", url);
+    return url;
+  }
+
+  return null;
 }
 
 export async function confirmEmail(token: string) {
@@ -806,11 +819,17 @@ export async function requestPasswordReset(emailInput: string) {
   });
   const row = result.rows[0] as Record<string, unknown> | undefined;
   if (!row) {
-    return;
+    return null;
   }
 
   const token = await createAuthEmailToken(String(row.id), "password-reset");
-  await sendPasswordResetEmail(mapUserRow(row), token);
+  const { sent, url } = await sendPasswordResetEmail(mapUserRow(row), token);
+  if (!sent) {
+    console.error("Password reset email could not be delivered; surfacing fallback link", url);
+    return url;
+  }
+
+  return null;
 }
 
 export async function resetPassword(token: string, nextPassword: string) {

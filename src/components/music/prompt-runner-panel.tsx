@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { Button, Spinner } from "@heroui/react";
-import { Sparkles } from "lucide-react";
+import { Copy, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { fetchSongs, runPromptOnSong } from "@/lib/music/client";
@@ -131,9 +131,25 @@ export function PromptRunnerPanel({
       )}
 
       {output ? (
-        <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-[1rem] border border-[var(--color-border)] bg-black/20 p-3 font-mono text-xs leading-6 text-[var(--color-foreground)]">
-          {output}
-        </pre>
+        <div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-sand-2)]">Output</span>
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard.writeText(output);
+                toast.success("Output copied");
+              }}
+              className="glass-pill inline-flex items-center gap-1 px-2 py-1 text-[9px] font-black uppercase tracking-widest"
+            >
+              <Copy className="h-3 w-3" />
+              Copy
+            </button>
+          </div>
+          <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-[1rem] border border-[var(--color-border)] bg-black/20 p-3 font-mono text-xs leading-6 text-[var(--color-foreground)]">
+            {output}
+          </pre>
+        </div>
       ) : null}
     </div>
   );

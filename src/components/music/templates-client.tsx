@@ -31,6 +31,8 @@ type TemplateFilters = {
   targetField: string;
 };
 
+type SortOrder = "name" | "newest" | "oldest";
+
 type TemplatesClientProps = {
   libraryEyebrow?: string;
   libraryTitle?: string;
@@ -95,6 +97,7 @@ export function TemplatesClient({
   const [templates, setTemplates] = useState<MusicTaskTemplateRecord[]>([]);
   const [draft, setDraft] = useState<TemplateDraft>(emptyDraft);
   const [filters, setFilters] = useState<TemplateFilters>(emptyFilters);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("name");
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<MusicTaskTemplateRecord | null>(null);
   const { isOpen, onOpen, onOpenChange, onClose } = useDisclosure({
@@ -126,7 +129,7 @@ export function TemplatesClient({
     const categoryQuery = filters.category.trim().toLowerCase();
     const targetFieldQuery = filters.targetField.trim().toLowerCase();
 
-    return templates.filter((template) => {
+    const matched = templates.filter((template) => {
       if (query) {
         const haystack = [
           template.name,
@@ -164,7 +167,13 @@ export function TemplatesClient({
 
       return true;
     });
-  }, [filters, templates]);
+
+    return [...matched].sort((a, b) => {
+      if (sortOrder === "name") return a.name.localeCompare(b.name);
+      if (sortOrder === "newest") return b.updatedAt.localeCompare(a.updatedAt);
+      return a.updatedAt.localeCompare(b.updatedAt);
+    });
+  }, [filters, sortOrder, templates]);
 
   const hasActiveFilters = Boolean(
     filters.search || filters.genre || filters.category || filters.targetType || filters.targetField,
@@ -254,6 +263,35 @@ export function TemplatesClient({
     }
   }
 
+  async function duplicateTemplate(template: MusicTaskTemplateRecord) {
+    try {
+      await createTemplate({
+        name: `${template.name} (copy)`,
+        category: template.category || null,
+        genre: template.genre || null,
+        description: template.description || null,
+        targetType: template.targetType,
+        targetField: template.targetField || (template.targetType === "song-field" ? "lyrics_text" : null),
+        targetKinds: template.targetKinds,
+        instructions: template.instructions,
+      });
+      toast.success(`${itemLabel} duplicated`);
+      await loadTemplates();
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
+
+  async function copyInstructions() {
+    if (!selectedTemplate) return;
+    try {
+      await navigator.clipboard.writeText(selectedTemplate.instructions);
+      toast.success("Instructions copied to clipboard");
+    } catch {
+      toast.error("Clipboard unavailable");
+    }
+  }
+
   function openTemplate(template: MusicTaskTemplateRecord) {
     setSelectedTemplate(template);
     onOpen();
@@ -322,16 +360,28 @@ export function TemplatesClient({
             <span>
               Showing {filteredTemplates.length} of {templates.length} {itemLabel.toLowerCase()}s
             </span>
-            {hasActiveFilters ? (
-              <button
-                type="button"
-                onClick={() => setFilters(emptyFilters)}
-                className="glass-pill inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition hover:-translate-y-0.5"
+            <div className="flex items-center gap-2">
+              <select
+                className="field w-auto py-1.5 text-xs font-bold"
+                value={sortOrder}
+                onChange={(event) => setSortOrder(event.target.value as SortOrder)}
+                aria-label="Sort templates"
               >
-                <X className="h-3 w-3" />
-                Clear filters
-              </button>
-            ) : null}
+                <option value="name">Name A–Z</option>
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+              </select>
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={() => setFilters(emptyFilters)}
+                  className="glass-pill inline-flex items-center gap-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition hover:-translate-y-0.5"
+                >
+                  <X className="h-3 w-3" />
+                  Clear filters
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
         {loading ? (
@@ -427,6 +477,9 @@ export function TemplatesClient({
             readOnly
           />
           <textarea className="field min-h-56" value={draft.instructions} onChange={(event) => setDraft((current) => ({ ...current, instructions: event.target.value }))} placeholder={instructionsPlaceholder} />
+          <div className="text-right text-[10px] font-bold uppercase tracking-widest text-[var(--color-sand-2)]">
+            {draft.instructions.length.toLocaleString()} chars · ~{Math.max(1, Math.ceil(draft.instructions.trim().split(/\s+/).filter(Boolean).length * 1.33)).toLocaleString()} est. tokens
+          </div>
           <div className="flex gap-2">
             <Button className="bg-[var(--color-copper)] text-white" radius="full" onPress={persistTemplate}>
               {draft.id ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
@@ -498,6 +551,20 @@ export function TemplatesClient({
               <ModalFooter>
                 <Button radius="full" variant="bordered" onPress={close}>
                   Close
+                </Button>
+                <Button
+                  radius="full"
+                  variant="bordered"
+                  onPress={() => void copyInstructions()}
+                >
+                  Copy instructions
+                </Button>
+                <Button
+                  radius="full"
+                  variant="bordered"
+                  onPress={() => void duplicateTemplate(selectedTemplate)}
+                >
+                  Duplicate
                 </Button>
                 <Button
                   radius="full"

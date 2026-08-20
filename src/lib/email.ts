@@ -18,7 +18,11 @@ function getFromEmail() {
   return process.env.RESEND_FROM_EMAIL?.trim() || "onboarding@resend.dev";
 }
 
-export async function sendEmail(payload: EmailPayload) {
+export type SendEmailResult =
+  | { ok: true; id?: string }
+  | { ok: false; code: "recipient_not_allowed" | "error"; message: string };
+
+export async function sendEmail(payload: EmailPayload): Promise<SendEmailResult> {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -35,9 +39,14 @@ export async function sendEmail(payload: EmailPayload) {
   });
 
   if (!response.ok) {
-    const details = await response.text().catch(() => "");
-    throw new Error(details || "Failed to send email");
+    const message = (await response.text().catch(() => "")) || "Failed to send email";
+    const isRecipientRestriction =
+      response.status === 403 && message.includes("testing emails") && message.includes("validation_error");
+    return isRecipientRestriction
+      ? { ok: false, code: "recipient_not_allowed", message }
+      : { ok: false, code: "error", message };
   }
 
-  return response.json().catch(() => null);
+  const json = (await response.json().catch(() => null)) as { id?: string } | null;
+  return { ok: true, id: json?.id };
 }

@@ -198,6 +198,25 @@ export function HelpersClient() {
     });
   }
 
+  const tappedBpm = useMemo(() => {
+    if (tapTimes.length < 2) return null;
+    const intervals = tapTimes.slice(1).map((time, index) => time - tapTimes[index]);
+    const average = intervals.reduce((sum, value) => sum + value, 0) / intervals.length;
+    return Math.round(60000 / average);
+  }, [tapTimes]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "SELECT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      event.preventDefault();
+      setIsPlaying((current) => !current);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   const toggleListening = async () => {
     if (isListening) {
       listeningRef.current = false;
@@ -397,13 +416,30 @@ export function HelpersClient() {
             </label>
           </div>
 
+          <div className="flex flex-wrap justify-center gap-1.5">
+            {[40, 60, 80, 100, 120, 160].map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                onClick={() => setBpm(preset)}
+                className={`rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest transition ${
+                  bpm === preset
+                    ? "border-[var(--color-mint)] bg-[var(--color-mint)] text-black"
+                    : "border-white/10 opacity-50 hover:opacity-100"
+                }`}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
               onClick={handleTapTempo}
               className="glass-pill px-4 py-2 text-[10px] font-black uppercase tracking-widest"
             >
-              Tap tempo {tapTimes.length >= 2 ? "✓" : ""}
+              Tap tempo {tappedBpm ? `· ${tappedBpm}` : ""}
             </button>
             <button
               type="button"

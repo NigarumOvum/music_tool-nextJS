@@ -13,9 +13,11 @@ import {
 } from "@heroui/react";
 import {
   Book,
+  CopyPlus,
   Eraser,
   Guitar,
   Layout,
+  ListMusic,
   Mic2,
   Music2,
   Plus,
@@ -27,11 +29,13 @@ import { toast } from "sonner";
 import { useProductionSong } from "@/components/music/production-song-context";
 import {
   createPartiture,
+  createSong,
   deletePartiture,
   deleteSong,
   fetchPartitures,
   fetchSongDetail,
   fetchSongs,
+  saveSongPart,
   updatePartiture,
   updateSong,
 } from "@/lib/music/client";
@@ -63,6 +67,103 @@ const INSTRUMENT_ICONS: Record<string, typeof Guitar> = {
   vocals: Mic2,
   other: Book,
 };
+
+const PARTITURE_FORMATS = ["text-tab", "grid", "lyrics", "notation"] as const;
+
+const DRUM_KITS = ["Kick", "Snare", "Hi-hat", "Open HH", "Crash", "Ride", "Tom L", "Tom M", "Tom H"] as const;
+
+function parseDrumContent(content: string): boolean[][] {
+  const matrix = DRUM_KITS.map(() => [] as boolean[]);
+  for (const line of content.split("\n")) {
+    const idx = line.indexOf(":");
+    if (idx === -1) continue;
+    const namePart = line.slice(0, idx).trim().toLowerCase();
+    const cellsPart = line.slice(idx + 1).trim();
+    const kitIndex = DRUM_KITS.findIndex((name) => name.toLowerCase() === namePart);
+    if (kitIndex === -1) continue;
+    matrix[kitIndex] = cellsPart.split("").map((char) => char === "x" || char === "X");
+  }
+  return matrix;
+}
+
+function serializeDrumContent(matrix: boolean[][]): string {
+  return matrix
+    .map((cells, index) => `${DRUM_KITS[index]}: ${cells.map((on) => (on ? "x" : "-")).join("")}`)
+    .join("\n");
+}
+
+function DrumGridEditor({ content, onChange }: { content: string; onChange: (next: string) => void }) {
+  const parsed = useMemo(() => parseDrumContent(content), [content]);
+  const [stepCount, setStepCount] = useState(Math.max(16, Math.max(...parsed.map((row) => row.length), 16)));
+
+  const cellAt = (kitIndex: number, step: number) => parsed[kitIndex]?.[step] ?? false;
+
+  const toggle = (kitIndex: number, step: number) => {
+    const next = parsed.map((row, index) => {
+      if (index !== kitIndex) return Array.from({ length: stepCount }, (_, s) => row[s] ?? false);
+      return Array.from({ length: stepCount }, (_, s) => (s === step ? !(row[s] ?? false) : (row[s] ?? false)));
+    });
+    onChange(serializeDrumContent(next));
+  };
+
+  const resize = (count: number) => {
+    const clamped = Math.max(8, Math.min(64, count));
+    setStepCount(clamped);
+    onChange(serializeDrumContent(parsed.map((row) => Array.from({ length: clamped }, (_, s) => row[s] ?? false))));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="field-label">Drum grid</span>
+        <div className="flex items-center gap-1">
+          <button type="button" aria-label="Remove steps" className="glass-pill px-2 py-1 text-[10px] font-black" onClick={() => resize(stepCount - 4)}>-4</button>
+          <span className="text-[10px] font-bold text-[var(--color-sand-2)]">{stepCount} steps</span>
+          <button type="button" aria-label="Add steps" className="glass-pill px-2 py-1 text-[10px] font-black" onClick={() => resize(stepCount + 4)}>+4</button>
+        </div>
+      </div>
+      <div className="max-h-72 overflow-auto rounded-[1rem] border border-white/8 bg-black/25 p-2">
+        <div className="flex gap-1 pl-20">
+          {Array.from({ length: stepCount }, (_, step) => (
+            <span key={step} className="w-5 flex-none text-center text-[8px] font-bold uppercase text-[var(--color-sand-2)]">
+              {(step % 4) + 1}
+            </span>
+          ))}
+        </div>
+        {DRUM_KITS.map((kit, kitIndex) => (
+          <div key={kit} className="mt-1 flex items-center gap-1">
+            <span className="w-20 flex-none truncate text-[9px] font-black uppercase tracking-wider text-[var(--color-sand-2)]">{kit}</span>
+            {Array.from({ length: stepCount }, (_, step) => (
+              <button
+                key={step}
+                type="button"
+                aria-label={`${kit} step ${step + 1}`}
+                onClick={() => toggle(kitIndex, step)}
+                className={`h-5 w-5 flex-none rounded border text-[8px] font-black transition ${
+                  cellAt(kitIndex, step)
+                    ? step % 4 === 0
+                      ? "border-[var(--color-copper)] bg-[var(--color-copper)] text-white"
+                      : "border-[var(--color-mint)] bg-[var(--color-mint)]/80 text-black"
+                    : "border-white/10 bg-white/5"
+                }`}
+              >
+                {cellAt(kitIndex, step) ? "x" : ""}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function lyricsStats(text: string) {
+  const lines = text.split("\n").filter((line) => line.trim()).length;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const syllables = (text.toLowerCase().match(/[aeiouáéíóúü]+/g) || []).length;
+  const estSeconds = words > 0 ? Math.max(5, Math.round(syllables / 3.2)) : 0;
+  return { lines, words, syllables, estSeconds };
+}
 
 export function LyricsLibraryClient() {
   const { selectedSongId: hubSongId, setSelectedSongId: setHubSongId } = useProductionSong();
@@ -102,6 +203,8 @@ export function LyricsLibraryClient() {
     [songs],
   );
 
+  const stats = useMemo(() => lyricsStats(selectedSong?.song.lyrics_text ?? ""), [selectedSong]);
+
   function snapshotLyrics(song: MusicSongDetail) {
     return JSON.stringify({
       lyrics: song.song.lyrics_text ?? "",
@@ -110,6 +213,10 @@ export function LyricsLibraryClient() {
   }
 
   async function loadSong(songId: string, syncHub = true) {
+    if (dirty && songId !== selectedSongId) {
+      const proceed = window.confirm("You have unsaved changes. Discard them and switch songs?");
+      if (!proceed) return;
+    }
     setLoading(true);
     try {
       const [songPayload, partiturePayload] = await Promise.all([
@@ -172,6 +279,74 @@ export function LyricsLibraryClient() {
     }
     setDirty(snapshotLyrics(selectedSong) !== savedSnapshotRef.current);
   }, [selectedSong]);
+
+  useEffect(() => {
+    const handler = (event: BeforeUnloadEvent) => {
+      if (dirty) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
+
+  async function persistSectionText(index: number, text: string) {
+    if (!selectedSong) return;
+    const section = selectedSong.sections[index];
+    if (!section) return;
+    try {
+      const payload = await saveSongPart(selectedSong.song.id, {
+        kind: "section",
+        name: section.name,
+        text,
+        json: section.json,
+      });
+      setSelectedSong(payload.song);
+      savedSnapshotRef.current = snapshotLyrics(payload.song);
+      setDirty(false);
+      toast.success(`Section "${section.name}" saved`);
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
+
+  async function duplicateSong() {
+    if (!selectedSong) return;
+    try {
+      const source = selectedSong;
+      const payload = await createSong({
+        title: `${source.song.title} (copy)`,
+        topic: source.song.topic,
+        emotion: source.song.emotion,
+        genre: source.song.genre,
+        language: source.song.language,
+        reference_text: source.song.reference_text,
+        lyrics_text: source.song.lyrics_text,
+        song_json: source.song.song_json,
+        melody_json: source.song.melody_json,
+        midi_blueprints_json: source.song.midi_blueprints_json,
+        production_json: source.song.production_json,
+        metadata_json: source.song.metadata_json,
+        bpm: source.song.bpm,
+        musical_key: source.song.musical_key,
+        structure_text: source.song.structure_text,
+        hook_summary: source.song.hook_summary,
+        vocal_style: source.song.vocal_style,
+        instrumentation: source.song.instrumentation,
+        mood_tags_json: source.song.mood_tags_json,
+        sections: source.sections.map((item) => ({ name: item.name, text: item.text, json: item.json })),
+        layers: source.layers.map((item) => ({ name: item.name, text: item.text, json: item.json })),
+      });
+      toast.success("Song duplicated");
+      const listPayload = await fetchSongs();
+      setSongs(listPayload.songs);
+      setHubSongId(payload.song.song.id);
+      await loadSong(payload.song.song.id, false);
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
 
   async function persistLyrics() {
     if (!selectedSong) return;
@@ -357,6 +532,14 @@ export function LyricsLibraryClient() {
                   <Button
                     radius="full"
                     variant="bordered"
+                    startContent={<CopyPlus className="h-3.5 w-3.5" />}
+                    onPress={() => void duplicateSong()}
+                  >
+                    Duplicate
+                  </Button>
+                  <Button
+                    radius="full"
+                    variant="bordered"
                     startContent={<Eraser className="h-3.5 w-3.5" />}
                     onPress={() => void clearLyrics()}
                   >
@@ -383,6 +566,15 @@ export function LyricsLibraryClient() {
                 </div>
               </div>
 
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span className="glass-pill px-3 py-1 text-[10px] font-bold uppercase tracking-widest">{stats.lines} lines</span>
+                <span className="glass-pill px-3 py-1 text-[10px] font-bold uppercase tracking-widest">{stats.words} words</span>
+                <span className="glass-pill px-3 py-1 text-[10px] font-bold uppercase tracking-widest">{stats.syllables} syllables</span>
+                <span className="glass-pill px-3 py-1 text-[10px] font-bold uppercase tracking-widest">
+                  ~{Math.floor(stats.estSeconds / 60)}:{String(stats.estSeconds % 60).padStart(2, "0")} est. duration
+                </span>
+              </div>
+
               <div className="grid gap-4 lg:grid-cols-2">
                 <label className="field-group relative">
                   <span className="field-label">Lyrics</span>
@@ -403,6 +595,48 @@ export function LyricsLibraryClient() {
                   />
                 </label>
               </div>
+            </div>
+
+            <div className="panel rounded-[2rem] border border-white/5 bg-zinc-900/10 p-6">
+              <div className="mb-4 flex items-center gap-3">
+                <ListMusic className="h-5 w-5 text-[var(--color-copper)]" />
+                <div>
+                  <h3 className="text-2xl font-black uppercase italic tracking-tighter">Song sections</h3>
+                  <p className="text-xs text-[var(--color-sand-2)]">
+                    Edit section notes in place. Each section saves independently to the song.
+                  </p>
+                </div>
+              </div>
+              {selectedSong.sections.length === 0 ? (
+                <p className="text-sm text-[var(--color-sand-2)]">
+                  No sections yet — add them in the Song tab (Arrangement) and they will appear here.
+                </p>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {selectedSong.sections.map((section, index) => (
+                    <div key={section.name} className="glass-card-soft rounded-[1.25rem] p-4">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-sm font-black uppercase tracking-wider text-[var(--color-brass)]">{section.name}</span>
+                        <Button size="sm" radius="full" variant="bordered" onPress={() => void persistSectionText(index, section.text ?? "")}>
+                          <Save className="h-3.5 w-3.5" />
+                          Save
+                        </Button>
+                      </div>
+                      <textarea
+                        className="field min-h-24 text-sm"
+                        value={section.text ?? ""}
+                        onChange={(event) => {
+                          setSelectedSong((current) => current ? {
+                            ...current,
+                            sections: current.sections.map((item, itemIdx) => itemIdx === index ? { ...item, text: event.target.value } : item),
+                          } : current);
+                        }}
+                        placeholder={`Notes for ${section.name}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -490,24 +724,43 @@ export function LyricsLibraryClient() {
                           </label>
                           <label className="field-group">
                             <span className="field-label">Format</span>
-                            <input
+                            <select
                               className="field py-2 text-xs font-bold"
                               value={slotRecord.format}
                               onChange={(e) => updatePartitureField(key, { format: e.target.value })}
-                            />
+                            >
+                              {PARTITURE_FORMATS.map((format) => (
+                                <option key={format} value={format}>{format}</option>
+                              ))}
+                            </select>
                           </label>
                           <label className="field-group">
                             <span className="field-label">Content</span>
-                            <textarea
-                              className="field min-h-56 font-mono text-sm leading-loose"
-                              value={slotRecord.content}
-                              onChange={(e) => updatePartitureField(key, { content: e.target.value })}
-                              placeholder={
-                                slotRecord.instrument === "drums"
-                                  ? "Kick · Snare · Hi-hat grid..."
-                                  : "Tab, notation, or chart content..."
-                              }
-                            />
+                            {slotRecord.format === "grid" ? (
+                              <div className="space-y-3">
+                                <DrumGridEditor
+                                  content={slotRecord.content}
+                                  onChange={(next) => updatePartitureField(key, { content: next })}
+                                />
+                                <textarea
+                                  className="field min-h-20 font-mono text-sm leading-loose"
+                                  value={slotRecord.content}
+                                  onChange={(e) => updatePartitureField(key, { content: e.target.value })}
+                                  placeholder="Raw drum grid text..."
+                                />
+                              </div>
+                            ) : (
+                              <textarea
+                                className="field min-h-56 font-mono text-sm leading-loose"
+                                value={slotRecord.content}
+                                onChange={(e) => updatePartitureField(key, { content: e.target.value })}
+                                placeholder={
+                                  slotRecord.instrument === "drums"
+                                    ? "Kick · Snare · Hi-hat grid..."
+                                    : "Tab, notation, or chart content..."
+                                }
+                              />
+                            )}
                           </label>
                           <Button
                             radius="full"

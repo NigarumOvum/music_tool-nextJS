@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Download,
+  Magnet,
   Maximize2,
   Music2,
   Pause,
   Pencil,
   Play,
-  Plus,
   RotateCcw,
+  Save,
   Trash2,
   Upload,
   Volume2,
@@ -17,6 +18,8 @@ import {
 import { toast } from "sonner";
 
 import { useAudio } from "@/components/music/audio-provider";
+import { useProductionSong } from "@/components/music/production-song-context";
+import { createPartiture } from "@/lib/music/client";
 import {
   midiNoteName,
   parseMidiFile,
@@ -61,6 +64,7 @@ type StoredDawSession = {
   assets: Array<Omit<AssetRecord, "file">>;
   midiClips: Record<string, StoredMidiClip>;
   selectedAssetId: string | null;
+  bpm?: number;
 };
 
 function classifyKind(file: File): AssetKind {
@@ -84,34 +88,181 @@ function getLayerNotes(clip: ParsedMidi | undefined, trackIndex: number): MidiNo
     ?? [];
 }
 
+const SNAP_STEPS_PER_BEAT = 4;
+const DEFAULT_NOTE_DURATION = 0.5;
+
+let decoderContext: AudioContext | null = null;
+function getDecoderContext() {
+  if (!decoderContext) {
+    const AudioContextCtor: typeof AudioContext = window.AudioContext
+      ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    decoderContext = new AudioContextCtor();
+  }
+  return decoderContext;
+}
+
+function quantizeNote(note: MidiNote, gridSeconds: number): MidiNote {
+  const start = Math.round(note.startTime / gridSeconds) * gridSeconds;
+  const end = Math.max(start + gridSeconds, Math.round(note.endTime / gridSeconds) * gridSeconds);
+  return { ...note, startTime: start, endTime: end };
+}
+
+function AudioWaveform({ file }: { file: File }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const audioCtx = getDecoderContext();
+        const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+        if (cancelled) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const g = canvas.getContext("2d");
+        if (!g) return;
+        const channel = decoded.getChannelData(0);
+        const buckets = 220;
+        const step = Math.max(1, Math.floor(channel.length / buckets));
+        g.clearRect(0, 0, canvas.width, canvas.height);
+        const midY = canvas.height / 2;
+        for (let i = 0; i < buckets; i += 1) {
+          let min = 0;
+          let max = 0;
+          for (let j = 0; j < step; j += 1) {
+            const value = channel[i * step + j] ?? 0;
+            if (value < min) min = value;
+            if (value > max) max = value;
+          }
+          const h = Math.max(1, (max - min) * midY * 0.9);
+          g.fillStyle = "rgba(52,211,153,0.85)";
+          g.fillRect(i, midY - h / 2, 1, h);
+        }
+      } catch {
+        // Unsupported audio format — leave the canvas empty.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [file]);
+
+  return <canvas ref={canvasRef} width={440} height={56} className="h-14 w-full" />;
+}
+
 function PianoRoll({
   notes,
   duration,
   currentTime,
   selectedNoteId,
   onSelectNote,
+  onCreateNote,
+  onUpdateNote,
+  onEditStart,
 }: {
   notes: MidiNote[];
   duration: number;
   currentTime: number;
   selectedNoteId: string | null;
   onSelectNote: (noteId: string) => void;
+  onCreateNote: (note: number, startTime: number) => void;
+  onUpdateNote: (noteId: string, patch: Partial<Pick<MidiNote, "note" | "startTime" | "endTime" | "velocity">>) => void;
+  onEditStart: () => void;
 }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    noteId: string;
+    mode: "move" | "resize";
+    startX: number;
+    startY: number;
+    origStart: number;
+    origPitch: number;
+    origEnd: number;
+    pitchPx: number;
+  } | null>(null);
+
   const noteRange = PIANO_ROLL_MAX_NOTE - PIANO_ROLL_MIN_NOTE;
   const width = Math.max(duration * PIXELS_PER_SECOND, 600);
 
+  const snapTime = (value: number) => Math.max(0, Math.round(value * 100) / 100);
+
+  function pitchFromPointerY(y: number, rect: DOMRect) {
+    return Math.max(0, Math.min(127, PIANO_ROLL_MAX_NOTE - Math.round(((y - rect.top) / rect.height) * noteRange)));
+  }
+
+  function timeFromPointerX(x: number, rect: DOMRect) {
+    return snapTime((x - rect.left) / PIXELS_PER_SECOND);
+  }
+
+  function handleNotePointerDown(event: React.PointerEvent, note: MidiNote, mode: "move" | "resize") {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onEditStart();
+    onSelectNote(note.id);
+    const rect = containerRef.current!.getBoundingClientRect();
+    dragRef.current = {
+      noteId: note.id,
+      mode,
+      startX: event.clientX,
+      startY: event.clientY,
+      origStart: note.startTime,
+      origPitch: note.note,
+      origEnd: note.endTime,
+      pitchPx: rect.height / noteRange,
+    };
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: React.PointerEvent) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const dx = (event.clientX - drag.startX) / PIXELS_PER_SECOND;
+    const dy = Math.round((event.clientY - drag.startY) / drag.pitchPx);
+    if (drag.mode === "move") {
+      const start = snapTime(Math.max(0, drag.origStart + dx));
+      const durationMs = drag.origEnd - drag.origStart;
+      const pitch = Math.max(0, Math.min(127, drag.origPitch - dy));
+      onUpdateNote(drag.noteId, { note: pitch, startTime: start, endTime: start + durationMs });
+    } else {
+      const end = snapTime(Math.max(drag.origStart + 0.05, drag.origEnd + dx));
+      onUpdateNote(drag.noteId, { endTime: end });
+    }
+  }
+
+  function handlePointerUp() {
+    dragRef.current = null;
+  }
+
+  function handleBackgroundPointerDown(event: React.PointerEvent) {
+    if (dragRef.current || !containerRef.current) return;
+    if (event.target !== event.currentTarget) return;
+    if (event.button !== 0) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    onCreateNote(pitchFromPointerY(event.clientY, rect), timeFromPointerX(event.clientX, rect));
+  }
+
   return (
     <div className="overflow-x-auto rounded-[1rem] border border-[var(--color-border)] bg-black/30">
-      <div className="relative" style={{ width: `${width}px`, height: "220px" }}>
+      <div
+        ref={containerRef}
+        className="relative select-none"
+        style={{ width: `${width}px`, height: "220px", touchAction: "none" }}
+        onPointerDown={handleBackgroundPointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      >
         {Array.from({ length: Math.ceil(duration) + 1 }, (_, second) => (
           <div
             key={second}
-            className="absolute top-0 bottom-0 border-l border-white/5"
+            className="absolute bottom-0 top-0 border-l border-white/5"
             style={{ left: `${second * PIXELS_PER_SECOND}px` }}
           />
         ))}
         <div
-          className="pointer-events-none absolute top-0 bottom-0 z-20 w-[2px] bg-[var(--color-copper)] shadow-[0_0_10px_var(--color-copper)]"
+          className="pointer-events-none absolute bottom-0 top-0 z-20 w-[2px] bg-[var(--color-copper)] shadow-[0_0_10px_var(--color-copper)]"
           style={{ left: `${currentTime * PIXELS_PER_SECOND}px` }}
         />
         {notes.map((note) => {
@@ -123,8 +274,8 @@ function PianoRoll({
             <button
               key={note.id}
               type="button"
-              onClick={() => onSelectNote(note.id)}
-              className={`absolute rounded-sm border text-[8px] font-black transition ${
+              onPointerDown={(event) => handleNotePointerDown(event, note, "move")}
+              className={`absolute cursor-move rounded-sm border text-[8px] font-black transition ${
                 selectedNoteId === note.id
                   ? "border-[var(--color-mint)] bg-[var(--color-mint)] text-black"
                   : "border-[var(--color-copper)]/50 bg-[var(--color-copper)]/70 text-white hover:bg-[var(--color-copper)]"
@@ -135,9 +286,17 @@ function PianoRoll({
                 left: `${left}px`,
                 width: `${noteWidth}px`,
               }}
-              title={`${midiNoteName(note.note)} · vel ${note.velocity}`}
+              title={`${midiNoteName(note.note)} · vel ${note.velocity} · drag to move`}
             >
               {noteWidth > 28 ? midiNoteName(note.note) : ""}
+              {noteWidth > 40 ? (
+                <span
+                  role="button"
+                  aria-label="Resize note"
+                  className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize"
+                  onPointerDown={(event) => handleNotePointerDown(event, note, "resize")}
+                />
+              ) : null}
             </button>
           );
         })}
@@ -148,12 +307,16 @@ function PianoRoll({
 
 export function DawClient() {
   const { getAudioContext } = useAudio();
+  const { selectedSongId } = useProductionSong();
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const manifestRef = useRef<HTMLInputElement | null>(null);
   const stopPlaybackRef = useRef<(() => void) | null>(null);
   const playbackStartedAtRef = useRef(0);
   const playbackOffsetRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const hydratedRef = useRef(false);
+  const audioBuffersRef = useRef<Record<string, AudioBuffer>>({});
+  const midiHistoryRef = useRef<ParsedMidi[]>([]);
 
   const [assets, setAssets] = useState<AssetRecord[]>([]);
   const [layers, setLayers] = useState<LayerRecord[]>([]);
@@ -162,15 +325,44 @@ export function DawClient() {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [sessionBpm, setSessionBpm] = useState(120);
+  const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
 
   const sessionDuration = useMemo(() => {
     let max = 8;
     for (const layer of layers) {
       const clip = midiClips[layer.assetId];
-      if (clip) max = Math.max(max, clip.duration);
+      if (clip) max = Math.max(max, clip.duration * (sessionBpm / clip.bpm));
+      const audioDuration = audioDurations[layer.assetId];
+      if (audioDuration) max = Math.max(max, audioDuration);
     }
     return max;
-  }, [layers, midiClips]);
+  }, [layers, midiClips, audioDurations, sessionBpm]);
+
+  const pushMidiHistory = useCallback(() => {
+    midiHistoryRef.current.push(selectedAssetId && midiClips[selectedAssetId]
+      ? midiClips[selectedAssetId]
+      : ({} as ParsedMidi));
+    if (midiHistoryRef.current.length > 100) midiHistoryRef.current.shift();
+  }, [midiClips, selectedAssetId]);
+
+  const undoMidi = useCallback(() => {
+    if (midiHistoryRef.current.length === 0) return;
+    const previous = midiHistoryRef.current.pop();
+    if (!selectedAssetId || !previous) return;
+    setMidiClips((current) => (current[selectedAssetId] ? { ...current, [selectedAssetId]: previous } : current));
+    toast.success("Undo last MIDI edit");
+  }, [selectedAssetId]);
+
+  const decodeAudio = useCallback(async (assetId: string, file: File): Promise<AudioBuffer> => {
+    const cached = audioBuffersRef.current[assetId];
+    if (cached) return cached;
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = await getDecoderContext().decodeAudioData(arrayBuffer);
+    audioBuffersRef.current[assetId] = buffer;
+    setAudioDurations((current) => ({ ...current, [assetId]: buffer.duration }));
+    return buffer;
+  }, []);
 
   const selectedClip = selectedAssetId ? midiClips[selectedAssetId] : undefined;
   const selectedTrackIndex = layers.find((layer) => layer.assetId === selectedAssetId)?.midiTrackIndex ?? 0;
@@ -218,6 +410,9 @@ export function DawClient() {
       if (parsed.selectedAssetId) {
         setSelectedAssetId(parsed.selectedAssetId);
       }
+      if (parsed.bpm) {
+        setSessionBpm(parsed.bpm);
+      }
     } catch {
       // Ignore invalid stored sessions.
     } finally {
@@ -234,9 +429,20 @@ export function DawClient() {
         Object.entries(midiClips).map(([assetId, clip]) => [assetId, serializeMidiClip(clip)]),
       ),
       selectedAssetId,
+      bpm: sessionBpm,
     };
     localStorage.setItem(DAW_STORAGE_KEY, JSON.stringify(payload));
-  }, [assets, layers, midiClips, selectedAssetId]);
+  }, [assets, layers, midiClips, selectedAssetId, sessionBpm]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
+      event.preventDefault();
+      undoMidi();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [undoMidi]);
 
   const stopPlayback = useCallback(() => {
     stopPlaybackRef.current?.();
@@ -246,8 +452,9 @@ export function DawClient() {
     setIsPlaying(false);
   }, []);
 
-  const startPlayback = useCallback((fromTime = currentTime) => {
+  const startPlayback = useCallback(async (fromTime = currentTime) => {
     const ctx = getAudioContext();
+    await ctx.resume();
     playbackStartedAtRef.current = ctx.currentTime;
     playbackOffsetRef.current = fromTime;
 
@@ -261,17 +468,47 @@ export function DawClient() {
     const stops: Array<() => void> = [];
     for (const layer of audibleLayers) {
       const clip = midiClips[layer.assetId];
-      if (!clip) continue;
-      const notes = getLayerNotes(clip, layer.midiTrackIndex);
-      if (notes.length === 0) continue;
-      const stop = scheduleMidiNotes(ctx, notes, {
-        startAt: ctx.currentTime + 0.05,
-        offsetSeconds: fromTime,
-        gain: layer.gain,
-        pan: layer.pan,
-        mute: layer.mute,
-      });
-      stops.push(stop);
+      const asset = assets.find((item) => item.id === layer.assetId);
+      if (clip) {
+        const tempoRatio = sessionBpm / clip.bpm;
+        const notes = getLayerNotes(clip, layer.midiTrackIndex).map((note) => ({
+          ...note,
+          startTime: note.startTime * tempoRatio,
+          endTime: note.endTime * tempoRatio,
+        }));
+        if (notes.length === 0) continue;
+        const stop = scheduleMidiNotes(ctx, notes, {
+          startAt: ctx.currentTime + 0.05,
+          offsetSeconds: fromTime,
+          gain: layer.gain,
+          pan: layer.pan,
+          mute: layer.mute,
+        });
+        stops.push(stop);
+      } else if (layer.kind === "audio" && asset?.file) {
+        try {
+          const buffer = await decodeAudio(asset.id, asset.file);
+          const source = ctx.createBufferSource();
+          source.buffer = buffer;
+          const gainNode = ctx.createGain();
+          gainNode.gain.value = layer.gain / 100;
+          const panner = ctx.createStereoPanner();
+          panner.pan.value = layer.pan / 100;
+          source.connect(gainNode);
+          gainNode.connect(panner);
+          panner.connect(ctx.destination);
+          source.start(ctx.currentTime + 0.05, fromTime);
+          stops.push(() => {
+            try {
+              source.stop();
+            } catch {
+              // Already stopped.
+            }
+          });
+        } catch {
+          toast.error(`Could not decode audio for ${asset.name}`);
+        }
+      }
     }
 
     stopPlaybackRef.current = () => stops.forEach((stop) => stop());
@@ -288,7 +525,7 @@ export function DawClient() {
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
-  }, [currentTime, getAudioContext, layers, midiClips, sessionDuration, stopPlayback]);
+  }, [assets, currentTime, decodeAudio, getAudioContext, layers, midiClips, sessionBpm, sessionDuration, stopPlayback]);
 
   const togglePlayback = () => {
     if (isPlaying) {
@@ -371,6 +608,7 @@ export function DawClient() {
 
   const deleteNote = (noteId: string) => {
     if (!selectedAssetId) return;
+    pushMidiHistory();
     updateMidiClip(selectedAssetId, (clip) => ({
       ...clip,
       tracks: clip.tracks.map((track) => (
@@ -382,7 +620,7 @@ export function DawClient() {
     if (selectedNoteId === noteId) setSelectedNoteId(null);
   };
 
-  const updateNote = (noteId: string, patch: Partial<Pick<MidiNote, "velocity" | "note">>) => {
+  const updateNote = (noteId: string, patch: Partial<Pick<MidiNote, "velocity" | "note" | "startTime" | "endTime">>) => {
     if (!selectedAssetId) return;
     updateMidiClip(selectedAssetId, (clip) => ({
       ...clip,
@@ -401,6 +639,7 @@ export function DawClient() {
 
   const transposeClip = (semitones: number) => {
     if (!selectedAssetId || semitones === 0) return;
+    pushMidiHistory();
     updateMidiClip(selectedAssetId, (clip) => ({
       ...clip,
       tracks: clip.tracks.map((track) => (
@@ -416,6 +655,126 @@ export function DawClient() {
       )),
     }));
     toast.success(`Transposed ${semitones > 0 ? "+" : ""}${semitones} semitones`);
+  };
+
+  const quantizeSelected = () => {
+    if (!selectedAssetId) return;
+    pushMidiHistory();
+    const gridSeconds = 60 / sessionBpm / SNAP_STEPS_PER_BEAT;
+    updateMidiClip(selectedAssetId, (clip) => ({
+      ...clip,
+      tracks: clip.tracks.map((track) => (
+        track.index === selectedTrackIndex
+          ? { ...track, notes: track.notes.map((note) => quantizeNote(note, gridSeconds)) }
+          : track
+      )),
+    }));
+    toast.success(`Quantized to 1/${SNAP_STEPS_PER_BEAT} notes @ ${sessionBpm} BPM`);
+  };
+
+  const createNote = (note: number, startTime: number) => {
+    if (!selectedAssetId) return;
+    pushMidiHistory();
+    updateMidiClip(selectedAssetId, (clip) => ({
+      ...clip,
+      tracks: clip.tracks.map((track) => (
+        track.index === selectedTrackIndex
+? {
+                ...track,
+                notes: [
+                  ...track.notes,
+                  {
+                    id: crypto.randomUUID(),
+                    note,
+                    velocity: 100,
+                    startTick: 0,
+                    endTick: 0,
+                    startTime,
+                    endTime: startTime + DEFAULT_NOTE_DURATION,
+                    channel: 0,
+                  },
+                ].sort((a, b) => a.startTime - b.startTime),
+              }
+          : track
+      )),
+    }));
+    toast.success(`Added ${midiNoteName(note)}`);
+  };
+
+  const importManifest = (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result)) as StoredDawSession;
+        if (!Array.isArray(parsed.layers)) throw new Error("Not a valid DAW session file");
+        setLayers(parsed.layers.map((layer) => ({
+          ...layer,
+          midiTrackIndex: layer.midiTrackIndex ?? 0,
+        })));
+        if (Array.isArray(parsed.assets)) setAssets(parsed.assets.map((asset) => ({ ...asset })));
+        if (parsed.midiClips) {
+          const restored: Record<string, ParsedMidi> = {};
+          for (const [assetId, stored] of Object.entries(parsed.midiClips)) {
+            restored[assetId] = restoreMidiClip(stored);
+          }
+          setMidiClips(restored);
+        }
+        if (parsed.selectedAssetId) setSelectedAssetId(parsed.selectedAssetId);
+        toast.success("Session manifest imported (audio files must be re-imported)");
+      } catch (error) {
+        toast.error(`Import failed: ${(error as Error).message}`);
+      } finally {
+        if (manifestRef.current) manifestRef.current.value = "";
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const saveToSong = async () => {
+    if (!selectedSongId) {
+      toast.error("Open a song in Production Studio first");
+      return;
+    }
+    const manifest = {
+      app: "music-tool-daw",
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      duration: sessionDuration,
+      bpm: sessionBpm,
+      layers: layers.map((layer) => ({
+        name: layer.name,
+        kind: layer.kind,
+        asset: assets.find((asset) => asset.id === layer.assetId)?.name || null,
+        midiTrackIndex: layer.midiTrackIndex,
+        gain: layer.gain,
+        pan: layer.pan,
+        mute: layer.mute,
+        solo: layer.solo,
+      })),
+      assets: assets.map((asset) => ({
+        name: asset.name,
+        kind: asset.kind,
+        format: asset.format,
+        size: asset.size,
+        midi: asset.kind === "midi" && midiClips[asset.id]
+          ? serializeMidiClip(midiClips[asset.id])
+          : null,
+      })),
+    };
+    try {
+      await createPartiture(selectedSongId, {
+        instrument: "other",
+        slot: 1,
+        title: `DAW session ${new Date().toLocaleString()}`,
+        content: JSON.stringify(manifest, null, 2),
+        format: "daw",
+      });
+      toast.success("DAW session saved to song");
+    } catch (error) {
+      toast.error(`Failed to save session: ${(error as Error).message}`);
+    }
   };
 
   useEffect(() => () => stopPlayback(), [stopPlayback]);
@@ -461,7 +820,7 @@ export function DawClient() {
       <div className="panel glass-shine flex flex-wrap items-center justify-between gap-4 rounded-[1.75rem] p-4">
         <div className="flex items-center gap-4">
           <div className="glass-pill flex items-center gap-1 bg-black/40 px-3 py-1.5">
-            <button type="button" onClick={() => { stopPlayback(); setCurrentTime(0); }} className="p-1 transition-colors hover:text-[var(--color-copper)]">
+            <button type="button" onClick={() => { stopPlayback(); setCurrentTime(0); }} aria-label="Reset to start" className="p-1 transition-colors hover:text-[var(--color-copper)]">
               <RotateCcw className="h-4 w-4" />
             </button>
             <button type="button" onClick={togglePlayback} className={`p-1 transition-colors ${isPlaying ? "text-[var(--color-mint)]" : "hover:text-[var(--color-mint)]"}`}>
@@ -474,17 +833,42 @@ export function DawClient() {
           <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-sand-2)]">
             {sessionDuration.toFixed(1)}s session
           </div>
+          <label className="glass-pill flex items-center gap-2 bg-black/40 px-3 py-1.5">
+            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-500">BPM</span>
+            <input
+              type="number"
+              min={40}
+              max={300}
+              value={sessionBpm}
+              onChange={(event) => setSessionBpm(Math.max(40, Math.min(300, Number(event.target.value) || 120)))}
+              className="w-12 border-none bg-transparent font-mono text-sm font-bold text-[var(--color-mint)] outline-none"
+            />
+          </label>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <input ref={inputRef} type="file" multiple accept=".mid,.midi,.wav,.mp3,.ogg,.json,audio/*" className="hidden" onChange={(event) => void importFiles(event.target.files)} />
+          <input ref={manifestRef} type="file" accept=".json,application/json" className="hidden" onChange={(event) => importManifest(event.target.files)} />
           <button type="button" onClick={() => inputRef.current?.click()} className="glass-pill flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest">
             <Upload className="h-3.5 w-3.5" />
             Import MIDI / Audio
           </button>
-          <button type="button" onClick={exportManifest} className="glass-pill flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest">
+          <button type="button" onClick={() => manifestRef.current?.click()} className="glass-pill flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest">
+            <Download className="h-3.5 w-3.5" />
+            Import Session
+          </button>
+          <button type="button" onClick={exportManifest} className="glass-pill flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest">
             <Download className="h-3.5 w-3.5" />
             Export Session
+          </button>
+          <button type="button" onClick={() => void saveToSong()} className="glass-pill flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest">
+            <Save className="h-3.5 w-3.5" />
+            Save to song
+          </button>
+          <button type="button" onClick={undoMidi} className="glass-pill px-3 py-2 text-[8px] font-black uppercase text-[var(--color-copper)]">Undo</button>
+          <button type="button" onClick={quantizeSelected} className="glass-pill flex items-center gap-1.5 px-3 py-2 text-[8px] font-black uppercase text-[var(--color-brass)]">
+            <Magnet className="h-3 w-3" />
+            Quantize
           </button>
           <button type="button" onClick={() => addTrack("midi")} className="glass-pill px-3 py-2 text-[8px] font-black uppercase text-[var(--color-brass)]">+ MIDI track</button>
           <button type="button" onClick={() => addTrack("audio")} className="glass-pill px-3 py-2 text-[8px] font-black uppercase text-[var(--color-mint)]">+ Audio track</button>
@@ -505,7 +889,7 @@ export function DawClient() {
                 <div className="flex items-center justify-between gap-2">
                   <div className={`h-2 w-2 rounded-full ${layer.kind === "audio" ? "bg-[var(--color-mint)]" : "bg-[var(--color-brass)]"}`} />
                   <input className="w-full border-none bg-transparent text-xs font-bold outline-none focus:text-[var(--color-copper)]" value={layer.name} onChange={(event) => updateLayer(layer.id, { name: event.target.value })} />
-                  <button type="button" onClick={() => setLayers((current) => current.filter((item) => item.id !== layer.id))} className="p-1 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button type="button" onClick={() => setLayers((current) => current.filter((item) => item.id !== layer.id))} aria-label={`Delete track ${layer.name}`} className="p-1 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
                 <select
                   className="field py-1.5 text-[10px]"
@@ -562,17 +946,32 @@ export function DawClient() {
               {layers.map((layer) => {
                 const clip = layer.assetId ? midiClips[layer.assetId] : undefined;
                 const notes = getLayerNotes(clip, layer.midiTrackIndex);
-                const regionWidth = Math.max((clip?.duration ?? 4) * PIXELS_PER_SECOND, 120);
+                const asset = assets.find((item) => item.id === layer.assetId);
+                const regionWidth = Math.max((clip?.duration ?? audioDurations[layer.assetId] ?? 4) * PIXELS_PER_SECOND, 120);
+                const isAudio = layer.kind === "audio";
                 return (
                   <div key={layer.id} className="relative h-[100px] border-b border-white/5 bg-zinc-900/10">
-                    {clip && notes.length > 0 ? (
+                    {isAudio && asset?.file ? (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAssetId(layer.assetId)}
+                        className="absolute inset-y-2 left-0 overflow-hidden rounded-lg border border-[var(--color-mint)]/40 bg-[var(--color-mint)]/10 p-2 text-left"
+                        style={{ width: `${regionWidth}px` }}
+                      >
+                        <div className="text-[10px] font-black text-[var(--color-mint)]">{asset.name}</div>
+                        <div className="mt-1 flex items-center gap-2">
+                          <Volume2 className="h-3.5 w-3.5 shrink-0 text-[var(--color-mint)]" />
+                          <div className="min-w-0 flex-1"><AudioWaveform file={asset.file} /></div>
+                        </div>
+                      </button>
+                    ) : clip && notes.length > 0 ? (
                       <button
                         type="button"
                         onClick={() => setSelectedAssetId(layer.assetId)}
                         className="absolute inset-y-2 left-0 overflow-hidden rounded-lg border border-[var(--color-copper)]/40 bg-[var(--color-copper)]/15 p-2 text-left"
                         style={{ width: `${regionWidth}px` }}
                       >
-                        <div className="text-[10px] font-black">{assets.find((asset) => asset.id === layer.assetId)?.name}</div>
+                        <div className="text-[10px] font-black">{asset?.name}</div>
                         <div className="mt-1 flex flex-wrap gap-0.5">
                           {notes.slice(0, 24).map((note) => (
                             <span
@@ -590,7 +989,11 @@ export function DawClient() {
                       </button>
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold uppercase tracking-widest text-zinc-600">
-                        {layer.assetId ? "No notes in this MIDI track" : "Assign a MIDI asset"}
+                        {layer.assetId
+                          ? isAudio
+                            ? "Audio file unavailable after reload — re-import to hear it"
+                            : "No notes in this MIDI track"
+                          : "Assign an asset"}
                       </div>
                     )}
                   </div>
@@ -617,7 +1020,11 @@ export function DawClient() {
               <span className="glass-pill px-3 py-1.5">{selectedClip.duration.toFixed(1)}s</span>
               <button type="button" className="glass-pill px-3 py-1.5" onClick={() => transposeClip(-1)}>-1 st</button>
               <button type="button" className="glass-pill px-3 py-1.5" onClick={() => transposeClip(1)}>+1 st</button>
-              <button type="button" className="glass-pill px-3 py-1.5" onClick={() => startPlayback(0)}>
+              <button type="button" className="glass-pill px-3 py-1.5" onClick={quantizeSelected}>
+                <Magnet className="mr-1 inline h-3 w-3" />
+                Quantize
+              </button>
+              <button type="button" className="glass-pill px-3 py-1.5" onClick={() => void startPlayback(0)}>
                 <Play className="mr-1 inline h-3 w-3" />
                 Audition
               </button>
@@ -626,10 +1033,13 @@ export function DawClient() {
 
           <PianoRoll
             notes={selectedNotes}
-            duration={selectedClip.duration}
+            duration={selectedClip.duration * (sessionBpm / selectedClip.bpm)}
             currentTime={currentTime}
             selectedNoteId={selectedNoteId}
             onSelectNote={setSelectedNoteId}
+            onCreateNote={createNote}
+            onUpdateNote={updateNote}
+            onEditStart={pushMidiHistory}
           />
 
           {selectedNote ? (
@@ -662,7 +1072,7 @@ export function DawClient() {
           ) : (
             <p className="text-sm text-[var(--color-sand-2)]">
               <Pencil className="mr-1 inline h-3.5 w-3.5" />
-              Click a note in the piano roll to inspect and edit pitch, velocity, or delete it.
+              Click empty space to add a note, drag notes to move, drag the right edge to resize.
             </p>
           )}
 

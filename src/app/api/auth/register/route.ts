@@ -4,12 +4,12 @@ import { registerUser } from "@/lib/auth";
 export async function POST(request: Request) {
   try {
     const body = await parseJsonBody<{ name?: string; email?: string; password?: string }>(request, {});
-    const user = await registerUser({
+    const result = await registerUser({
       name: body.name || null,
       email: body.email || "",
       password: body.password || "",
     });
-    return jsonResponse({ user, requiresEmailConfirmation: true }, 201);
+    return jsonResponse({ user: result.user, requiresEmailConfirmation: true, verificationUrl: result.verificationUrl }, 201);
   } catch (error) {
     return errorResponse((error as Error).message || "Failed to register", 400);
   }

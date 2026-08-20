@@ -78,6 +78,60 @@ function getNotes(root: string, intervals: number[]) {
   return intervals.map((interval) => CHROMATIC[(rootIndex + interval) % 12]);
 }
 
+const INTERVAL_NAMES: Record<number, string> = {
+  1: "m2",
+  2: "M2",
+  3: "m3",
+  4: "M3",
+  5: "P4",
+  6: "TT",
+  7: "P5",
+  8: "m6",
+  9: "M6",
+  10: "m7",
+  11: "M7",
+};
+
+function intervalName(root: string, note: string) {
+  const gap = (CHROMATIC.indexOf(note as (typeof CHROMATIC)[number]) - CHROMATIC.indexOf(root as (typeof CHROMATIC)[number]) + 12) % 12;
+  return gap === 0 ? "R" : INTERVAL_NAMES[gap] ?? "";
+}
+
+function diatonicTriads(scale: string[]): string[][] {
+  const chords: string[][] = [];
+  for (let i = 0; i < scale.length; i += 1) {
+    chords.push([
+      scale[i],
+      scale[(i + 2) % scale.length],
+      scale[(i + 4) % scale.length],
+    ]);
+  }
+  return chords;
+}
+
+function triadQuality(root: string, third: string, fifth: string): string {
+  const rootIdx = CHROMATIC.indexOf(root as (typeof CHROMATIC)[number]);
+  const thirdIdx = CHROMATIC.indexOf(third as (typeof CHROMATIC)[number]);
+  const fifthIdx = CHROMATIC.indexOf(fifth as (typeof CHROMATIC)[number]);
+  const thirdGap = (thirdIdx - rootIdx + 12) % 12;
+  const fifthGap = (fifthIdx - rootIdx + 12) % 12;
+  if (thirdGap === 4 && fifthGap === 7) return "M";
+  if (thirdGap === 3 && fifthGap === 7) return "m";
+  if (thirdGap === 3 && fifthGap === 6) return "dim";
+  if (thirdGap === 4 && fifthGap === 8) return "aug";
+  return "";
+}
+
+const ROMAN_NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII"];
+
+function romanNumeral(degree: number, quality: string) {
+  const base = ROMAN_NUMERALS[degree] ?? `${degree + 1}`;
+  if (quality === "M") return base;
+  if (quality === "m") return base.toLowerCase();
+  if (quality === "dim") return `${base.toLowerCase()}°`;
+  return `${base}+`;
+}
+
 export function TheoryLabClient() {
   const { getAudioContext } = useAudio();
   const [scaleRoot, setScaleRoot] = useState("C");
@@ -154,6 +208,7 @@ export function TheoryLabClient() {
               >
                 <span className="text-[8px] font-black uppercase opacity-40">{i + 1}</span>
                 <span className="text-sm font-black">{n}</span>
+                <span className="text-[8px] font-bold uppercase text-[var(--color-brass)]/70">{intervalName(scaleRoot, n)}</span>
               </button>
             ))}
           </div>
@@ -229,6 +284,7 @@ export function TheoryLabClient() {
                   {i === 0 ? "Bass" : i === 1 ? "2nd" : i === 2 ? "3rd" : `${i + 1}th`}
                 </span>
                 <span className="text-sm font-black">{n}</span>
+                <span className="text-[8px] font-bold uppercase text-[var(--color-berry)]/70">{intervalName(chordRoot, n)}</span>
               </button>
             ))}
           </div>
@@ -236,6 +292,43 @@ export function TheoryLabClient() {
             <RotateCcw className="h-3 w-3" />
             Tap a note chip to hear it
           </div>
+        </div>
+      </div>
+
+      <div className="panel rounded-[2.5rem] border border-white/5 bg-zinc-950/60 p-8 backdrop-blur-xl">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-2">
+          <div>
+            <h4 className="text-sm font-black uppercase tracking-widest opacity-40">Diatonic chords · {scaleRoot} {scaleType}</h4>
+            <p className="text-xs font-bold text-zinc-500">
+              Triads built from every degree of the scale. Click one to load it into the Chord Constructor and hear it.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 px-2">
+          {diatonicTriads(scaleNotes).map((triad, degree) => {
+            const quality = triadQuality(triad[0], triad[1], triad[2]);
+            const chordTypeName = quality === "M" ? "Major" : quality === "m" ? "Minor" : quality === "dim" ? "Diminished" : quality === "aug" ? "Augmented" : "";
+            return (
+              <button
+                key={`${triad.join("-")}-${degree}`}
+                type="button"
+                onClick={() => {
+                  if (chordTypeName) {
+                    setChordRoot(triad[0]);
+                    setChordType(chordTypeName);
+                    setInversion(0);
+                  }
+                  setHighlightMode("chord");
+                  playKeyboardNotes(getAudioContext(), triad.map((n) => noteFrequency(n, keyboardOctave)), keyboardVoice, 90);
+                }}
+                className="glass-pill flex flex-col items-start border-white/10 bg-white/5 px-4 py-2 transition hover:border-[var(--color-berry)]"
+                title={triad.join(" ")}
+              >
+                <span className="text-[10px] font-black uppercase text-[var(--color-berry)]">{romanNumeral(degree, quality)}</span>
+                <span className="text-sm font-black">{triad[0]}{quality === "m" ? "m" : quality === "dim" ? "°" : quality === "aug" ? "+" : ""}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

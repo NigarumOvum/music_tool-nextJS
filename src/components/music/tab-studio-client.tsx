@@ -67,7 +67,10 @@ function parseAsciiTab(content: string, strings: StringFreq[]): GridRow[] | null
       const match = line.match(/^([A-Ga-g])\s*\|(.+)\|$/);
       if (!match) return null;
       const label = match[1].toLowerCase();
-      const cells = match[2].split("-").map((cell) => (cell.trim() === "" ? "-" : cell.trim()));
+      const cells = match[2]
+        .replace(/\|/g, "")
+        .split("-")
+        .map((cell) => (cell.trim() === "" ? "-" : cell.trim()));
       return { label, cells };
     })
     .filter((row): row is GridRow => Boolean(row));
@@ -87,10 +90,43 @@ function parseAsciiTab(content: string, strings: StringFreq[]): GridRow[] | null
 
 function gridToAscii(grid: GridRow[], instrument: string, bpm: number) {
   const lines = grid.map((row) => {
-    const content = row.cells.map((cell) => (cell === "-" || cell === "" ? "-" : cell)).join("-");
-    return `${row.label.toUpperCase()} |${content}|`;
+    const chunks: string[] = [];
+    for (let i = 0; i < row.cells.length; i += 4) {
+      chunks.push(
+        row.cells.slice(i, i + 4).map((cell) => (cell === "-" || cell === "" ? "-" : cell)).join("-"),
+      );
+    }
+    return `${row.label.toUpperCase()} |${chunks.join("|")}|`;
   });
   return [`Tab Studio Export (${instrument})`, `Tempo: ${bpm} BPM`, "", ...lines, ""].join("\n");
+}
+
+const GUITAR_CHORD_SHAPES: Record<string, number[]> = {
+  A: [0, 2, 2, 2, 0, -1],
+  Am: [0, 1, 2, 2, 0, -1],
+  C: [0, 1, 0, 2, 3, -1],
+  D: [2, 3, 2, 0, -1, -1],
+  E: [0, 0, 1, 2, 2, 0],
+  Em: [0, 0, 0, 2, 2, 0],
+  F: [1, 1, 2, 3, 3, -1],
+  G: [3, 3, 0, 0, 0, 3],
+  A5: [-1, -1, 2, 2, 0, -1],
+  E5: [-1, -1, 2, 2, 0, 0],
+};
+
+const BASS_CHORD_SHAPES: Record<string, number[]> = {
+  A: [-1, -1, 7, 5],
+  Am: [-1, -1, 7, 5],
+  C: [-1, -1, 5, 3],
+  D: [-1, -1, 7, 5],
+  E: [-1, -1, 9, 7],
+  Em: [-1, -1, 9, 7],
+  F: [-1, -1, 3, 1],
+  G: [-1, -1, 5, 3],
+};
+
+function getChordShape(chord: string, bass: boolean) {
+  return bass ? BASS_CHORD_SHAPES[chord] : GUITAR_CHORD_SHAPES[chord];
 }
 
 export function TabStudioClient() {
@@ -98,6 +134,7 @@ export function TabStudioClient() {
   const { selectedSongId } = useProductionSong();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const playingRef = useRef(false);
+  const schedulerRef = useRef<number | null>(null);
 
   const [instrument, setInstrument] = useState<InstrumentType>("Steel");
   const [strings, setStrings] = useState(GUITAR_STRINGS);
@@ -209,46 +246,59 @@ export function TabStudioClient() {
   useEffect(() => {
     if (!isPlaying) return undefined;
 
-    let currentStep = 0;
+    const ctx = getAudioContext();
+    void ctx.resume();
     const stepDuration = 60 / bpm / 4;
-    let timeoutId: ReturnType<typeof setTimeout>;
+    const LOOKAHEAD_SECONDS = 0.2;
+    let currentStep = Math.max(0, playhead);
+    let nextStepTime = ctx.currentTime + 0.1;
 
-    const playNextStep = () => {
-      if (!playingRef.current) return;
-      const ctx = getAudioContext();
-      const now = ctx.currentTime;
-      setPlayhead(currentStep);
-
+    const scheduleStep = (step: number, time: number) => {
+      setPlayhead(step);
       if (metronome) {
-        playMetronomeClick(now, currentStep % 4 === 0);
+        playMetronomeClick(time, step % 4 === 0);
       }
-
       grid.forEach((row, stringIdx) => {
-        const cell = row.cells[currentStep];
+        const cell = row.cells[step];
         if (cell !== "-" && cell !== "") {
-          playPluck(parseInt(cell, 10), stringIdx, now);
+          playPluck(parseInt(cell, 10), stringIdx, time);
         }
       });
-
-      currentStep += 1;
-      if (currentStep < grid[0].cells.length) {
-        timeoutId = setTimeout(playNextStep, stepDuration * 1000);
-        return;
-      }
-
-      if (loopPlayback && playingRef.current) {
-        currentStep = 0;
-        timeoutId = setTimeout(playNextStep, stepDuration * 1000);
-        return;
-      }
-
-      setIsPlaying(false);
-      setPlayhead(-1);
     };
 
-    playNextStep();
-    return () => clearTimeout(timeoutId);
-  }, [isPlaying, bpm, grid, loopPlayback, metronome, getAudioContext, playMetronomeClick, playPluck]);
+    const schedulerLoop = () => {
+      if (!playingRef.current) return;
+      const now = getAudioContext().currentTime;
+      if (nextStepTime < now - LOOKAHEAD_SECONDS) {
+        nextStepTime = now + 0.05;
+      }
+      while (nextStepTime < now + LOOKAHEAD_SECONDS) {
+        if (currentStep >= grid[0].cells.length) {
+          if (!loopPlayback) {
+            setIsPlaying(false);
+            setPlayhead(-1);
+            return;
+          }
+          currentStep = 0;
+          nextStepTime += stepDuration;
+        }
+        scheduleStep(currentStep, nextStepTime);
+        currentStep += 1;
+        nextStepTime += stepDuration;
+      }
+    };
+
+    schedulerRef.current = window.setInterval(schedulerLoop, 25);
+    return () => {
+      if (schedulerRef.current !== null) window.clearInterval(schedulerRef.current);
+      schedulerRef.current = null;
+    };
+  }, [isPlaying, bpm, grid, loopPlayback, metronome, getAudioContext, playMetronomeClick, playPluck, playhead]);
+
+  useEffect(() => () => {
+    if (schedulerRef.current !== null) window.clearInterval(schedulerRef.current);
+    schedulerRef.current = null;
+  }, []);
 
   useEffect(() => {
     if (!selectedSongId) {
@@ -312,6 +362,26 @@ export function TabStudioClient() {
     setColumnCount((current) => current + 1);
   }
 
+  function insertChord(chord: string) {
+    const shape = getChordShape(chord, instrument === "Bass");
+    if (!shape) {
+      toast.error(`No ${instrument === "Bass" ? "bass" : "guitar"} shape for ${chord}`);
+      return;
+    }
+    const start = playhead >= 0 ? playhead : 0;
+    if (playhead < 0) {
+      toast.message(`No playhead — inserting ${chord} at step 1`);
+    }
+    setGrid((current) => current.map((row, rowIdx) => {
+      const fret = shape[rowIdx];
+      if (fret === undefined || fret < 0) return row;
+      const cells = [...row.cells];
+      cells[start] = String(fret);
+      return { ...row, cells };
+    }));
+    toast.success(`Inserted ${chord} at step ${start + 1}`);
+  }
+
   function loadPartiture(partiture: MusicPartitureRecord) {
     const parsed = parseAsciiTab(partiture.content, strings);
     if (!parsed) {
@@ -364,27 +434,43 @@ export function TabStudioClient() {
       const events = parseMidi(buffer);
       const newGrid = buildEmptyGrid(strings, Math.max(columnCount, 64));
 
+      const tickGroups = new Map<number, number[]>();
       events.forEach((ev) => {
-        if (ev.type === "noteOn" && ev.note) {
+        if (ev.type === "noteOn" && ev.note != null) {
           const tickStep = Math.floor(ev.time / 120);
-          if (tickStep < newGrid[0].cells.length) {
-            let bestString = 0;
-            let minDiff = 100;
-            strings.forEach((stringRef, stringIdx) => {
-              const fret = ev.note! - (21 + stringIdx * 5);
-              if (fret >= 0 && fret < 24 && fret < minDiff) {
-                minDiff = fret;
-                bestString = stringIdx;
-              }
-            });
-            newGrid[bestString].cells[tickStep] = String(Math.max(0, ev.note - 40));
-          }
+          if (!tickGroups.has(tickStep)) tickGroups.set(tickStep, []);
+          tickGroups.get(tickStep)!.push(ev.note);
         }
       });
 
+      let assigned = 0;
+      for (const [tickStep, notes] of tickGroups) {
+        if (tickStep < 0 || tickStep >= newGrid[0].cells.length) continue;
+        const usedStrings = new Set<number>();
+        notes.sort((a, b) => a - b);
+        for (const midiNote of notes) {
+          let bestStringIdx = -1;
+          let bestFret = 24;
+          strings.forEach((stringRef, stringIdx) => {
+            if (usedStrings.has(stringIdx)) return;
+            const openPitch = Math.round(69 + 12 * Math.log2(stringRef.base / 440));
+            const fret = midiNote - openPitch;
+            if (fret >= 0 && fret < 24 && fret < bestFret) {
+              bestFret = fret;
+              bestStringIdx = stringIdx;
+            }
+          });
+          if (bestStringIdx >= 0) {
+            usedStrings.add(bestStringIdx);
+            newGrid[bestStringIdx].cells[tickStep] = String(bestFret);
+            assigned += 1;
+          }
+        }
+      }
+
       setGrid(newGrid);
       setColumnCount(newGrid[0].cells.length);
-      toast.success("MIDI imported successfully");
+      toast.success(`MIDI imported — ${assigned} notes placed across strings`);
       return;
     }
 
@@ -462,6 +548,19 @@ export function TabStudioClient() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <select
+            value=""
+            onChange={(event) => {
+              if (event.target.value) insertChord(event.target.value);
+            }}
+            className="field w-28 py-2 text-xs font-black uppercase"
+            aria-label="Insert chord shape"
+          >
+            <option value="">Insert chord</option>
+            {Object.keys(instrument === "Bass" ? BASS_CHORD_SHAPES : GUITAR_CHORD_SHAPES).map((chord) => (
+              <option key={chord} value={chord}>{chord}</option>
+            ))}
+          </select>
           <button onClick={() => addColumns(4)} className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest" type="button">
             <Plus className="mr-1 inline h-3.5 w-3.5" />
             Measures
@@ -500,6 +599,9 @@ export function TabStudioClient() {
             <div>
               <div className="eyebrow">Fretboard grid</div>
               <h3 className="text-xl font-black">{columnCount} steps · {strings.length} strings</h3>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-sand-2)]">
+                Techniques: 3h5 hammer-on · 5p3 pull-off · 7s9 slide · 5b7 bend
+              </p>
             </div>
             <Volume2 className="h-4 w-4 text-[var(--color-brass)] opacity-70" />
           </div>
@@ -545,6 +647,9 @@ export function TabStudioClient() {
                       playhead === columnIdx ? "bg-[var(--color-mint)]/15" : "hover:bg-white/5"
                     }`}
                   >
+                    {columnIdx % 4 === 0 && columnIdx > 0 ? (
+                      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[var(--color-brass)]/40" />
+                    ) : null}
                     {grid.map((row, rowIdx) => (
                       <div key={row.label} className="flex h-9 items-center justify-center">
                         <input
@@ -555,7 +660,7 @@ export function TabStudioClient() {
                           }`}
                           value={row.cells[columnIdx] === "-" ? "" : row.cells[columnIdx]}
                           onChange={(event) => {
-                            const next = event.target.value.replace(/[^0-9]/g, "") || "-";
+                            const next = event.target.value.replace(/[^0-9hpsb/\\-]/g, "") || "-";
                             setGrid((current) => current.map((gridRow, gridRowIdx) => (
                               gridRowIdx === rowIdx
                                 ? {

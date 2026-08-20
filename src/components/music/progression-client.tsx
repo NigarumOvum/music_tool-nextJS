@@ -66,6 +66,26 @@ function analyzeChord(chord: Chord, keyRoot: string): { numeral: string; functio
   };
 }
 
+function analyzeCadence(progression: Chord[], keyRoot: string): { label: string; description: string } | null {
+  if (progression.length < 2) return null;
+  const last = analyzeChord(progression[progression.length - 1], keyRoot);
+  const prev = analyzeChord(progression[progression.length - 2], keyRoot);
+  if (!last || !prev) return null;
+  const lastNumeral = last.numeral.toUpperCase();
+  const prevNumeral = prev.numeral.toUpperCase();
+  if (lastNumeral === "I") {
+    if (prevNumeral === "V") return { label: "Authentic (V→I)", description: "The strongest resolution — dominant to tonic." };
+    if (prevNumeral === "IV") return { label: "Plagal (IV→I)", description: "The 'Amen' cadence — subdominant to tonic." };
+    if (prevNumeral === "VII") return { label: "Leading tone (vii°→I)", description: "The leading tone resolves into the tonic." };
+  }
+  if (lastNumeral === "V") {
+    if (prevNumeral === "II") return { label: "Half cadence (ii→V)", description: "Pauses on the dominant, unresolved." };
+    return { label: "Half cadence (→V)", description: "Ends on the dominant, unresolved." };
+  }
+  if (lastNumeral === "VI") return { label: "Deceptive (→vi)", description: "A tonic was expected, but the relative minor answered." };
+  return null;
+}
+
 export function ProgressionClient() {
   const { getAudioContext } = useAudio();
   const [progression, setProgression] = useState<Chord[]>([]);
@@ -166,6 +186,16 @@ export function ProgressionClient() {
     toast.success(`Loaded ${preset.name} in ${keyRoot}`);
   };
 
+  const transposeAll = (semitones: number) => {
+    if (progression.length === 0) return;
+    setProgression((current) => current.map((chord) => {
+      const index = NOTES.indexOf(chord.root as (typeof NOTES)[number]);
+      if (index === -1) return chord;
+      return { ...chord, root: NOTES[(index + semitones + 12) % 12] };
+    }));
+    toast.success(`Transposed ${semitones > 0 ? "+" : ""}${semitones} st`);
+  };
+
   const exportProgression = () => {
     const blob = new Blob([JSON.stringify({ key: keyRoot, bpm, chords: progression }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -210,6 +240,22 @@ export function ProgressionClient() {
             </button>
             <button
               type="button"
+              onClick={() => transposeAll(-1)}
+              disabled={progression.length === 0}
+              className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-30"
+            >
+              -1 st
+            </button>
+            <button
+              type="button"
+              onClick={() => transposeAll(1)}
+              disabled={progression.length === 0}
+              className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest disabled:opacity-30"
+            >
+              +1 st
+            </button>
+            <button
+              type="button"
               disabled={progression.length === 0}
               onClick={playProgression}
               className="glass-pill flex items-center gap-2 bg-[var(--color-copper)] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-30"
@@ -247,34 +293,36 @@ export function ProgressionClient() {
           {progression.map((chord, idx) => {
             const analysis = analyzeChord(chord, keyRoot);
             return (
-              <motion.button
+              <motion.div
                 key={chord.id}
-                type="button"
                 layout
-                className={`group relative flex h-28 w-[4.5rem] flex-col items-center justify-center rounded-xl border transition-all ${
+                role="button"
+                tabIndex={0}
+                aria-label={`Play ${chord.root}${chord.quality}`}
+                className={`group relative flex h-28 w-[4.5rem] cursor-pointer flex-col items-center justify-center rounded-xl border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-copper)] ${
                   activeChordId === chord.id
                     ? "border-[var(--color-mint)] bg-[var(--color-success-surface)] shadow-[0_0_20px_rgba(34,197,94,0.25)]"
                     : "song-list-item border-[var(--color-stroke)]"
                 }`}
                 onClick={() => playChord(chord)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    playChord(chord);
+                  }
+                }}
               >
-                <span
-                  role="button"
-                  tabIndex={0}
+                <button
+                  type="button"
+                  aria-label={`Remove ${chord.root}${chord.quality}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     setProgression(progression.filter((item) => item.id !== chord.id));
                   }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.stopPropagation();
-                      setProgression(progression.filter((item) => item.id !== chord.id));
-                    }
-                  }}
                   className="absolute -right-1 -top-1 scale-75 rounded-full bg-red-500 p-1 text-white opacity-0 transition group-hover:opacity-100"
                 >
                   <Trash2 className="h-3 w-3" />
-                </span>
+                </button>
                 <span className="text-lg font-black leading-none">{chord.root}</span>
                 <span className="text-[8px] font-bold uppercase text-[var(--color-brass)]">{chord.quality}</span>
                 {analysis ? (
@@ -284,7 +332,7 @@ export function ProgressionClient() {
                 ) : (
                   <span className="mt-1 text-[8px] font-bold text-zinc-500">#{idx + 1}</span>
                 )}
-              </motion.button>
+              </motion.div>
             );
           })}
           <button
@@ -295,6 +343,19 @@ export function ProgressionClient() {
             <Plus className="h-5 w-5 text-[var(--color-sand-2)]" />
           </button>
         </div>
+
+        {(() => {
+          const cadence = analyzeCadence(progression, keyRoot);
+          return cadence ? (
+            <div className="flex items-center gap-3 rounded-[1rem] border-l-4 border-l-[var(--color-mint)] bg-black/15 px-4 py-3">
+              <Zap className="h-4 w-4 shrink-0 text-[var(--color-mint)]" />
+              <div>
+                <span className="text-xs font-black uppercase tracking-widest text-[var(--color-mint)]">{cadence.label}</span>
+                <p className="text-xs text-[var(--color-sand-2)]">{cadence.description}</p>
+              </div>
+            </div>
+          ) : null;
+        })()}
 
         <div className="grid gap-3 md:grid-cols-4">
           <label className="field-group">

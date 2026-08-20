@@ -15,16 +15,22 @@ import {
   useDisclosure,
 } from "@heroui/react";
 import {
+  CheckCircle2,
+  ChevronUp,
   Disc3,
   FileJson,
   Layers3,
+  Minus,
   Music2,
   Plus,
+  Redo2,
   RefreshCw,
   Save,
   Search,
   Trash2,
   Type,
+  Undo2,
+  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -48,6 +54,23 @@ type PartKind = "section" | "layer";
 
 function emptyPart() {
   return { name: "", text: "", json: "{}" };
+}
+
+const KEY_OPTIONS = [
+  "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+  "Am", "A#m", "Bm", "Cm", "C#m", "Dm", "D#m", "Em", "Fm", "F#m", "Gm", "G#m",
+] as const;
+
+function validateJson(text: string): { ok: true; value: unknown } | { ok: false; error: string } {
+  try {
+    return { ok: true, value: JSON.parse(text) };
+  } catch (error) {
+    return { ok: false, error: (error as Error).message };
+  }
+}
+
+function formatJson(text: string): string {
+  return JSON.stringify(JSON.parse(text), null, 2);
 }
 
 function formatSavedAt(value: string | null) {
@@ -80,6 +103,55 @@ function patchSong(
   return { ...current, song: { ...current.song, ...patch } };
 }
 
+function JsonField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span className="field-label">{label}</span>
+        <div className="flex gap-1">
+          <Button size="sm" variant="flat" radius="full" onPress={() => {
+            const result = validateJson(value);
+            setStatus(result.ok ? "ok" : "error");
+            toast[result.ok ? "success" : "error"](result.ok ? `${label} is valid JSON` : `${label}: ${result.error}`);
+          }}>
+            <CheckCircle2 className="h-3 w-3" />
+            Validate
+          </Button>
+          <Button size="sm" variant="flat" radius="full" onPress={() => {
+            try {
+              onChange(formatJson(value));
+              setStatus("ok");
+              toast.success(`${label} formatted`);
+            } catch (error) {
+              setStatus("error");
+              toast.error((error as Error).message);
+            }
+          }}>
+            <Wand2 className="h-3 w-3" />
+            Format
+          </Button>
+        </div>
+      </div>
+      <textarea
+        className={`field min-h-52 font-mono text-xs ${status === "error" ? "!border-red-500/60" : ""}`}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        spellCheck={false}
+      />
+    </div>
+  );
+}
+
 export function SongStudioClient() {
   const { selectedSongId: hubSongId, setSelectedSongId: setHubSongId, refreshSongs } = useProductionSong();
 
@@ -98,6 +170,12 @@ export function SongStudioClient() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   const bootedRef = useRef(false);
+  const historyRef = useRef<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [historyLength, setHistoryLength] = useState(0);
+  const sectionOriginalNamesRef = useRef<string[]>([]);
+  const layerOriginalNamesRef = useRef<string[]>([]);
+  const skipConfirmRef = useRef(false);
   const { isOpen: deleteOpen, onOpen: openDelete, onOpenChange: onDeleteOpenChange, onClose: closeDelete } = useDisclosure();
 
   const filteredSongs = useMemo(() => {
@@ -142,6 +220,10 @@ export function SongStudioClient() {
   }
 
   async function selectSong(songId: string, showSpinner = true) {
+    if (!skipConfirmRef.current && songId !== selectedSongId && isDirty) {
+      const proceed = window.confirm("You have unsaved changes. Discard them and switch songs?");
+      if (!proceed) return;
+    }
     if (showSpinner) setLoading(true);
     try {
       const payload = await fetchSongDetail(songId);
@@ -149,10 +231,44 @@ export function SongStudioClient() {
       setSelectedSongId(songId);
       setSavedSnapshot(JSON.stringify(payload.song));
       setHubSongId(songId);
+      sectionOriginalNamesRef.current = payload.song.sections.map((section) => section.name);
+      layerOriginalNamesRef.current = payload.song.layers.map((layer) => layer.name);
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
       if (showSpinner) setLoading(false);
+    }
+  }
+
+  function pushHistory() {
+    if (!selectedSong) return;
+    const snapshot = JSON.stringify(selectedSong);
+    const history = historyRef.current;
+    if (history[historyIndex] === snapshot) return;
+    history.splice(historyIndex + 1);
+    history.push(snapshot);
+    if (history.length > 100) history.shift();
+    setHistoryLength(history.length);
+    setHistoryIndex(history.length - 1);
+  }
+
+  function undo() {
+    if (historyIndex <= 0) return;
+    const nextIndex = historyIndex - 1;
+    const restored = historyRef.current[nextIndex];
+    if (restored) {
+      setHistoryIndex(nextIndex);
+      setSelectedSong(JSON.parse(restored) as MusicSongDetail);
+    }
+  }
+
+  function redo() {
+    if (historyIndex >= historyRef.current.length - 1) return;
+    const nextIndex = historyIndex + 1;
+    const restored = historyRef.current[nextIndex];
+    if (restored) {
+      setHistoryIndex(nextIndex);
+      setSelectedSong(JSON.parse(restored) as MusicSongDetail);
     }
   }
 
@@ -200,15 +316,30 @@ export function SongStudioClient() {
     void selectSong(hubSongId, false);
   }, [hubSongId]);
 
+  useEffect(() => {
+    const handler = (event: BeforeUnloadEvent) => {
+      if (isDirty) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
   async function saveSongFields() {
     if (!selectedSong) return;
+    pushHistory();
     setSaving(true);
     try {
       const payload = await updateSong(selectedSong.song.id, selectedSong.song as unknown as Record<string, unknown>);
       setSelectedSong(payload.song);
       setSavedSnapshot(JSON.stringify(payload.song));
+      setSongs((current) => current.map((song) =>
+        song.id === payload.song.song.id ? { ...song, title: payload.song.song.title } : song,
+      ));
       toast.success("Song saved");
-      await loadLibrary(selectedSong.song.id, false);
+      await refreshSongs();
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -226,6 +357,27 @@ export function SongStudioClient() {
     }
   }
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const mod = event.metaKey || event.ctrlKey;
+      if (!mod) return;
+      if (event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void saveSongFields();
+      } else if (event.key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redo();
+        else undo();
+      } else if (event.key === "y") {
+        event.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSong, isDirty]);
+
   function confirmDeleteSong(song: { id: string; title: string }) {
     setDeleteTarget(song);
     openDelete();
@@ -242,7 +394,9 @@ export function SongStudioClient() {
       setSongs(remaining);
       const nextId = remaining[0]?.id || "";
       if (nextId) {
+        skipConfirmRef.current = true;
         await selectSong(nextId);
+        skipConfirmRef.current = false;
       } else {
         setSelectedSong(null);
         setSelectedSongId("");
@@ -254,19 +408,37 @@ export function SongStudioClient() {
     }
   }
 
-  async function persistPart(kind: PartKind, part: { name: string; text: string | null; json: string }) {
+  async function persistPart(kind: PartKind, part: { name: string; text: string | null; json: string }, originalName?: string) {
     if (!selectedSong) return;
+    pushHistory();
+    const previousName = originalName && originalName !== part.name ? originalName : null;
     try {
-      const payload = await saveSongPart(selectedSong.song.id, {
-        kind,
-        name: part.name,
-        text: part.text,
-        json: part.json,
-      });
-      setSelectedSong(payload.song);
-      setSavedSnapshot(JSON.stringify(payload.song));
+      let result: { song: MusicSongDetail };
+      if (previousName) {
+        await deleteSongPart(selectedSong.song.id, { kind, name: previousName });
+        result = await saveSongPart(selectedSong.song.id, {
+          kind,
+          name: part.name,
+          text: part.text,
+          json: part.json,
+        });
+      } else {
+        result = await saveSongPart(selectedSong.song.id, {
+          kind,
+          name: part.name,
+          text: part.text,
+          json: part.json,
+        });
+      }
+      setSelectedSong(result.song);
+      setSavedSnapshot(JSON.stringify(result.song));
+      if (kind === "section") {
+        sectionOriginalNamesRef.current = result.song.sections.map((section) => section.name);
+      } else {
+        layerOriginalNamesRef.current = result.song.layers.map((layer) => layer.name);
+      }
       toast.success(`${kind} saved`);
-      await loadLibrary(selectedSong.song.id, false);
+      await refreshSongs();
     } catch (error) {
       toast.error((error as Error).message);
     }
@@ -274,6 +446,7 @@ export function SongStudioClient() {
 
   async function removePart(kind: PartKind, name: string) {
     if (!selectedSong) return;
+    pushHistory();
     try {
       const payload = await deleteSongPart(selectedSong.song.id, { kind, name });
       setSelectedSong(payload.song);
@@ -387,6 +560,24 @@ export function SongStudioClient() {
                   <Button
                     radius="full"
                     variant="bordered"
+                    isDisabled={historyIndex <= 0}
+                    onPress={undo}
+                    title="Undo (Ctrl+Z)"
+                  >
+                    <Undo2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    radius="full"
+                    variant="bordered"
+                    isDisabled={historyIndex >= historyLength - 1}
+                    onPress={redo}
+                    title="Redo (Ctrl+Shift+Z)"
+                  >
+                    <Redo2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    radius="full"
+                    variant="bordered"
                     color="danger"
                     onPress={() => confirmDeleteSong({ id: selectedSong.song.id, title: selectedSong.song.title })}
                   >
@@ -489,21 +680,45 @@ export function SongStudioClient() {
                       />
                     </FieldGroup>
                     <FieldGroup label="BPM">
-                      <input
-                        className="field"
-                        value={String(selectedSong.song.bpm ?? "")}
-                        onChange={(event) => setSelectedSong((current) => patchSong(current, { bpm: Number(event.target.value) || null }))}
-                        placeholder="120"
-                        type="number"
-                      />
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          aria-label="Decrease BPM"
+                          className="glass-pill flex h-8 w-8 items-center justify-center"
+                          onClick={() => setSelectedSong((current) => patchSong(current, { bpm: Math.max(40, (current?.song.bpm ?? 120) - 1) }))}
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <input
+                          className="field text-center"
+                          value={String(selectedSong.song.bpm ?? "")}
+                          onChange={(event) => setSelectedSong((current) => patchSong(current, { bpm: Number(event.target.value) || null }))}
+                          placeholder="120"
+                          type="number"
+                          min={40}
+                          max={240}
+                        />
+                        <button
+                          type="button"
+                          aria-label="Increase BPM"
+                          className="glass-pill flex h-8 w-8 items-center justify-center"
+                          onClick={() => setSelectedSong((current) => patchSong(current, { bpm: Math.min(240, (current?.song.bpm ?? 120) + 1) }))}
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </FieldGroup>
                     <FieldGroup label="Musical key">
-                      <input
+                      <select
                         className="field"
                         value={selectedSong.song.musical_key ?? ""}
-                        onChange={(event) => setSelectedSong((current) => patchSong(current, { musical_key: event.target.value }))}
-                        placeholder="Am, C major..."
-                      />
+                        onChange={(event) => setSelectedSong((current) => patchSong(current, { musical_key: event.target.value || null }))}
+                      >
+                        <option value="">—</option>
+                        {KEY_OPTIONS.map((key) => (
+                          <option key={key} value={key}>{key}</option>
+                        ))}
+                      </select>
                     </FieldGroup>
                     <FieldGroup label="Topic" className="md:col-span-2">
                       <input
@@ -577,7 +792,7 @@ export function SongStudioClient() {
                         <h3 className="text-xl font-black">Sections</h3>
                       </div>
                       <div className="space-y-3">
-                        {selectedSong.sections.map((section) => (
+                        {selectedSong.sections.map((section, sectionIdx) => (
                           <div key={section.name} className="glass-card-soft rounded-[1.25rem] p-4">
                             <FieldGroup label="Section name">
                               <input
@@ -600,7 +815,7 @@ export function SongStudioClient() {
                               />
                             </FieldGroup>
                             <div className="mt-3 flex gap-2">
-                              <Button radius="full" className="bg-[var(--color-copper)] text-white" onPress={() => void persistPart("section", section)}>Save</Button>
+                              <Button radius="full" className="bg-[var(--color-copper)] text-white" onPress={() => void persistPart("section", section, sectionOriginalNamesRef.current[sectionIdx])}>Save</Button>
                               <Button radius="full" variant="bordered" color="danger" onPress={() => void removePart("section", section.name)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -628,7 +843,7 @@ export function SongStudioClient() {
                         <h3 className="text-xl font-black">Layers</h3>
                       </div>
                       <div className="space-y-3">
-                        {selectedSong.layers.map((layer) => (
+                        {selectedSong.layers.map((layer, layerIdx) => (
                           <div key={layer.name} className="glass-card-soft rounded-[1.25rem] p-4">
                             <FieldGroup label="Layer name">
                               <input
@@ -651,7 +866,7 @@ export function SongStudioClient() {
                               />
                             </FieldGroup>
                             <div className="mt-3 flex gap-2">
-                              <Button radius="full" className="bg-[var(--color-copper)] text-white" onPress={() => void persistPart("layer", layer)}>Save</Button>
+                              <Button radius="full" className="bg-[var(--color-copper)] text-white" onPress={() => void persistPart("layer", layer, layerOriginalNamesRef.current[layerIdx])}>Save</Button>
                               <Button radius="full" variant="bordered" color="danger" onPress={() => void removePart("layer", layer.name)}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -677,34 +892,26 @@ export function SongStudioClient() {
 
                 {editorTab === "advanced" ? (
                   <div className="grid gap-4 lg:grid-cols-2">
-                    <FieldGroup label="song_json">
-                      <textarea
-                        className="field min-h-72 font-mono text-xs"
-                        value={selectedSong.song.song_json}
-                        onChange={(event) => setSelectedSong((current) => patchSong(current, { song_json: event.target.value }))}
-                      />
-                    </FieldGroup>
-                    <FieldGroup label="production_json">
-                      <textarea
-                        className="field min-h-72 font-mono text-xs"
-                        value={selectedSong.song.production_json ?? "{}"}
-                        onChange={(event) => setSelectedSong((current) => patchSong(current, { production_json: event.target.value }))}
-                      />
-                    </FieldGroup>
-                    <FieldGroup label="melody_json">
-                      <textarea
-                        className="field min-h-52 font-mono text-xs"
-                        value={selectedSong.song.melody_json ?? "{}"}
-                        onChange={(event) => setSelectedSong((current) => patchSong(current, { melody_json: event.target.value }))}
-                      />
-                    </FieldGroup>
-                    <FieldGroup label="metadata_json">
-                      <textarea
-                        className="field min-h-52 font-mono text-xs"
-                        value={selectedSong.song.metadata_json ?? "{}"}
-                        onChange={(event) => setSelectedSong((current) => patchSong(current, { metadata_json: event.target.value }))}
-                      />
-                    </FieldGroup>
+                    <JsonField
+                      label="song_json"
+                      value={selectedSong.song.song_json}
+                      onChange={(next) => setSelectedSong((current) => patchSong(current, { song_json: next }))}
+                    />
+                    <JsonField
+                      label="production_json"
+                      value={selectedSong.song.production_json ?? "{}"}
+                      onChange={(next) => setSelectedSong((current) => patchSong(current, { production_json: next }))}
+                    />
+                    <JsonField
+                      label="melody_json"
+                      value={selectedSong.song.melody_json ?? "{}"}
+                      onChange={(next) => setSelectedSong((current) => patchSong(current, { melody_json: next }))}
+                    />
+                    <JsonField
+                      label="metadata_json"
+                      value={selectedSong.song.metadata_json ?? "{}"}
+                      onChange={(next) => setSelectedSong((current) => patchSong(current, { metadata_json: next }))}
+                    />
                   </div>
                 ) : null}
               </motion.div>

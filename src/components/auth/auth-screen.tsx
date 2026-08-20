@@ -19,6 +19,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
+  const [fallbackLink, setFallbackLink] = useState<string | null>(null);
 
   const isRegister = mode === "register";
 
@@ -34,6 +35,13 @@ export function AuthScreen({ mode }: AuthScreenProps) {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error((payload as { error?: string }).error || "Authentication failed");
+      }
+
+      const fallback = (payload as { verificationUrl?: string }).verificationUrl;
+      if (isRegister && fallback) {
+        setFallbackLink(fallback);
+        toast.success("Account created. Email delivery is paused, so confirm with the link below.");
+        return;
       }
 
       toast.success(isRegister ? "Check your email to confirm your account" : "Logged in");
@@ -62,6 +70,13 @@ export function AuthScreen({ mode }: AuthScreenProps) {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error((payload as { error?: string }).error || "Failed to resend confirmation");
+      }
+
+      const fallback = (payload as { verificationUrl?: string }).verificationUrl;
+      if (fallback) {
+        setFallbackLink(fallback);
+        toast.success("Email delivery is paused — use the link below to confirm.");
+        return;
       }
 
       toast.success("If the account exists, a confirmation email has been sent");
@@ -136,6 +151,25 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                   </Link>
                 </div>
               </form>
+              {fallbackLink ? (
+                <div className="mt-6 space-y-3 rounded-[1.5rem] border border-[var(--color-brass)]/30 bg-[var(--color-info-surface)] p-4 text-sm text-[var(--color-sand-2)]">
+                  <p className="font-semibold text-[var(--color-foreground)]">Email delivery is paused</p>
+                  <p>Your account is ready. Use the link below to confirm your email, then log in:</p>
+                  <a href={fallbackLink} className="block break-all text-[var(--color-brass)] underline transition hover:text-[var(--color-foreground)]">
+                    {fallbackLink}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(fallbackLink);
+                      toast.success("Confirmation link copied");
+                    }}
+                    className="rounded-full bg-[var(--color-copper)] px-4 py-2 text-white shadow-[var(--shadow-soft)]"
+                  >
+                    Copy link
+                  </button>
+                </div>
+              ) : null}
             </section>
           </CardBody>
         </Card>
