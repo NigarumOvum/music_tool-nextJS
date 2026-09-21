@@ -3,10 +3,10 @@
   "project": "music-tool",
   "stats": {
     "totalFiles": 103,
-    "totalSymbols": 1123,
+    "totalSymbols": 1131,
     "totalRoutes": 21,
-    "totalEdges": 2892,
-    "generatedAt": "2026-09-21T04:22:44.556Z"
+    "totalEdges": 2901,
+    "generatedAt": "2026-09-21T04:57:40.499Z"
   },
   "nodes": [
     {
@@ -24491,7 +24491,7 @@
       "kind": "CONST",
       "file": "scripts/generate-codegraph.mjs",
       "startLine": 404,
-      "endLine": 524,
+      "endLine": 537,
       "isExported": false,
       "isDefault": false
     },
@@ -24501,8 +24501,8 @@
       "name": "generate-codegraph.mjs",
       "path": "scripts/generate-codegraph.mjs",
       "category": "script",
-      "sizeBytes": 16490,
-      "lineCount": 528,
+      "sizeBytes": 16860,
+      "lineCount": 541,
       "symbols": [
         "__filename",
         "__dirname",
@@ -25133,13 +25133,112 @@
       "isDefault": false
     },
     {
+      "id": "symbol:scripts/query-codegraph.mjs#callers",
+      "type": "SYMBOL",
+      "name": "callers",
+      "kind": "CONST",
+      "file": "scripts/query-codegraph.mjs",
+      "startLine": 124,
+      "endLine": 128,
+      "isExported": false,
+      "isDefault": false
+    },
+    {
+      "id": "symbol:scripts/query-codegraph.mjs#uniqueSources",
+      "type": "SYMBOL",
+      "name": "uniqueSources",
+      "kind": "CONST",
+      "file": "scripts/query-codegraph.mjs",
+      "startLine": 133,
+      "endLine": 133,
+      "isExported": false,
+      "isDefault": false
+    },
+    {
+      "id": "symbol:scripts/query-codegraph.mjs#edge",
+      "type": "SYMBOL",
+      "name": "edge",
+      "kind": "CONST",
+      "file": "scripts/query-codegraph.mjs",
+      "startLine": 135,
+      "endLine": 135,
+      "isExported": false,
+      "isDefault": false
+    },
+    {
+      "id": "symbol:scripts/query-codegraph.mjs#q",
+      "type": "SYMBOL",
+      "name": "q",
+      "kind": "CONST",
+      "file": "scripts/query-codegraph.mjs",
+      "startLine": 148,
+      "endLine": 148,
+      "isExported": false,
+      "isDefault": false
+    },
+    {
+      "id": "symbol:scripts/query-codegraph.mjs#matchingSymbols",
+      "type": "SYMBOL",
+      "name": "matchingSymbols",
+      "kind": "CONST",
+      "file": "scripts/query-codegraph.mjs",
+      "startLine": 149,
+      "endLine": 151,
+      "isExported": false,
+      "isDefault": false
+    },
+    {
+      "id": "symbol:scripts/query-codegraph.mjs#matchingFiles",
+      "type": "SYMBOL",
+      "name": "matchingFiles",
+      "kind": "CONST",
+      "file": "scripts/query-codegraph.mjs",
+      "startLine": 152,
+      "endLine": 154,
+      "isExported": false,
+      "isDefault": false
+    },
+    {
+      "id": "symbol:scripts/query-codegraph.mjs#normalized",
+      "type": "SYMBOL",
+      "name": "normalized",
+      "kind": "CONST",
+      "file": "scripts/query-codegraph.mjs",
+      "startLine": 169,
+      "endLine": 169,
+      "isExported": false,
+      "isDefault": false
+    },
+    {
+      "id": "symbol:scripts/query-codegraph.mjs#outgoing",
+      "type": "SYMBOL",
+      "name": "outgoing",
+      "kind": "CONST",
+      "file": "scripts/query-codegraph.mjs",
+      "startLine": 170,
+      "endLine": 170,
+      "isExported": false,
+      "isDefault": false
+    },
+    {
+      "id": "symbol:scripts/query-codegraph.mjs#incoming",
+      "type": "SYMBOL",
+      "name": "incoming",
+      "kind": "CONST",
+      "file": "scripts/query-codegraph.mjs",
+      "startLine": 171,
+      "endLine": 171,
+      "isExported": false,
+      "isDefault": false
+    },
+    {
       "id": "file:scripts/query-codegraph.mjs",
       "type": "FILE",
       "name": "query-codegraph.mjs",
       "path": "scripts/query-codegraph.mjs",
       "category": "script",
-      "sizeBytes": 4787,
-      "lineCount": 141,
+      "sizeBytes": 7146,
+      "lineCount": 204,
       "symbols": [
         "__filename",
         "__dirname",
@@ -25150,7 +25249,16 @@
         "partials",
         "incomingEdges",
         "normalized",
-        "fileData"
+        "fileData",
+        "callers",
+        "uniqueSources",
+        "edge",
+        "q",
+        "matchingSymbols",
+        "matchingFiles",
+        "normalized",
+        "outgoing",
+        "incoming"
       ],
       "imports": [
         {
@@ -42024,6 +42132,51 @@
       "source": "file:scripts/query-codegraph.mjs",
       "target": "symbol:scripts/query-codegraph.mjs#fileData",
       "type": "DEFINES"
+    },
+    {
+      "source": "file:scripts/query-codegraph.mjs",
+      "target": "symbol:scripts/query-codegraph.mjs#callers",
+      "type": "DEFINES"
+    },
+    {
+      "source": "file:scripts/query-codegraph.mjs",
+      "target": "symbol:scripts/query-codegraph.mjs#uniqueSources",
+      "type": "DEFINES"
+    },
+    {
+      "source": "file:scripts/query-codegraph.mjs",
+      "target": "symbol:scripts/query-codegraph.mjs#edge",
+      "type": "DEFINES"
+    },
+    {
+      "source": "file:scripts/query-codegraph.mjs",
+      "target": "symbol:scripts/query-codegraph.mjs#q",
+      "type": "DEFINES"
+    },
+    {
+      "source": "file:scripts/query-codegraph.mjs",
+      "target": "symbol:scripts/query-codegraph.mjs#matchingSymbols",
+      "type": "DEFINES"
+    },
+    {
+      "source": "file:scripts/query-codegraph.mjs",
+      "target": "symbol:scripts/query-codegraph.mjs#matchingFiles",
+      "type": "DEFINES"
+    },
+    {
+      "source": "file:scripts/query-codegraph.mjs",
+      "target": "symbol:scripts/query-codegraph.mjs#normalized",
+      "type": "DEFINES"
+    },
+    {
+      "source": "file:scripts/query-codegraph.mjs",
+      "target": "symbol:scripts/query-codegraph.mjs#outgoing",
+      "type": "DEFINES"
+    },
+    {
+      "source": "file:scripts/query-codegraph.mjs",
+      "target": "symbol:scripts/query-codegraph.mjs#incoming",
+      "type": "DEFINES"
     }
   ],
   "indices": {
@@ -56163,6 +56316,13 @@
           "kind": "CONST",
           "isExported": false,
           "line": 93
+        },
+        {
+          "id": "symbol:scripts/query-codegraph.mjs#normalized",
+          "file": "scripts/query-codegraph.mjs",
+          "kind": "CONST",
+          "isExported": false,
+          "line": 169
         }
       ],
       "fileData": [
@@ -56172,6 +56332,78 @@
           "kind": "CONST",
           "isExported": false,
           "line": 94
+        }
+      ],
+      "callers": [
+        {
+          "id": "symbol:scripts/query-codegraph.mjs#callers",
+          "file": "scripts/query-codegraph.mjs",
+          "kind": "CONST",
+          "isExported": false,
+          "line": 124
+        }
+      ],
+      "uniqueSources": [
+        {
+          "id": "symbol:scripts/query-codegraph.mjs#uniqueSources",
+          "file": "scripts/query-codegraph.mjs",
+          "kind": "CONST",
+          "isExported": false,
+          "line": 133
+        }
+      ],
+      "edge": [
+        {
+          "id": "symbol:scripts/query-codegraph.mjs#edge",
+          "file": "scripts/query-codegraph.mjs",
+          "kind": "CONST",
+          "isExported": false,
+          "line": 135
+        }
+      ],
+      "q": [
+        {
+          "id": "symbol:scripts/query-codegraph.mjs#q",
+          "file": "scripts/query-codegraph.mjs",
+          "kind": "CONST",
+          "isExported": false,
+          "line": 148
+        }
+      ],
+      "matchingSymbols": [
+        {
+          "id": "symbol:scripts/query-codegraph.mjs#matchingSymbols",
+          "file": "scripts/query-codegraph.mjs",
+          "kind": "CONST",
+          "isExported": false,
+          "line": 149
+        }
+      ],
+      "matchingFiles": [
+        {
+          "id": "symbol:scripts/query-codegraph.mjs#matchingFiles",
+          "file": "scripts/query-codegraph.mjs",
+          "kind": "CONST",
+          "isExported": false,
+          "line": 152
+        }
+      ],
+      "outgoing": [
+        {
+          "id": "symbol:scripts/query-codegraph.mjs#outgoing",
+          "file": "scripts/query-codegraph.mjs",
+          "kind": "CONST",
+          "isExported": false,
+          "line": 170
+        }
+      ],
+      "incoming": [
+        {
+          "id": "symbol:scripts/query-codegraph.mjs#incoming",
+          "file": "scripts/query-codegraph.mjs",
+          "kind": "CONST",
+          "isExported": false,
+          "line": 171
         }
       ]
     },
@@ -66032,6 +66264,51 @@
           },
           {
             "name": "fileData",
+            "kind": "CONST",
+            "isExported": false
+          },
+          {
+            "name": "callers",
+            "kind": "CONST",
+            "isExported": false
+          },
+          {
+            "name": "uniqueSources",
+            "kind": "CONST",
+            "isExported": false
+          },
+          {
+            "name": "edge",
+            "kind": "CONST",
+            "isExported": false
+          },
+          {
+            "name": "q",
+            "kind": "CONST",
+            "isExported": false
+          },
+          {
+            "name": "matchingSymbols",
+            "kind": "CONST",
+            "isExported": false
+          },
+          {
+            "name": "matchingFiles",
+            "kind": "CONST",
+            "isExported": false
+          },
+          {
+            "name": "normalized",
+            "kind": "CONST",
+            "isExported": false
+          },
+          {
+            "name": "outgoing",
+            "kind": "CONST",
+            "isExported": false
+          },
+          {
+            "name": "incoming",
             "kind": "CONST",
             "isExported": false
           }

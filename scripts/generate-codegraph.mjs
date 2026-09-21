@@ -512,15 +512,28 @@ Agents and LLMs can query the CodeGraph directly via command line:
 # Lookup symbol definition and callers
 npm run codegraph:query -- symbol playMetronomeSound
 
-# Inspect file dependencies and exported symbols
+# Find all callers/dependents of a symbol
+npm run codegraph:query -- callers playMetronomeSound
+
+# Search for symbols and files by keyword
+npm run codegraph:query -- search metronome
+
+# Inspect file dependencies and dependents
+npm run codegraph:query -- deps src/components/music/tab-studio-client.tsx
+
+# Inspect file exported symbols and imports
 npm run codegraph:query -- file src/components/music/tab-studio-client.tsx
 
 # List all API routes and methods
 npm run codegraph:query -- routes
 
+# Get repository graph summary stats
+npm run codegraph:query -- stats
+
 # Re-generate CodeGraph after code edits
 npm run codegraph
 \`\`\`
+
 `;
 
 fs.writeFileSync(OUTPUT_MD, markdown, "utf-8");

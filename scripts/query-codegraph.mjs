@@ -116,6 +116,68 @@ switch (command.toLowerCase()) {
     break;
   }
 
+  case "callers": {
+    if (!query) {
+      console.error("Usage: node query-codegraph.mjs callers <SymbolName>");
+      process.exit(1);
+    }
+    const callers = graph.edges.filter(
+      (e) =>
+        e.metadata?.symbols?.includes(query) ||
+        (e.target.includes(query) && e.type !== "DEFINES")
+    );
+    if (callers.length === 0) {
+      console.log(`❌ No callers or references found for '${query}'.`);
+    } else {
+      console.log(`\n🔗 Callers / References for '${query}' (${callers.length}):`);
+      const uniqueSources = [...new Set(callers.map((e) => e.source))];
+      uniqueSources.forEach((src) => {
+        const edge = callers.find((e) => e.source === src);
+        console.log(`  <- ${src} (${edge.type})`);
+      });
+      console.log("");
+    }
+    break;
+  }
+
+  case "search": {
+    if (!query) {
+      console.error("Usage: node query-codegraph.mjs search <keyword>");
+      process.exit(1);
+    }
+    const q = query.toLowerCase();
+    const matchingSymbols = Object.keys(graph.indices.symbolIndex).filter((k) =>
+      k.toLowerCase().includes(q)
+    );
+    const matchingFiles = Object.keys(graph.indices.fileIndex).filter((k) =>
+      k.toLowerCase().includes(q)
+    );
+    console.log(`\n🔎 Search results for '${query}':`);
+    console.log(`  Matching Files (${matchingFiles.length}):`);
+    matchingFiles.slice(0, 15).forEach((f) => console.log(`    📄 ${f}`));
+    console.log(`\n  Matching Symbols (${matchingSymbols.length}):`);
+    matchingSymbols.slice(0, 15).forEach((s) => console.log(`    📌 ${s}`));
+    console.log("");
+    break;
+  }
+
+  case "deps": {
+    if (!query) {
+      console.error("Usage: node query-codegraph.mjs deps <Path>");
+      process.exit(1);
+    }
+    const normalized = query.replace(/^\.\//, "").replace(/^\//, "");
+    const outgoing = graph.edges.filter((e) => e.source.includes(normalized) && e.type === "IMPORTS");
+    const incoming = graph.edges.filter((e) => e.target.includes(normalized) && e.type === "IMPORTS");
+    console.log(`\n🕸️ Dependency graph for '${normalized}':`);
+    console.log(`  Dependencies (${outgoing.length}):`);
+    outgoing.forEach((e) => console.log(`    -> ${e.target}`));
+    console.log(`  Dependents (${incoming.length}):`);
+    incoming.forEach((e) => console.log(`    <- ${e.source}`));
+    console.log("");
+    break;
+  }
+
   case "routes": {
     console.log(`\n📡 API Routes (${Object.keys(graph.indices.routeIndex).length}):\n`);
     for (const [url, data] of Object.entries(graph.indices.routeIndex)) {
@@ -136,5 +198,6 @@ switch (command.toLowerCase()) {
   }
 
   default:
-    console.error(`Unknown command: '${command}'. Use symbol, file, routes, callers, or stats.`);
+    console.error(`Unknown command: '${command}'. Use symbol, file, routes, callers, search, deps, or stats.`);
 }
+
