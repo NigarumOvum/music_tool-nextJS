@@ -9,6 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "codegraph": "node scripts/generate-codegraph.mjs",
+    "codegraph:query": "node scripts/query-codegraph.mjs",
     "migrate:legacy-music-ownership": "node scripts/migrate-legacy-music-ownership.mjs"
   },
   "dependencies": {
