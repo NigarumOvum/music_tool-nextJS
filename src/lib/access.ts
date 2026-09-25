@@ -7,6 +7,7 @@ export const MANAGEABLE_PAGES = [
   { key: "musician-helpers", label: "Musician Helpers", href: "/music-toolkit?tab=practice" },
   { key: "theory-lab", label: "Theory Lab", href: "/music-toolkit?tab=harmony" },
   { key: "progressions", label: "Progressions", href: "/music-toolkit?tab=progressions" },
+  { key: "scales", label: "Scales", href: "/music-toolkit?tab=scales" },
 ] as const;
 
 export type ManagedPageKey = (typeof MANAGEABLE_PAGES)[number]["key"];
@@ -29,7 +30,7 @@ export const HUB_ACCESS_GROUPS = [
   {
     id: "music-toolkit",
     label: "Music Toolkit",
-    pageKeys: ["musician-helpers", "theory-lab", "progressions"] as const satisfies readonly ManagedPageKey[],
+    pageKeys: ["musician-helpers", "theory-lab", "progressions", "scales"] as const satisfies readonly ManagedPageKey[],
   },
   {
     id: "prompt-library",

@@ -13,6 +13,7 @@ export const MUSIC_TOOLKIT_TABS = [
   { id: "harmony", label: "Harmony", pageKey: "theory-lab" },
   { id: "progressions", label: "Progressions", pageKey: "progressions" },
   { id: "practice", label: "Practice", pageKey: "musician-helpers" },
+  { id: "scales", label: "Scales", pageKey: "scales" },
 ] as const;
 
 export type ProductionStudioTabId = (typeof PRODUCTION_STUDIO_TABS)[number]["id"];
