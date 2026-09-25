@@ -1077,18 +1077,18 @@ function ProductionStudioDashboard() {
       </CollapsibleCard>
 
       {/* 2. Songs Catalog & Search / Action Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 flex-wrap items-center gap-2.5">
-          <div className="relative min-w-[240px] flex-1">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-sand-2)]" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] flex-1 sm:min-w-[240px]">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-sand-2)]" />
             <input
               type="text"
-              placeholder="Search songs by title, genre, topic... (⌘F)"
+              placeholder="Search songs... (⌘F)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-              className="field pl-9 text-xs"
+              className="field pl-9 text-xs py-2"
             />
             <button
               type="button"
@@ -1132,66 +1132,58 @@ function ProductionStudioDashboard() {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (viewMode === "grid") setViewMode("kanban");
-              else if (viewMode === "kanban") setViewMode("compact");
-              else setViewMode("grid");
-            }}
-            title={`Switch to ${viewMode === "grid" ? "Kanban" : viewMode === "kanban" ? "Compact" : "Grid"} view`}
-            className={`flex h-8 w-8 items-center justify-center rounded-xl border transition ${
-              viewMode !== "grid"
-                ? "border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-brass)]"
-                : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
-            }`}
-          >
-            {viewMode === "grid" ? <Kanban className="h-4 w-4" /> : viewMode === "kanban" ? <LayoutGrid className="h-4 w-4" /> : <List className="h-4 w-4" />}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                if (viewMode === "grid") setViewMode("kanban");
+                else if (viewMode === "kanban") setViewMode("compact");
+                else setViewMode("grid");
+              }}
+              title={`Switch to ${viewMode === "grid" ? "Kanban" : viewMode === "kanban" ? "Compact" : "Grid"} view`}
+              className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
+                viewMode !== "grid"
+                  ? "border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-brass)]"
+                  : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
+              }`}
+            >
+              {viewMode === "grid" ? <Kanban className="h-3.5 w-3.5" /> : viewMode === "kanban" ? <LayoutGrid className="h-3.5 w-3.5" /> : <List className="h-3.5 w-3.5" />}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            title="Toggle song info sidebar"
-            className={`flex h-8 w-8 items-center justify-center rounded-xl border transition ${
-              isSidebarOpen
-                ? "border-[var(--color-copper)] bg-[var(--color-copper)]/10 text-[var(--color-copper)]"
-                : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
-            }`}
-          >
-            <Layers className="h-4 w-4" />
-          </button>
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              title="Toggle song info sidebar"
+              className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
+                isSidebarOpen
+                  ? "border-[var(--color-copper)] bg-[var(--color-copper)]/10 text-[var(--color-copper)]"
+                  : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
+              }`}
+            >
+              <Layers className="h-3.5 w-3.5" />
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setReducedMotion(!reducedMotion)}
-            title="Toggle reduced motion"
-            className={`flex h-8 w-8 items-center justify-center rounded-xl border transition ${
-              reducedMotion
-                ? "border-[var(--color-brass)] bg-[var(--color-brass)]/10 text-[var(--color-brass)]"
-                : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
-            }`}
-          >
-            <Zap className="h-4 w-4" />
-          </button>
+            <button
+              type="button"
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
+                showAdvancedFilters
+                  ? "border-[var(--color-copper)] bg-[var(--color-copper)]/10 text-[var(--color-copper)]"
+                  : "border-[var(--color-border)] bg-[var(--color-surface-soft)] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
+              }`}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Advanced</span>
+              <ChevronDown className={`h-3 w-3 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </div>
 
-          <button
-            type="button"
-            onClick={() => setHighContrast(!highContrast)}
-            title="Toggle high contrast"
-            className={`flex h-8 w-8 items-center justify-center rounded-xl border transition ${
-              highContrast
-                ? "border-[var(--color-copper)] bg-[var(--color-copper)]/10 text-[var(--color-copper)]"
-                : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
-            }`}
-          >
-            <Settings className="h-4 w-4" />
-          </button>
-
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={selectedGenre}
             onChange={(e) => setSelectedGenre(e.target.value)}
-            className="field w-auto text-xs"
+            className="field w-auto text-xs py-2"
           >
             <option value="all">All Genres</option>
             {GENRE_PRESETS.map((g) => (
@@ -1204,7 +1196,7 @@ function ProductionStudioDashboard() {
           <select
             value={selectedKey}
             onChange={(e) => setSelectedKey(e.target.value)}
-            className="field w-auto text-xs"
+            className="field w-auto text-xs py-2"
           >
             <option value="all">All Keys</option>
             {KEY_PRESETS.map((k) => (
@@ -1216,16 +1208,11 @@ function ProductionStudioDashboard() {
 
           <button
             type="button"
-            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-              showAdvancedFilters
-                ? "border-[var(--color-copper)] bg-[var(--color-copper)]/10 text-[var(--color-copper)]"
-                : "border-[var(--color-border)] bg-[var(--color-surface-soft)] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
-            }`}
+            onClick={() => setIsNewSongModalOpen(true)}
+            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[var(--color-copper)] to-[var(--color-gold)] px-4 py-2 text-xs font-bold text-black shadow-sm transition hover:brightness-110 active:scale-95"
           >
-            <Filter className="h-3.5 w-3.5" />
-            <span>Advanced</span>
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">New Song</span>
           </button>
         </div>
 
@@ -1239,12 +1226,12 @@ function ProductionStudioDashboard() {
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-4">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     value={selectedEmotion}
                     onChange={(e) => setSelectedEmotion(e.target.value)}
-                    className="field w-auto text-xs"
+                    className="field w-auto text-xs py-2"
                   >
                     <option value="all">All Emotions</option>
                     {EMOTION_PRESETS.map((e) => (
@@ -1257,7 +1244,7 @@ function ProductionStudioDashboard() {
                   <select
                     value={selectedMood}
                     onChange={(e) => setSelectedMood(e.target.value)}
-                    className="field w-auto text-xs"
+                    className="field w-auto text-xs py-2"
                   >
                     <option value="all">All Moods</option>
                     {MOOD_PRESETS.map((m) => (
@@ -1270,7 +1257,7 @@ function ProductionStudioDashboard() {
                   <select
                     value={selectedInstrument}
                     onChange={(e) => setSelectedInstrument(e.target.value)}
-                    className="field w-auto text-xs"
+                    className="field w-auto text-xs py-2"
                   >
                     <option value="all">All Instruments</option>
                     {INSTRUMENT_PRESETS.map((i) => (
