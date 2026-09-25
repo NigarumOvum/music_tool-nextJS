@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Guitar, Piano, Drum, Music2, Play, RotateCcw, Search, Sparkles } from "lucide-react";
+import { Guitar, Piano, Drum, Music2, Play, Search, Sparkles } from "lucide-react";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
+import { InfoTooltip } from "@/components/info-tooltip";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
 import { useAudio } from "@/components/music/audio-provider";
 import { KEYBOARD_VOICES, playKeyboardNote, playKeyboardNotes, type KeyboardVoice } from "@/lib/music/keyboard-synth";
@@ -74,6 +75,11 @@ function GuitarFretboard({ notes, root }: { notes: string[]; root: string }) {
       <div className="flex items-center gap-2">
         <Guitar className="h-4 w-4 text-[var(--color-brass)]" />
         <h3 className="text-lg font-black">Guitar Fretboard</h3>
+        <InfoTooltip
+          content="Shows scale positions across all 6 strings and 12 frets. Copper cells show root notes, mint cells show other scale notes. Use this to find scale patterns on guitar."
+          position="right"
+          size="md"
+        />
       </div>
       <div className="space-y-2 overflow-x-auto pb-2">
         {strings.map((string, stringIdx) => (
@@ -116,6 +122,11 @@ function BassFretboard({ notes, root }: { notes: string[]; root: string }) {
       <div className="flex items-center gap-2">
         <Music2 className="h-4 w-4 text-[var(--color-brass)]" />
         <h3 className="text-lg font-black">Bass Fretboard</h3>
+        <InfoTooltip
+          content="Shows scale positions across 4 bass strings and 12 frets. Similar to guitar but optimized for bass guitar patterns."
+          position="right"
+          size="md"
+        />
       </div>
       <div className="space-y-2 overflow-x-auto pb-2">
         {strings.map((string) => (
@@ -166,6 +177,11 @@ function DrumPattern({ notes }: { notes: string[] }) {
       <div className="flex items-center gap-2">
         <Drum className="h-4 w-4 text-[var(--color-brass)]" />
         <h3 className="text-lg font-black">Drum Pattern</h3>
+        <InfoTooltip
+          content="16-step drum pattern editor. Click cells to add/remove hits. Use this to create rhythmic patterns that complement your chosen scale."
+          position="right"
+          size="md"
+        />
       </div>
       <div className="space-y-2">
         {drumKit.map((drum, drumIdx) => (
@@ -217,14 +233,16 @@ export function ScalesClient() {
 
   function playScale() {
     if (!audio) return;
+    const audioContext = audio.getAudioContext();
     const frequencies = scaleNotes.map((note) => noteFrequency(note, 4));
-    playKeyboardNotes(audio, frequencies, voice);
+    playKeyboardNotes(audioContext, frequencies, voice);
   }
 
   function playNote(note: string) {
     if (!audio) return;
+    const audioContext = audio.getAudioContext();
     const freq = noteFrequency(note, 4);
-    playKeyboardNote(audio, freq, voice);
+    playKeyboardNote(audioContext, freq, voice);
   }
 
   return (
@@ -236,24 +254,38 @@ export function ScalesClient() {
             <h2 className="text-xl font-black">Scale Explorer</h2>
           </div>
           <div className="flex flex-wrap gap-2">
-            <select
-              className="field"
-              value={root}
-              onChange={(e) => setRoot(e.target.value)}
-            >
-              {CHROMATIC.map((note) => (
-                <option key={note} value={note}>{note}</option>
-              ))}
-            </select>
-            <select
-              className="field"
-              value={scale}
-              onChange={(e) => setScale(e.target.value)}
-            >
-              {filteredScales.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                className="field"
+                value={root}
+                onChange={(e) => setRoot(e.target.value)}
+              >
+                {CHROMATIC.map((note) => (
+                  <option key={note} value={note}>{note}</option>
+                ))}
+              </select>
+              <InfoTooltip
+                content="The root note is the starting note of the scale. All other notes in the scale are calculated from this note."
+                position="top"
+                size="sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                className="field"
+                value={scale}
+                onChange={(e) => setScale(e.target.value)}
+              >
+                {filteredScales.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <InfoTooltip
+                content="Choose from 13 different scale types including Major, Minor, Pentatonic, Blues, and various modes. Each scale has a unique pattern of intervals."
+                position="top"
+                size="sm"
+              />
+            </div>
             <input
               className="field"
               placeholder="Search scales..."
@@ -285,6 +317,11 @@ export function ScalesClient() {
                 </button>
               );
             })}
+            <InfoTooltip
+              content="Switch between different instrument visualizations to see how the scale appears on piano, guitar fretboard, bass, or drum patterns."
+              position="bottom"
+              size="sm"
+            />
           </div>
           <div className="flex gap-2">
             <button
@@ -295,15 +332,22 @@ export function ScalesClient() {
               <Play className="h-3.5 w-3.5" />
               Play Scale
             </button>
-            <select
-              className="field w-auto"
-              value={voice}
-              onChange={(e) => setVoice(e.target.value as KeyboardVoice)}
-            >
-              {KEYBOARD_VOICES.map((v) => (
-                <option key={v} value={v}>{v}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                className="field w-auto"
+                value={voice}
+                onChange={(e) => setVoice(e.target.value as KeyboardVoice)}
+              >
+                {KEYBOARD_VOICES.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+              <InfoTooltip
+                content="Choose the instrument sound for playback. Different voices create unique timbres for the same notes."
+                position="bottom"
+                size="sm"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -328,6 +372,11 @@ export function ScalesClient() {
               <span className="text-[10px] text-[var(--color-sand-2)]">{intervalName(root, note)}</span>
             </button>
           ))}
+          <InfoTooltip
+            content="Click any note to hear it individually. The interval name shows the relationship to the root note (R = root, m2 = minor 2nd, M3 = major 3rd, etc.)."
+            position="top"
+            size="md"
+          />
         </div>
 
         {instrument === "piano" && (
@@ -335,6 +384,11 @@ export function ScalesClient() {
             <div className="flex items-center gap-2">
               <Piano className="h-4 w-4 text-[var(--color-brass)]" />
               <h3 className="text-lg font-black">Piano Keyboard</h3>
+              <InfoTooltip
+                content="Visual representation of the scale on a piano keyboard. Copper notes are the root, mint notes are other scale degrees. Click keys to hear individual notes."
+                position="right"
+                size="md"
+              />
             </div>
             <PianoKeyboard highlightNotes={scaleNotes} rootNote={root} onNoteClick={playNote} />
           </div>
@@ -351,6 +405,13 @@ export function ScalesClient() {
         title="Scale Theory"
         icon={<Sparkles className="h-4 w-4" />}
         defaultOpen={false}
+        headerActions={
+          <InfoTooltip
+            content="Learn about the theory behind scales including interval patterns and note relationships. Understanding theory helps you compose and improvise more effectively."
+            position="left"
+            size="md"
+          />
+        }
       >
         <div className="space-y-4">
           <div>

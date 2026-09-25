@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { InfoTooltip } from "@/components/info-tooltip";
 import { StudioSidebar } from "@/components/music/studio-sidebar";
 
 import {
@@ -556,13 +557,20 @@ export function SongStudioClient() {
           <>
             <div className="panel glass-shine rounded-[1.25rem] p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="eyebrow">Song editor</div>
-                  <h2 className="mt-1 text-2xl font-black tracking-tight">{selectedSong.song.title}</h2>
-                  <p className="mt-0.5 text-[11px] text-[var(--color-sand-2)]">
-                    Last saved {formatSavedAt(selectedSong.song.saved_at)}
-                    {isDirty ? " · Unsaved changes" : " · Up to date"}
-                  </p>
+                <div className="flex items-center gap-2">
+                  <div>
+                    <div className="eyebrow">Song editor</div>
+                    <h2 className="mt-1 text-2xl font-black tracking-tight">{selectedSong.song.title}</h2>
+                    <p className="mt-0.5 text-[11px] text-[var(--color-sand-2)]">
+                      Last saved {formatSavedAt(selectedSong.song.saved_at)}
+                      {isDirty ? " · Unsaved changes" : " · Up to date"}
+                    </p>
+                  </div>
+                  <InfoTooltip
+                    content="Edit song metadata including title, genre, BPM, and other musical characteristics. Changes are saved locally until you click Save song."
+                    position="right"
+                    size="md"
+                  />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -618,28 +626,49 @@ export function SongStudioClient() {
                   />
                 </FieldGroup>
                 <FieldGroup label="Genre">
-                  <input
-                    className="field"
-                    value={selectedSong.song.genre ?? ""}
-                    onChange={(event) => setSelectedSong((current) => patchSong(current, { genre: event.target.value }))}
-                    placeholder="Pop, Rock, Cumbia..."
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="field flex-1"
+                      value={selectedSong.song.genre ?? ""}
+                      onChange={(event) => setSelectedSong((current) => patchSong(current, { genre: event.target.value }))}
+                      placeholder="Pop, Rock, Cumbia..."
+                    />
+                    <InfoTooltip
+                      content="The musical style or category of the song (e.g., Pop, Rock, Jazz). Helps with organization and finding songs later."
+                      position="top"
+                      size="sm"
+                    />
+                  </div>
                 </FieldGroup>
                 <FieldGroup label="Language">
-                  <input
-                    className="field"
-                    value={selectedSong.song.language ?? ""}
-                    onChange={(event) => setSelectedSong((current) => patchSong(current, { language: event.target.value }))}
-                    placeholder="Spanish, English..."
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="field flex-1"
+                      value={selectedSong.song.language ?? ""}
+                      onChange={(event) => setSelectedSong((current) => patchSong(current, { language: event.target.value }))}
+                      placeholder="Spanish, English..."
+                    />
+                    <InfoTooltip
+                      content="The primary language of the lyrics. Useful for filtering and organizing songs by language."
+                      position="top"
+                      size="sm"
+                    />
+                  </div>
                 </FieldGroup>
                 <FieldGroup label="Emotion / mood">
-                  <input
-                    className="field"
-                    value={selectedSong.song.emotion ?? ""}
-                    onChange={(event) => setSelectedSong((current) => patchSong(current, { emotion: event.target.value }))}
-                    placeholder="Nostalgic, energetic..."
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="field flex-1"
+                      value={selectedSong.song.emotion ?? ""}
+                      onChange={(event) => setSelectedSong((current) => patchSong(current, { emotion: event.target.value }))}
+                      placeholder="Nostalgic, energetic..."
+                    />
+                    <InfoTooltip
+                      content="The emotional character or mood of the song. Helps with matching songs to specific feelings or contexts."
+                      position="top"
+                      size="sm"
+                    />
+                  </div>
                 </FieldGroup>
                 <FieldGroup label="BPM">
                   <div className="flex items-center gap-1.5">
@@ -668,51 +697,91 @@ export function SongStudioClient() {
                     >
                       <ChevronUp className="h-3.5 w-3.5" />
                     </button>
+                    <InfoTooltip
+                      content="Beats per minute - the tempo of the song. Range: 40-240 BPM. Use this for timing reference and tempo matching."
+                      position="top"
+                      size="sm"
+                    />
                   </div>
                 </FieldGroup>
                 <FieldGroup label="Musical key">
-                  <select
-                    className="field"
-                    value={selectedSong.song.musical_key ?? ""}
-                    onChange={(event) => setSelectedSong((current) => patchSong(current, { musical_key: event.target.value || null }))}
-                  >
-                    <option value="">—</option>
-                    {KEY_OPTIONS.map((key) => (
-                      <option key={key} value={key}>{key}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="field flex-1"
+                      value={selectedSong.song.musical_key ?? ""}
+                      onChange={(event) => setSelectedSong((current) => patchSong(current, { musical_key: event.target.value || null }))}
+                    >
+                      <option value="">—</option>
+                      {KEY_OPTIONS.map((key) => (
+                        <option key={key} value={key}>{key}</option>
+                      ))}
+                    </select>
+                    <InfoTooltip
+                      content="The musical key (e.g., C Major, A minor). Important for understanding harmonic relationships and transposing instruments."
+                      position="top"
+                      size="sm"
+                    />
+                  </div>
                 </FieldGroup>
                 <FieldGroup label="Topic" className="md:col-span-2">
-                  <input
-                    className="field"
-                    value={selectedSong.song.topic ?? ""}
-                    onChange={(event) => setSelectedSong((current) => patchSong(current, { topic: event.target.value }))}
-                    placeholder="What is this song about?"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="field flex-1"
+                      value={selectedSong.song.topic ?? ""}
+                      onChange={(event) => setSelectedSong((current) => patchSong(current, { topic: event.target.value }))}
+                      placeholder="What is this song about?"
+                    />
+                    <InfoTooltip
+                      content="The subject matter or theme of the song. Helps with categorization and finding songs with similar themes."
+                      position="top"
+                      size="sm"
+                    />
+                  </div>
                 </FieldGroup>
                 <FieldGroup label="Hook summary" className="md:col-span-2">
-                  <textarea
-                    className="field min-h-24"
-                    value={selectedSong.song.hook_summary ?? ""}
-                    onChange={(event) => setSelectedSong((current) => patchSong(current, { hook_summary: event.target.value }))}
-                    placeholder="One-line hook or chorus idea"
-                  />
+                  <div className="flex items-start gap-2">
+                    <textarea
+                      className="field flex-1 min-h-24"
+                      value={selectedSong.song.hook_summary ?? ""}
+                      onChange={(event) => setSelectedSong((current) => patchSong(current, { hook_summary: event.target.value }))}
+                      placeholder="One-line hook or chorus idea"
+                    />
+                    <InfoTooltip
+                      content="A brief description of the main hook or chorus. The most memorable part of the song that defines its identity."
+                      position="top"
+                      size="sm"
+                    />
+                  </div>
                 </FieldGroup>
                 <FieldGroup label="Vocal style">
-                  <input
-                    className="field"
-                    value={selectedSong.song.vocal_style ?? ""}
-                    onChange={(event) => setSelectedSong((current) => patchSong(current, { vocal_style: event.target.value }))}
-                    placeholder="Breathy, belted, rap..."
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="field flex-1"
+                      value={selectedSong.song.vocal_style ?? ""}
+                      onChange={(event) => setSelectedSong((current) => patchSong(current, { vocal_style: event.target.value }))}
+                      placeholder="Breathy, belted, rap..."
+                    />
+                    <InfoTooltip
+                      content="The vocal delivery style (e.g., breathy, belted, rap, falsetto). Helps with vocal direction and performance notes."
+                      position="top"
+                      size="sm"
+                    />
+                  </div>
                 </FieldGroup>
                 <FieldGroup label="Instrumentation">
-                  <input
-                    className="field"
-                    value={selectedSong.song.instrumentation ?? ""}
-                    onChange={(event) => setSelectedSong((current) => patchSong(current, { instrumentation: event.target.value }))}
-                    placeholder="Acoustic guitar, synth pads..."
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      className="field flex-1"
+                      value={selectedSong.song.instrumentation ?? ""}
+                      onChange={(event) => setSelectedSong((current) => patchSong(current, { instrumentation: event.target.value }))}
+                      placeholder="Acoustic guitar, synth pads..."
+                    />
+                    <InfoTooltip
+                      content="The instruments used in the arrangement. Useful for planning recording sessions and understanding the sonic palette."
+                      position="top"
+                      size="sm"
+                    />
+                  </div>
                 </FieldGroup>
               </div>
             </div>
