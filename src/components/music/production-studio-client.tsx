@@ -918,11 +918,11 @@ function ProductionStudioDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Band & Project Hub Bar (Always Open / Important) */}
+      {/* 1. Band & Project Hub Bar */}
       <CollapsibleCard
-        defaultOpen={true}
+        defaultOpen={false}
         title="Bands & Project Workspaces"
-        subtitle="Organize songs by band and collaborate with registered users across your private workspace"
+        subtitle="Organize songs by band and collaborate with registered users across your private workspace (collapsed by default)"
         eyebrow="Shared Production"
         icon={<Users className="h-4 w-4 text-[var(--color-brass)]" />}
         badge={
