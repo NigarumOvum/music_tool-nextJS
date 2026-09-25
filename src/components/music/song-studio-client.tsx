@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   ChevronUp,
   Disc3,
-  FileJson,
   Layers3,
   Minus,
   Music2,
@@ -35,7 +34,7 @@ import {
 import { toast } from "sonner";
 
 import { useProductionSong } from "@/components/music/production-song-context";
-import { PromptRunnerPanel } from "@/components/music/prompt-runner-panel";
+// import { PromptRunnerPanel } from "@/components/music/prompt-runner-panel"; // Kept for reuse later
 import {
   createSong,
   deleteSong,
@@ -49,7 +48,7 @@ import {
 import type { MusicSongDetail, MusicSongSummary, MusicTaskTemplateRecord } from "@/lib/music/types";
 import { opaqueModalProps } from "@/lib/ui/modal-styles";
 
-type EditorTab = "overview" | "lyrics" | "arrangement" | "advanced";
+type EditorTab = "overview" | "lyrics" | "sections";
 type PartKind = "section" | "layer";
 
 function emptyPart() {
@@ -103,54 +102,55 @@ function patchSong(
   return { ...current, song: { ...current.song, ...patch } };
 }
 
-function JsonField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (next: string) => void;
-}) {
-  const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
+// JsonField function - Kept for reuse later
+// function JsonField({
+//   label,
+//   value,
+//   onChange,
+// }: {
+//   label: string;
+//   value: string;
+//   onChange: (next: string) => void;
+// }) {
+//   const [status, setStatus] = useState<"idle" | "ok" | "error">("idle");
 
-  return (
-    <div>
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <span className="field-label">{label}</span>
-        <div className="flex gap-1">
-          <Button size="sm" variant="flat" radius="full" onPress={() => {
-            const result = validateJson(value);
-            setStatus(result.ok ? "ok" : "error");
-            toast[result.ok ? "success" : "error"](result.ok ? `${label} is valid JSON` : `${label}: ${result.error}`);
-          }}>
-            <CheckCircle2 className="h-3 w-3" />
-            Validate
-          </Button>
-          <Button size="sm" variant="flat" radius="full" onPress={() => {
-            try {
-              onChange(formatJson(value));
-              setStatus("ok");
-              toast.success(`${label} formatted`);
-            } catch (error) {
-              setStatus("error");
-              toast.error((error as Error).message);
-            }
-          }}>
-            <Wand2 className="h-3 w-3" />
-            Format
-          </Button>
-        </div>
-      </div>
-      <textarea
-        className={`field min-h-52 font-mono text-xs ${status === "error" ? "!border-red-500/60" : ""}`}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        spellCheck={false}
-      />
-    </div>
-  );
-}
+//   return (
+//     <div>
+//       <div className="mb-1 flex items-center justify-between gap-2">
+//         <span className="field-label">{label}</span>
+//         <div className="flex gap-1">
+//           <Button size="sm" variant="flat" radius="full" onPress={() => {
+//             const result = validateJson(value);
+//             setStatus(result.ok ? "ok" : "error");
+//             toast[result.ok ? "success" : "error"](result.ok ? `${label} is valid JSON` : `${label}: ${result.error}`);
+//           }}>
+//             <CheckCircle2 className="h-3 w-3" />
+//             Validate
+//           </Button>
+//           <Button size="sm" variant="flat" radius="full" onPress={() => {
+//             try {
+//               onChange(formatJson(value));
+//               setStatus("ok");
+//               toast.success(`${label} formatted`);
+//             } catch (error) {
+//               setStatus("error");
+//               toast.error((error as Error).message);
+//             }
+//           }}>
+//             <Wand2 className="h-3 w-3" />
+//             Format
+//           </Button>
+//         </div>
+//       </div>
+//       <textarea
+//         className={`field min-h-52 font-mono text-xs ${status === "error" ? "!border-red-500/60" : ""}`}
+//         value={value}
+//         onChange={(event) => onChange(event.target.value)}
+//         spellCheck={false}
+//       />
+//     </div>
+//   );
+// }
 
 export function SongStudioClient() {
   const { selectedSongId: hubSongId, setSelectedSongId: setHubSongId, refreshSongs } = useProductionSong();
@@ -165,8 +165,8 @@ export function SongStudioClient() {
   const [editorTab, setEditorTab] = useState<EditorTab>("overview");
   const [newSection, setNewSection] = useState(emptyPart());
   const [newLayer, setNewLayer] = useState(emptyPart());
-  const [promptTemplates, setPromptTemplates] = useState<MusicTaskTemplateRecord[]>([]);
-  const [selectedPromptTemplateId, setSelectedPromptTemplateId] = useState("");
+  // const [promptTemplates, setPromptTemplates] = useState<MusicTaskTemplateRecord[]>([]); // Kept for reuse later
+  // const [selectedPromptTemplateId, setSelectedPromptTemplateId] = useState(""); // Kept for reuse later
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   const bootedRef = useRef(false);
@@ -193,10 +193,10 @@ export function SongStudioClient() {
     return JSON.stringify(selectedSong) !== savedSnapshot;
   }, [savedSnapshot, selectedSong]);
 
-  const activePromptTemplate = useMemo(
-    () => promptTemplates.find((template) => template.id === selectedPromptTemplateId) || null,
-    [promptTemplates, selectedPromptTemplateId],
-  );
+  // const activePromptTemplate = useMemo(
+  //   () => promptTemplates.find((template) => template.id === selectedPromptTemplateId) || null,
+  //   [promptTemplates, selectedPromptTemplateId],
+  // ); // Kept for reuse later
 
   async function loadLibrary(nextSelectedId?: string, showSpinner = true) {
     if (showSpinner) setLoading(true);
@@ -298,13 +298,13 @@ export function SongStudioClient() {
       }
     })();
 
-    void fetchTemplates()
-      .then((payload) => {
-        if (cancelled) return;
-        setPromptTemplates(payload.templates);
-        if (payload.templates[0]) setSelectedPromptTemplateId(payload.templates[0].id);
-      })
-      .catch(() => {});
+    // void fetchTemplates() // Kept for reuse later
+    //   .then((payload) => {
+    //     if (cancelled) return;
+    //     setPromptTemplates(payload.templates);
+    //     if (payload.templates[0]) setSelectedPromptTemplateId(payload.templates[0].id);
+    //   })
+    //   .catch(() => {});
 
     return () => {
       cancelled = true;
@@ -460,8 +460,7 @@ export function SongStudioClient() {
   const editorTabs: Array<{ id: EditorTab; label: string; icon: typeof Music2 }> = [
     { id: "overview", label: "Overview", icon: Music2 },
     { id: "lyrics", label: "Lyrics", icon: Type },
-    { id: "arrangement", label: "Arrangement", icon: Layers3 },
-    { id: "advanced", label: "Advanced", icon: FileJson },
+    { id: "sections", label: "Sections", icon: Layers3 },
   ];
 
   return (
@@ -762,7 +761,7 @@ export function SongStudioClient() {
                   </div>
                 ) : null}
 
-                {editorTab === "arrangement" ? (
+                {editorTab === "sections" ? (
                   <div className="grid gap-6 xl:grid-cols-2">
                     <div>
                       <div className="mb-4 flex items-center gap-2">
@@ -867,34 +866,10 @@ export function SongStudioClient() {
                     </div>
                   </div>
                 ) : null}
-
-                {editorTab === "advanced" ? (
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <JsonField
-                      label="song_json"
-                      value={selectedSong.song.song_json}
-                      onChange={(next) => setSelectedSong((current) => patchSong(current, { song_json: next }))}
-                    />
-                    <JsonField
-                      label="production_json"
-                      value={selectedSong.song.production_json ?? "{}"}
-                      onChange={(next) => setSelectedSong((current) => patchSong(current, { production_json: next }))}
-                    />
-                    <JsonField
-                      label="melody_json"
-                      value={selectedSong.song.melody_json ?? "{}"}
-                      onChange={(next) => setSelectedSong((current) => patchSong(current, { melody_json: next }))}
-                    />
-                    <JsonField
-                      label="metadata_json"
-                      value={selectedSong.song.metadata_json ?? "{}"}
-                      onChange={(next) => setSelectedSong((current) => patchSong(current, { metadata_json: next }))}
-                    />
-                  </div>
-                ) : null}
               </motion.div>
             </AnimatePresence>
 
+            {/* AI Prompts section - Kept for reuse later
             {promptTemplates.length > 0 && activePromptTemplate ? (
               <details className="panel glass-shine animate-fade-up rounded-[1.25rem] group">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
@@ -923,7 +898,8 @@ export function SongStudioClient() {
                   />
                 </div>
               </details>
-            ) : null}
+            ) : null
+            */}
           </>
         ) : (
           <div className="panel rounded-[1.75rem] p-8 text-center">

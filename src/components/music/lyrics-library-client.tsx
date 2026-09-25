@@ -17,7 +17,6 @@ import {
   Eraser,
   Guitar,
   Layout,
-  ListMusic,
   Mic2,
   Music2,
   Plus,
@@ -68,7 +67,7 @@ const INSTRUMENT_ICONS: Record<string, typeof Guitar> = {
   other: Book,
 };
 
-const PARTITURE_FORMATS = ["text-tab", "grid", "lyrics", "notation"] as const;
+const PARTITURE_FORMATS = ["text-tab", "grid", "lyrics", "notation", "ascii"] as const;
 
 const DRUM_KITS = ["Kick", "Snare", "Hi-hat", "Open HH", "Crash", "Ride", "Tom L", "Tom M", "Tom H"] as const;
 
@@ -231,7 +230,7 @@ export function LyricsLibraryClient() {
           slot: item.slot,
           title: item.title,
           content: item.content,
-          format: item.format || "text-tab",
+          format: item.format || "ascii",
         })),
       );
       setSelectedSongId(songId);
@@ -291,25 +290,26 @@ export function LyricsLibraryClient() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
 
-  async function persistSectionText(index: number, text: string) {
-    if (!selectedSong) return;
-    const section = selectedSong.sections[index];
-    if (!section) return;
-    try {
-      const payload = await saveSongPart(selectedSong.song.id, {
-        kind: "section",
-        name: section.name,
-        text,
-        json: section.json,
-      });
-      setSelectedSong(payload.song);
-      savedSnapshotRef.current = snapshotLyrics(payload.song);
-      setDirty(false);
-      toast.success(`Section "${section.name}" saved`);
-    } catch (error) {
-      toast.error((error as Error).message);
-    }
-  }
+  // persistSectionText function - Kept for reuse later (Song Sections moved to Song Studio)
+  // async function persistSectionText(index: number, text: string) {
+  //   if (!selectedSong) return;
+  //   const section = selectedSong.sections[index];
+  //   if (!section) return;
+  //   try {
+  //     const payload = await saveSongPart(selectedSong.song.id, {
+  //       kind: "section",
+  //       name: section.name,
+  //       text,
+  //       json: section.json,
+  //     });
+  //     setSelectedSong(payload.song);
+  //     savedSnapshotRef.current = snapshotLyrics(payload.song);
+  //     setDirty(false);
+  //     toast.success(`Section "${section.name}" saved`);
+  //   } catch (error) {
+  //     toast.error((error as Error).message);
+  //   }
+  // }
 
   async function duplicateSong() {
     if (!selectedSong) return;
@@ -421,7 +421,7 @@ export function LyricsLibraryClient() {
         slot,
         title: defaultPartitureTitle(addInstrument, slot),
         content: "",
-        format: addInstrument === "drums" ? "grid" : addInstrument === "vocals" ? "lyrics" : "text-tab",
+        format: addInstrument === "drums" ? "grid" : addInstrument === "vocals" ? "lyrics" : "ascii",
       },
     ]);
   }
@@ -597,47 +597,7 @@ export function LyricsLibraryClient() {
               </div>
             </div>
 
-            <div className="panel rounded-[2rem] border border-white/5 bg-zinc-900/10 p-6">
-              <div className="mb-4 flex items-center gap-3">
-                <ListMusic className="h-5 w-5 text-[var(--color-copper)]" />
-                <div>
-                  <h3 className="text-2xl font-black uppercase italic tracking-tighter">Song sections</h3>
-                  <p className="text-xs text-[var(--color-sand-2)]">
-                    Edit section notes in place. Each section saves independently to the song.
-                  </p>
-                </div>
-              </div>
-              {selectedSong.sections.length === 0 ? (
-                <p className="text-sm text-[var(--color-sand-2)]">
-                  No sections yet — add them in the Song tab (Arrangement) and they will appear here.
-                </p>
-              ) : (
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {selectedSong.sections.map((section, index) => (
-                    <div key={section.name} className="glass-card-soft rounded-[1.25rem] p-4">
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="text-sm font-black uppercase tracking-wider text-[var(--color-brass)]">{section.name}</span>
-                        <Button size="sm" radius="full" variant="bordered" onPress={() => void persistSectionText(index, section.text ?? "")}>
-                          <Save className="h-3.5 w-3.5" />
-                          Save
-                        </Button>
-                      </div>
-                      <textarea
-                        className="field min-h-24 text-sm"
-                        value={section.text ?? ""}
-                        onChange={(event) => {
-                          setSelectedSong((current) => current ? {
-                            ...current,
-                            sections: current.sections.map((item, itemIdx) => itemIdx === index ? { ...item, text: event.target.value } : item),
-                          } : current);
-                        }}
-                        placeholder={`Notes for ${section.name}`}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Song sections moved to Song Studio - Sections tab */}
 
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 px-2">

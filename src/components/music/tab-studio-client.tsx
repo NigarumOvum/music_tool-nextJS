@@ -889,7 +889,7 @@ export function TabStudioClient() {
         <aside className="space-y-4">
           <div className="panel glass-shine rounded-[1.75rem] p-4">
             <div className="eyebrow">ASCII Preview</div>
-            <pre className="mt-3 max-h-64 overflow-auto rounded-[1rem] border border-white/8 bg-black/25 p-3 font-mono text-[11px] leading-5 text-[var(--color-sand-1)]">
+            <pre className="mt-3 max-h-64 overflow-auto rounded-[1rem] border border-white/8 bg-black/25 p-3 font-mono text-[11px] leading-5 text-white">
               {asciiPreview}
             </pre>
           </div>
