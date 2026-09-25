@@ -1,12 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 
 import { Spinner } from "@heroui/react";
 
+import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import type { MusicToolkitTabId } from "@/lib/hub-access";
 
 const tabLoaders = {
@@ -45,6 +46,7 @@ function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps)
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab") || undefined;
+  const [secondaryTab, setSecondaryTab] = useState<MusicToolkitTabId | null>(null);
 
   const activeTab = useMemo(() => {
     if (tabParam && allowedTabs.some((tab) => tab.id === tabParam)) {
@@ -59,26 +61,49 @@ function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps)
   }, [allowedTabs, initialTab, tabParam]);
 
   const ActivePanel = tabPanels[activeTab];
+  const SecondaryPanel = secondaryTab ? tabPanels[secondaryTab] : null;
 
   function selectTab(tabId: MusicToolkitTabId) {
     router.replace(`/music-toolkit?tab=${tabId}`, { scroll: false });
   }
 
+  const handleTabClick = useCallback((tabId: MusicToolkitTabId) => {
+    if (secondaryTab === null) {
+      setSecondaryTab(tabId);
+    } else if (secondaryTab === tabId) {
+      setSecondaryTab(null);
+    } else {
+      setSecondaryTab(tabId);
+    }
+  }, [secondaryTab]);
+
   return (
-    <div className="space-y-4">
+    <SplitViewFullScreen
+      secondaryContent={SecondaryPanel ? <SecondaryPanel /> : undefined}
+      allowSplitView={allowedTabs.length > 1}
+      className="space-y-4"
+    >
       <div className="flex flex-wrap gap-2">
         {allowedTabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => selectTab(tab.id)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              handleTabClick(tab.id);
+            }}
             className={`glass-pill px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
               activeTab === tab.id
                 ? "glass-pill-active text-[var(--color-foreground)]"
-                : "text-[var(--color-sand-2)] hover:-translate-y-0.5"
+                : secondaryTab === tab.id
+                  ? "bg-[var(--color-copper)]/10 text-[var(--color-copper)] border border-[var(--color-copper)]/30"
+                  : "text-[var(--color-sand-2)] hover:-translate-y-0.5"
             }`}
+            title={secondaryTab === tab.id ? "Remove from split view" : "Right-click to add to split view"}
           >
             {tab.label}
+            {secondaryTab === tab.id && <span className="ml-1 text-[10px]">(2nd)</span>}
           </button>
         ))}
       </div>
@@ -93,7 +118,7 @@ function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps)
           {ActivePanel ? <ActivePanel /> : null}
         </Suspense>
       </motion.div>
-    </div>
+    </SplitViewFullScreen>
   );
 }
 

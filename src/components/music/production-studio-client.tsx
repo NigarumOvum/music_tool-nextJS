@@ -56,19 +56,19 @@ import {
   deleteSong,
   updateSong,
 } from "@/lib/music/client";
-import type { ProductionStudioTabId } from "@/lib/hub-access";
 import type { MusicSongSummary, MusicProjectRecord } from "@/lib/music/types";
+import { INSTRUMENT_FILTER_PRESETS } from "@/lib/music/instruments";
 
 type ProductionStudioClientProps = {
-  allowedTabs: Array<{ id: ProductionStudioTabId; label: string }>;
-  initialTab: ProductionStudioTabId;
+  allowedTabs: Array<{ id: string; label: string }>;
+  initialTab: string;
 };
 
 const GENRE_PRESETS = ["Rock", "Metal", "Pop", "Electronic", "Jazz", "Hip Hop", "Acoustic", "Indie", "Classical"];
 const KEY_PRESETS = ["C Major", "A Minor", "G Major", "E Minor", "D Major", "B Minor", "F Major", "D Minor", "F# Minor"];
 const EMOTION_PRESETS = ["Happy", "Sad", "Energetic", "Calm", "Aggressive", "Peaceful", "Romantic", "Melancholic", "Hopeful"];
 const MOOD_PRESETS = ["Upbeat", "Dark", "Light", "Heavy", "Chill", "Intense", "Dreamy", "Gritty", "Ethereal"];
-const INSTRUMENT_PRESETS = ["Guitar", "Bass", "Drums", "Piano", "Vocals", "Synth", "Strings", "Brass", "Woodwinds", "Percussion"];
+const INSTRUMENT_PRESETS = INSTRUMENT_FILTER_PRESETS;
 
 const GENRE_COLORS: Record<string, string> = {
   "Rock": "#ef4444",
@@ -201,7 +201,7 @@ function ProductionStudioDashboard() {
 
   // Modals state
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
-  const [studioInitialTab, setStudioInitialTab] = useState<ProductionStudioTabId>("song");
+  const [studioInitialTab, setStudioInitialTab] = useState<string>("lyrics");
   const [isBandModalOpen, setIsBandModalOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<MusicProjectRecord | null>(null);
   const [isNewSongModalOpen, setIsNewSongModalOpen] = useState(false);
@@ -506,7 +506,7 @@ function ProductionStudioDashboard() {
       label: song.title,
       icon: <Music2 className="h-4 w-4" />,
       action: () => {
-        handleOpenStudio(song.id, "song");
+        handleOpenStudio(song.id, "lyrics");
         setShowCommandPalette(false);
       },
       category: "Songs"
@@ -729,7 +729,22 @@ function ProductionStudioDashboard() {
     return projects.find((p) => p.slug === selectedProjectSlug) || null;
   }, [projects, selectedProjectSlug]);
 
-  const handleOpenStudio = (songId: string, tab: ProductionStudioTabId = "song") => {
+  const projectButtonStyle = useMemo(() => {
+    if (activeProject?.color) {
+      return {
+        from: activeProject.color,
+        to: activeProject.color,
+        textColor: 'white'
+      };
+    }
+    return {
+      from: 'var(--color-brass)',
+      to: 'var(--color-gold)',
+      textColor: 'black'
+    };
+  }, [activeProject]);
+
+  const handleOpenStudio = (songId: string, tab: string = "lyrics") => {
     setSelectedSongId(songId);
     setStudioInitialTab(tab);
     setIsStudioModalOpen(true);
@@ -760,7 +775,7 @@ function ProductionStudioDashboard() {
       setSelectedTemplate(SONG_TEMPLATES[7]); // Reset to blank
 
       // Open in studio modal right away
-      handleOpenStudio(res.song.song.id, "song");
+      handleOpenStudio(res.song.song.id, "lyrics");
     } catch (err) {
       toast.error((err as Error).message || "Failed to create song");
     } finally {
@@ -947,6 +962,10 @@ function ProductionStudioDashboard() {
                 setIsBandModalOpen(true);
               }}
               className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-3.5 py-1.5 text-xs font-bold text-black shadow-sm transition hover:brightness-110 active:scale-95"
+              style={{
+                background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
+                color: projectButtonStyle.textColor
+              }}
             >
               <Plus className="h-3.5 w-3.5" />
               <span>Create Band / Project</span>
@@ -1111,7 +1130,7 @@ function ProductionStudioDashboard() {
                     type="button"
                     onClick={() => {
                       if (suggestion.type === 'song') {
-                        handleOpenStudio(suggestion.value, 'song');
+                        handleOpenStudio(suggestion.value, 'lyrics');
                       } else if (suggestion.type === 'genre') {
                         setSelectedGenre(suggestion.value);
                       } else if (suggestion.type === 'emotion') {
@@ -1315,7 +1334,11 @@ function ProductionStudioDashboard() {
             setNewSongProjectSlug(selectedProjectSlug !== "all" && selectedProjectSlug !== "solo" ? selectedProjectSlug : "");
             setIsNewSongModalOpen(true);
           }}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--color-copper)] to-[var(--color-rust)] px-5 py-2.5 text-xs font-bold text-white shadow-md transition hover:brightness-110 active:scale-95"
+          className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-5 py-2.5 text-xs font-bold text-black shadow-md transition hover:brightness-110 active:scale-95"
+          style={{
+            background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
+            color: projectButtonStyle.textColor
+          }}
         >
           <Plus className="h-4 w-4" />
           <span>New Song</span>
@@ -1405,9 +1428,13 @@ function ProductionStudioDashboard() {
 
                       <button
                         type="button"
-                        onClick={() => handleOpenStudio(song.id, "song")}
+                        onClick={() => handleOpenStudio(song.id, "lyrics")}
                         title={`Open ${song.title} in studio`}
                         className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-3 py-1.5 text-[11px] font-bold text-black shadow-sm transition hover:brightness-110 active:scale-95"
+                        style={{
+                          background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
+                          color: projectButtonStyle.textColor
+                        }}
                       >
                         <Disc3 className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Open</span>
@@ -1641,8 +1668,12 @@ function ProductionStudioDashboard() {
                   {song.bpm && <span className="glass-pill px-2 py-0.5 text-[9px] font-bold text-[var(--color-brass)]">{song.bpm}</span>}
                   <button
                     type="button"
-                    onClick={() => handleOpenStudio(song.id, "song")}
+                    onClick={() => handleOpenStudio(song.id, "lyrics")}
                     className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] text-black shadow-sm hover:brightness-110"
+                    style={{
+                      background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
+                      color: projectButtonStyle.textColor
+                    }}
                   >
                     <Disc3 className="h-3.5 w-3.5" />
                   </button>
@@ -1757,6 +1788,10 @@ function ProductionStudioDashboard() {
                     type="submit"
                     disabled={movingSong || moveSongSlug === (moveSongTarget.project_slug ?? "")}
                     className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-5 py-2 text-xs font-bold text-black shadow-md transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    style={{
+                      background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
+                      color: projectButtonStyle.textColor
+                    }}
                   >
                     {movingSong ? <Spinner size="sm" color="current" /> : <FolderInput className="h-3.5 w-3.5" />}
                     <span>Move Track</span>
@@ -1929,7 +1964,11 @@ function ProductionStudioDashboard() {
                   <button
                     type="submit"
                     disabled={creatingSong}
-                    className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--color-copper)] to-[var(--color-rust)] px-5 py-2 text-xs font-bold text-white shadow-md transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-5 py-2 text-xs font-bold text-black shadow-md transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    style={{
+                      background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
+                      color: projectButtonStyle.textColor
+                    }}
                   >
                     {creatingSong ? <Spinner size="sm" color="current" /> : <Sparkles className="h-3.5 w-3.5" />}
                     <span>Create & Launch Studio</span>
@@ -2108,7 +2147,11 @@ function ProductionStudioDashboard() {
                   <button
                     type="button"
                     onClick={() => handleAddTag(tagModalSong.id)}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-r from-[var(--color-copper)] to-[var(--color-rust)] text-white shadow-md transition hover:brightness-110"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] text-black shadow-md transition hover:brightness-110"
+                    style={{
+                      background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
+                      color: projectButtonStyle.textColor
+                    }}
                   >
                     <Plus className="h-4 w-4" />
                   </button>
@@ -2286,6 +2329,10 @@ function ProductionStudioDashboard() {
                     type="button"
                     onClick={handleSavePreset}
                     className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-5 py-2 text-xs font-bold text-black shadow-md transition hover:brightness-110 active:scale-95"
+                    style={{
+                      background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
+                      color: projectButtonStyle.textColor
+                    }}
                   >
                     <Bookmark className="h-3.5 w-3.5" />
                     <span>Save Preset</span>
@@ -2548,10 +2595,14 @@ function ProductionStudioDashboard() {
                   type="button"
                   onClick={() => {
                     if (selectedSongForSidebar) {
-                      handleOpenStudio(selectedSongForSidebar.id, "song");
+                      handleOpenStudio(selectedSongForSidebar.id, "lyrics");
                     }
                   }}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-4 py-2.5 text-sm font-bold text-black shadow-md transition hover:brightness-110"
+                  style={{
+                    background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
+                    color: projectButtonStyle.textColor
+                  }}
                 >
                   <Disc3 className="h-4 w-4" />
                   <span>Open in Studio</span>

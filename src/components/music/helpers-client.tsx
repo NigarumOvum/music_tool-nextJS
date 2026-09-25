@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, FastForward, Flame, Guitar, Hand, Mic, MicOff, Play, Sliders, Sparkles, Square, Volume2, VolumeX } from "lucide-react";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
+import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
 import { detectPitchAutocorrelation, type PitchDetection } from "@/lib/music/pitch";
 import { playReferencePluck, type PluckInstrument } from "@/lib/music/instrument-synth";
@@ -392,7 +393,8 @@ export function HelpersClient() {
   }
 
   return (
-    <div className="grid animate-fade-up gap-6 xl:grid-cols-2">
+    <SplitViewFullScreen className="animate-fade-up gap-6 xl:grid-cols-2" showControls={false}>
+      <div className="grid gap-6 xl:grid-cols-2">
       {/* 1. Pro Metronome (Important: Open by default) */}
       <CollapsibleCard
         defaultOpen={true}
@@ -892,6 +894,7 @@ export function HelpersClient() {
           </div>
         </div>
       </CollapsibleCard>
-    </div>
+      </div>
+    </SplitViewFullScreen>
   );
 }

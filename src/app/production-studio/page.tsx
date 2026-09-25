@@ -5,7 +5,6 @@ import { ProductionStudioClient } from "@/components/music/production-studio-cli
 import {
   getAllowedProductionStudioTabs,
   resolveProductionStudioTab,
-  type ProductionStudioTabId,
 } from "@/lib/hub-access";
 import { requireCurrentUser } from "@/lib/auth";
 
@@ -32,7 +31,7 @@ export default async function ProductionStudioPage({ searchParams }: ProductionS
     >
       <ProductionStudioClient
         allowedTabs={allowedTabs.map((entry) => ({
-          id: entry.id as ProductionStudioTabId,
+          id: entry.id,
           label: entry.label,
         }))}
         initialTab={initialTab}

@@ -6,6 +6,8 @@ import { Guitar, Piano, Drum, Music2, Play, Search, Sparkles } from "lucide-reac
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { InfoTooltip } from "@/components/info-tooltip";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
+import { AVAILABLE_INSTRUMENTS } from "@/lib/music/instruments";
+import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
 import { KEYBOARD_VOICES, playKeyboardNote, playKeyboardNotes, type KeyboardVoice } from "@/lib/music/keyboard-synth";
 import { CHROMATIC, noteFrequency } from "@/lib/music/notes";
@@ -26,12 +28,11 @@ const SCALES: Record<string, number[]> = {
   "Melodic Minor": [0, 2, 3, 5, 7, 9, 11],
 };
 
-const INSTRUMENTS = [
-  { id: "piano", label: "Piano/Keyboard", icon: Piano },
-  { id: "guitar", label: "Guitar", icon: Guitar },
-  { id: "bass", label: "Bass", icon: Music2 },
-  { id: "drums", label: "Drums", icon: Drum },
-] as const;
+const INSTRUMENTS = (["piano", "guitar", "bass", "drums"] as const).map((id) => {
+  const meta = AVAILABLE_INSTRUMENTS.find((item) => item.id === id)!;
+  const icon = id === "piano" ? Piano : id === "guitar" ? Guitar : id === "bass" ? Music2 : Drum;
+  return { id, label: meta.label, icon };
+});
 
 type InstrumentId = (typeof INSTRUMENTS)[number]["id"];
 
@@ -246,7 +247,7 @@ export function ScalesClient() {
   }
 
   return (
-    <div className="space-y-4">
+    <SplitViewFullScreen className="space-y-4">
       <div className="panel glass-shine rounded-[1.25rem] p-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
@@ -437,6 +438,6 @@ export function ScalesClient() {
           </div>
         </div>
       </CollapsibleCard>
-    </div>
+    </SplitViewFullScreen>
   );
 }

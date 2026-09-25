@@ -4,19 +4,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
+  ClipboardCopy,
+  ClipboardPaste,
   Copy,
   Download,
   Eraser,
+  FastForward,
   Layers,
   Minus,
   Music,
   Play,
   Plus,
   RefreshCw,
+  Rewind,
   Save,
+  SkipBack,
   Sliders,
   Square,
   Timer,
+  Trash2,
   Upload,
   Volume2,
 } from "lucide-react";
@@ -24,7 +30,7 @@ import { toast } from "sonner";
 
 import { useAudio } from "@/components/music/audio-provider";
 import { useProductionSong } from "@/components/music/production-song-context";
-import { createPartiture, downloadBlob, fetchPartitures } from "@/lib/music/client";
+import { createPartiture, deletePartiture, downloadBlob, fetchPartitures } from "@/lib/music/client";
 import type { MusicPartitureRecord } from "@/lib/music/types";
 import { parseMidiFile, type MidiTrackData, type ParsedMidi } from "@/lib/music/midi-parser";
 import {
@@ -37,8 +43,11 @@ import { playMetronomeSound } from "@/lib/music/metronome-sound";
 
 type InstrumentType = "Steel" | "Nylon" | "Bass" | "Overdrive";
 
+const TAB_DRAFT_KEY = "tab_studio_draft_v1";
+
 interface StringFreq {
   label: string;
+  note: string;
   base: number;
 }
 
@@ -57,6 +66,7 @@ export type MultiTrackItem = {
 function stringsFromTuning(preset: TuningPreset): StringFreq[] {
   return [...preset.strings].reverse().map((s) => ({
     label: s.label,
+    note: s.note,
     base: s.frequency,
   }));
 }
@@ -204,6 +214,15 @@ export function TabStudioClient() {
   const [metronome, setMetronome] = useState(false);
   const [savedPartitures, setSavedPartitures] = useState<MusicPartitureRecord[]>([]);
   const [loadingPartitures, setLoadingPartitures] = useState(false);
+  const [pastedAscii, setPastedAscii] = useState("");
+  const [showPasteImport, setShowPasteImport] = useState(false);
+  const [draftAvailable, setDraftAvailable] = useState(() => {
+    try {
+      return typeof window !== "undefined" && Boolean(window.localStorage.getItem(TAB_DRAFT_KEY));
+    } catch {
+      return false;
+    }
+  });
 
   // Multi-track MIDI separation state
   const [multiTracks, setMultiTracks] = useState<MultiTrackItem[]>([]);
@@ -419,6 +438,63 @@ export function TabStudioClient() {
     };
   }, [selectedSongId]);
 
+  // Studio exit confirmation ("Save & exit") flushes a local draft of the grid.
+  useEffect(() => {
+    const flushDraft = () => {
+      try {
+        localStorage.setItem(
+          TAB_DRAFT_KEY,
+          JSON.stringify({ grid, columnCount, instrument, tuningId, bpm, songId: selectedSongId, at: Date.now() }),
+        );
+        setDraftAvailable(true);
+        toast.success("Tab draft saved locally");
+      } catch {
+        toast.error("Could not save local draft");
+      }
+    };
+    window.addEventListener("production-studio:save-request", flushDraft);
+    return () => window.removeEventListener("production-studio:save-request", flushDraft);
+  }, [grid, columnCount, instrument, tuningId, bpm, selectedSongId]);
+
+  function restoreDraft() {
+    try {
+      const raw = localStorage.getItem(TAB_DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as { grid?: GridRow[]; bpm?: number };
+      if (!Array.isArray(draft.grid) || draft.grid.length === 0) {
+        toast.error("Saved draft is empty");
+        return;
+      }
+      const cols = draft.grid[0]?.cells.length || 16;
+      // Reconcile with the active tuning by string label so switching
+      // tunings doesn't corrupt the restored grid.
+      const reconciled = strings.map((s) => {
+        const found = draft.grid!.find((row) => row.label.toLowerCase() === s.label.toLowerCase());
+        if (!found) return { label: s.label, cells: Array.from({ length: cols }, () => "-") };
+        const cells = [...found.cells];
+        while (cells.length < cols) cells.push("-");
+        return { label: s.label, cells: cells.slice(0, cols) };
+      });
+      setGrid(reconciled);
+      setColumnCount(cols);
+      if (typeof draft.bpm === "number" && draft.bpm >= 40 && draft.bpm <= 260) setBpm(draft.bpm);
+      setMultiTracks([]);
+      toast.success("Draft restored");
+    } catch {
+      toast.error("Could not restore draft");
+    }
+  }
+
+  function discardDraft() {
+    try {
+      localStorage.removeItem(TAB_DRAFT_KEY);
+    } catch {
+      // ignore
+    }
+    setDraftAvailable(false);
+    toast.message("Draft discarded");
+  }
+
   function addColumns(count = 4) {
     setGrid((current) => current.map((row) => ({
       ...row,
@@ -441,6 +517,21 @@ export function TabStudioClient() {
       cells: row.cells.map(() => "-"),
     })));
     toast.message("Grid cleared");
+  }
+
+  function restartFromBeginning() {
+    setPlayhead(0);
+    if (!isPlaying) {
+      setIsPlaying(true);
+    }
+  }
+
+  function jumpPlayhead(delta: number) {
+    const total = grid[0]?.cells.length ?? columnCount;
+    setPlayhead((current) => {
+      const base = current < 0 ? 0 : current;
+      return Math.max(0, Math.min(total - 1, base + delta));
+    });
   }
 
   function duplicateMeasure() {
@@ -486,6 +577,71 @@ export function TabStudioClient() {
     setGrid(parsed);
     setColumnCount(parsed[0]?.cells.length || 16);
     toast.success(`Loaded "${partiture.title}"`);
+  }
+
+  async function removePartiture(partiture: MusicPartitureRecord) {
+    if (!confirm(`Delete "${partiture.title}"?`)) return;
+    try {
+      await deletePartiture(partiture.id);
+      toast.success(`Deleted "${partiture.title}"`);
+      if (selectedSongId) {
+        const payload = await fetchPartitures(selectedSongId);
+        setSavedPartitures(payload.partitures);
+      }
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
+
+  async function copyAsciiPreview() {
+    try {
+      await navigator.clipboard.writeText(asciiPreview);
+      toast.success("ASCII tab copied to clipboard");
+    } catch {
+      toast.error("Could not copy — select the preview text manually");
+    }
+  }
+
+  function importPastedAscii() {
+    if (!pastedAscii.trim()) {
+      toast.error("Paste ASCII tab text first");
+      return;
+    }
+    const parsed = parseAsciiTab(pastedAscii, strings);
+    if (!parsed) {
+      toast.error("Could not parse pasted text as ASCII tab (expected e.g. 'e |...|')");
+      return;
+    }
+    setGrid(parsed);
+    setColumnCount(parsed[0].cells.length);
+    setMultiTracks([]);
+    setShowPasteImport(false);
+    toast.success("Pasted ASCII tab imported");
+  }
+
+  async function pasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        setShowPasteImport(true);
+        toast.message("Clipboard is empty — paste your ASCII tab below");
+        return;
+      }
+      setPastedAscii(text);
+      const parsed = parseAsciiTab(text, strings);
+      if (!parsed) {
+        setShowPasteImport(true);
+        toast.error("Clipboard text is not valid ASCII tab — review it below and import manually");
+        return;
+      }
+      setGrid(parsed);
+      setColumnCount(parsed[0].cells.length);
+      setMultiTracks([]);
+      toast.success("ASCII tab pasted from clipboard");
+    } catch {
+      setShowPasteImport(true);
+      toast.message("Clipboard read blocked — paste your ASCII tab below");
+    }
   }
 
   const exportAsciiTab = () => {
@@ -599,18 +755,44 @@ export function TabStudioClient() {
       {/* Top Header & Playback Panel */}
       <div className="panel glass-shine flex flex-wrap items-center justify-between gap-4 rounded-[1.75rem] p-4">
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setIsPlaying((current) => !current)}
-            className={`flex h-11 w-11 items-center justify-center rounded-full transition-all ${
-              isPlaying
-                ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
-                : "bg-[var(--color-mint)] text-black shadow-lg shadow-emerald-500/20 hover:scale-105"
-            }`}
-            type="button"
-            title="Play / Pause (Space)"
-          >
-            {isPlaying ? <Square className="h-5 w-5 fill-current" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={restartFromBeginning}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-zinc-900/60 text-[var(--color-sand-1)] transition hover:border-[var(--color-mint)] hover:text-white"
+              type="button"
+              title="Play from beginning"
+            >
+              <SkipBack className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => jumpPlayhead(-4)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-zinc-900/60 text-[var(--color-sand-1)] transition hover:border-[var(--color-mint)] hover:text-white"
+              type="button"
+              title="Jump back 4 steps"
+            >
+              <Rewind className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setIsPlaying((current) => !current)}
+              className={`flex h-11 w-11 items-center justify-center rounded-full transition-all ${
+                isPlaying
+                  ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
+                  : "bg-[var(--color-mint)] text-black shadow-lg shadow-emerald-500/20 hover:scale-105"
+              }`}
+              type="button"
+              title="Play / Pause (Space)"
+            >
+              {isPlaying ? <Square className="h-5 w-5 fill-current" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
+            </button>
+            <button
+              onClick={() => jumpPlayhead(4)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-zinc-900/60 text-[var(--color-sand-1)] transition hover:border-[var(--color-mint)] hover:text-white"
+              type="button"
+              title="Jump forward 4 steps"
+            >
+              <FastForward className="h-4 w-4" />
+            </button>
+          </div>
 
           {/* Instrument Selector */}
           <div className="field-group">
@@ -729,6 +911,15 @@ export function TabStudioClient() {
             <Upload className="mr-1 inline h-3.5 w-3.5 text-[var(--color-mint)]" />
             Import MIDI/Tab
           </button>
+          <button
+            onClick={() => void pasteFromClipboard()}
+            className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-brass)]"
+            type="button"
+            title="Paste ASCII tab from clipboard"
+          >
+            <ClipboardPaste className="mr-1 inline h-3.5 w-3.5 text-[var(--color-brass)]" />
+            Paste ASCII
+          </button>
           <button onClick={exportAsciiTab} className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest" type="button">
             <Download className="mr-1 inline h-3.5 w-3.5" />
             Export
@@ -767,7 +958,30 @@ export function TabStudioClient() {
       )}
 
       {/* Fretboard Grid & Sidebars */}
-      <div className="page-grid !grid-cols-1 xl:!grid-cols-[minmax(0,1fr)_280px]">
+      {draftAvailable && (
+        <div className="panel flex flex-wrap items-center justify-between gap-2 rounded-[1.25rem] border border-[var(--color-brass)]/30 bg-[var(--color-brass)]/5 p-3">
+          <p className="text-xs text-[var(--color-sand-1)]">
+            A locally saved tab draft is available from your last session.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={restoreDraft}
+              className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+              type="button"
+            >
+              Restore draft
+            </button>
+            <button
+              onClick={discardDraft}
+              className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+              type="button"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="page-grid !grid-cols-1 lg:!grid-cols-[minmax(0,1fr)_300px]">
         <div className="panel glass-shine overflow-hidden rounded-[1.75rem] p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -784,7 +998,7 @@ export function TabStudioClient() {
 
           <div className="relative overflow-x-auto rounded-[1.25rem] border border-white/8 bg-black/20 p-3">
             {/* Step / Measure Headers */}
-            <div className="mb-2 flex min-w-max pl-10">
+            <div className="mb-2 flex min-w-max pl-16">
               {grid[0]?.cells.map((_, columnIdx) => (
                 <button
                   key={columnIdx}
@@ -804,14 +1018,18 @@ export function TabStudioClient() {
             </div>
 
             <div className="relative min-w-max">
-              {/* String Labels column */}
-              <div className="absolute inset-y-0 left-0 z-20 flex w-10 flex-col justify-between rounded-l-lg border-r border-white/10 bg-zinc-900/80 py-[2px] backdrop-blur-md">
+              {/* String Labels column (tuning note + pitch) */}
+              <div className="absolute inset-y-0 left-0 z-20 flex w-16 flex-col justify-between rounded-l-lg border-r border-white/10 bg-zinc-900/80 py-[2px] backdrop-blur-md">
                 {strings.map((stringRef) => (
                   <span
-                    key={stringRef.label}
-                    className="flex h-9 items-center justify-center text-xs font-black text-[var(--color-sand-1)]"
+                    key={`${stringRef.label}-${stringRef.note}`}
+                    title={`${stringRef.label} string · ${stringRef.note} · ${stringRef.base.toFixed(1)} Hz`}
+                    className="flex h-9 items-center justify-center gap-1 text-xs font-black text-[var(--color-sand-1)]"
                   >
                     {stringRef.label}
+                    <span className="rounded bg-white/10 px-1 py-px font-mono text-[9px] font-bold text-[var(--color-brass)]">
+                      {stringRef.note}
+                    </span>
                   </span>
                 ))}
               </div>
@@ -826,7 +1044,7 @@ export function TabStudioClient() {
               ))}
 
               {/* Grid cell inputs */}
-              <div className="flex min-w-max pl-10">
+              <div className="flex min-w-max pl-16">
                 {grid[0]?.cells.map((_, columnIdx) => (
                   <div
                     key={columnIdx}
@@ -877,7 +1095,7 @@ export function TabStudioClient() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="pointer-events-none absolute bottom-0 top-6 z-30 w-[2px] bg-[var(--color-mint)] shadow-[0_0_14px_var(--color-mint)]"
-                    style={{ left: `${40 + playhead * 40}px` }}
+                    style={{ left: `${64 + playhead * 40}px` }}
                   />
                 ) : null}
               </AnimatePresence>
@@ -885,40 +1103,105 @@ export function TabStudioClient() {
           </div>
         </div>
 
-        {/* Sidebar for ASCII Preview & Saved Song Partitures */}
+        {/* Sidebar: ASCII preview + compact song partitures in one panel */}
         <aside className="space-y-4">
           <div className="panel glass-shine rounded-[1.75rem] p-4">
-            <div className="eyebrow">ASCII Preview</div>
-            <pre className="mt-3 max-h-64 overflow-auto rounded-[1rem] border border-white/8 bg-black/25 p-3 font-mono text-[11px] leading-5 text-white">
+            <div className="flex items-center justify-between">
+              <div className="eyebrow">ASCII Preview</div>
+              <button
+                onClick={() => void copyAsciiPreview()}
+                className="glass-pill px-2.5 py-1 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-mint)]"
+                type="button"
+                title="Copy ASCII tab to clipboard"
+              >
+                <ClipboardCopy className="mr-1 inline h-3 w-3" />
+                Copy
+              </button>
+            </div>
+            <pre className="mt-3 max-h-64 select-all overflow-auto rounded-[1rem] border border-white/8 bg-black/25 p-3 font-mono text-[11px] leading-5 text-white">
               {asciiPreview}
             </pre>
-          </div>
 
-          <div className="panel glass-shine rounded-[1.75rem] p-4">
+            {showPasteImport ? (
+              <div className="mt-3 space-y-2 rounded-[1rem] border border-[var(--color-brass)]/30 bg-black/25 p-3">
+                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">
+                  Paste ASCII tab to import
+                </div>
+                <textarea
+                  value={pastedAscii}
+                  onChange={(event) => setPastedAscii(event.target.value)}
+                  rows={5}
+                  placeholder={"e |---|---|...|\nB |---|---|...|"}
+                  className="field font-mono text-[11px]"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={importPastedAscii}
+                    className="glass-pill flex-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+                    type="button"
+                  >
+                    Import pasted tab
+                  </button>
+                  <button
+                    onClick={() => setShowPasteImport(false)}
+                    className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowPasteImport(true)}
+                className="mt-2 w-full rounded-[1rem] border border-dashed border-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--color-sand-2)] transition hover:border-[var(--color-brass)]/50 hover:text-white"
+                type="button"
+              >
+                <ClipboardPaste className="mr-1 inline h-3 w-3" />
+                Or paste ASCII here to import
+              </button>
+            )}
+
+            <div className="my-3 border-t border-white/8" />
+
             <div className="flex items-center justify-between">
-              <div className="eyebrow">Song Partitures</div>
+              <div className="eyebrow">Song Partitures · {savedPartitures.length}</div>
               <Music className="h-4 w-4 text-[var(--color-brass)]" />
             </div>
             {loadingPartitures ? (
-              <p className="mt-3 text-sm text-[var(--color-sand-2)]">Loading...</p>
+              <p className="mt-2 text-sm text-[var(--color-sand-2)]">Loading...</p>
             ) : !selectedSongId ? (
-              <p className="mt-3 text-sm text-[var(--color-sand-2)]">Pick an active song above to load saved tabs.</p>
+              <p className="mt-2 text-xs text-[var(--color-sand-2)]">Pick an active song above to load saved tabs.</p>
             ) : savedPartitures.length === 0 ? (
-              <p className="mt-3 text-sm text-[var(--color-sand-2)]">No saved partitures for this song yet.</p>
+              <p className="mt-2 text-xs text-[var(--color-sand-2)]">No saved partitures for this song yet.</p>
             ) : (
-              <div className="mt-3 space-y-2">
+              <div className="mt-2 max-h-56 space-y-1.5 overflow-auto pr-0.5">
                 {savedPartitures.map((partiture) => (
-                  <button
+                  <div
                     key={partiture.id}
-                    className="song-list-item w-full rounded-[1rem] px-3 py-2.5 text-left"
-                    onClick={() => loadPartiture(partiture)}
-                    type="button"
+                    className="song-list-item flex items-center gap-2 rounded-[1rem] px-3 py-2"
                   >
-                    <div className="text-sm font-bold">{partiture.title}</div>
-                    <div className="text-[10px] uppercase tracking-wider text-[var(--color-sand-2)]">
-                      {partiture.instrument} · slot {partiture.slot}
-                    </div>
-                  </button>
+                    <button
+                      className="min-w-0 flex-1 text-left"
+                      onClick={() => loadPartiture(partiture)}
+                      type="button"
+                      title="Load into grid"
+                    >
+                      <div className="truncate text-xs font-bold">{partiture.title}</div>
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--color-sand-2)]">
+                        {partiture.instrument} · slot {partiture.slot}
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => void removePartiture(partiture)}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 text-[var(--color-sand-2)] transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+                      type="button"
+                      title={`Delete "${partiture.title}"`}
+                      aria-label={`Delete "${partiture.title}"`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}

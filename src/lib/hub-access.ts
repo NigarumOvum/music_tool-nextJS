@@ -4,7 +4,6 @@ import { ensureUserCanAccessPage } from "@/lib/auth";
 
 export const PRODUCTION_STUDIO_TABS = [
   { id: "lyrics", label: "Lyrics", pageKey: "lyrics-library" },
-  { id: "song", label: "Song", pageKey: "song-studio" },
   { id: "audio", label: "Audio", pageKey: "daw" },
   { id: "notation", label: "Notation", pageKey: "tab-studio" },
 ] as const;
@@ -38,7 +37,7 @@ async function getAllowedTabs(user: AuthUser, tabs: readonly HubTab[]) {
   return results.filter((tab) => tab.allowed).map(({ id, label, pageKey }) => ({ id, label, pageKey }));
 }
 
-export function isProductionStudioTabId(value: string): value is ProductionStudioTabId {
+export function isProductionStudioTabId(value: string): boolean {
   return PRODUCTION_STUDIO_TABS.some((tab) => tab.id === value);
 }
 
@@ -67,13 +66,13 @@ export async function canAccessMusicToolkit(user: AuthUser) {
 export function resolveProductionStudioTab(
   tabParam: string | undefined,
   allowedTabs: Array<{ id: string }>,
-): ProductionStudioTabId {
-  if (tabParam && isProductionStudioTabId(tabParam) && allowedTabs.some((tab) => tab.id === tabParam)) {
+): string {
+  if (tabParam && allowedTabs.some((tab) => tab.id === tabParam)) {
     return tabParam;
   }
 
   const first = allowedTabs[0]?.id;
-  if (first && isProductionStudioTabId(first)) {
+  if (first) {
     return first;
   }
 

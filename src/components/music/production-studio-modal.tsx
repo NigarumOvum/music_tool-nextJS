@@ -21,25 +21,21 @@ import {
 import { Spinner } from "@heroui/react";
 
 import { useProductionSong } from "@/components/music/production-song-context";
-import type { ProductionStudioTabId } from "@/lib/hub-access";
 import type { MusicSongSummary, MusicProjectRecord } from "@/lib/music/types";
 
 const tabLoaders = {
   lyrics: () => import("@/components/music/lyrics-library-client").then((module) => module.LyricsLibraryClient),
-  song: () => import("@/components/music/song-studio-client").then((module) => module.SongStudioClient),
   audio: () => import("@/components/music/daw-client").then((module) => module.DawClient),
   notation: () => import("@/components/music/tab-studio-client").then((module) => module.TabStudioClient),
 } as const;
 
-const tabPanels: Record<ProductionStudioTabId, ReturnType<typeof dynamic>> = {
+const tabPanels: Record<string, ReturnType<typeof dynamic>> = {
   lyrics: dynamic(() => tabLoaders.lyrics().then((Component) => ({ default: Component })), { ssr: false }),
-  song: dynamic(() => tabLoaders.song().then((Component) => ({ default: Component })), { ssr: false }),
   audio: dynamic(() => tabLoaders.audio().then((Component) => ({ default: Component })), { ssr: false }),
   notation: dynamic(() => tabLoaders.notation().then((Component) => ({ default: Component })), { ssr: false }),
-};
+} as const;
 
-const STUDIO_TABS: Array<{ id: ProductionStudioTabId; label: string; icon: typeof Music2; description: string }> = [
-  { id: "song", label: "Song Studio", icon: Music2, description: "Structure, chords, metadata & AI prompts" },
+const STUDIO_TABS: Array<{ id: string; label: string; icon: typeof Music2; description: string }> = [
   { id: "lyrics", label: "Lyrics & Rhymes", icon: FileText, description: "Lyrics editor, rhyming & syllables" },
   { id: "audio", label: "Audio DAW", icon: Sliders, description: "Multitrack synth, sequencer & audio recorder" },
   { id: "notation", label: "Notation & Tabs", icon: FileCode2, description: "Fretboard tabs, partitures & playback" },
@@ -47,7 +43,7 @@ const STUDIO_TABS: Array<{ id: ProductionStudioTabId; label: string; icon: typeo
 
 type ProductionStudioModalProps = {
   isOpen: boolean;
-  initialTab?: ProductionStudioTabId;
+  initialTab?: string;
   songs: MusicSongSummary[];
   projects: MusicProjectRecord[];
   onClose: () => void;
@@ -61,11 +57,12 @@ export function ProductionStudioModal({
   onClose,
 }: ProductionStudioModalProps) {
   const { selectedSongId, setSelectedSongId } = useProductionSong();
-  const [activeTab, setActiveTab] = useState<ProductionStudioTabId>(initialTab);
-  const [secondaryTab, setSecondaryTab] = useState<ProductionStudioTabId | null>(null);
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [secondaryTab, setSecondaryTab] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSplitView, setIsSplitView] = useState(false);
-  const [pinnedTabs, setPinnedTabs] = useState<Set<ProductionStudioTabId>>(new Set());
+  const [pinnedTabs, setPinnedTabs] = useState<Set<string>>(new Set());
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // Load pinned tabs from localStorage
   useEffect(() => {
@@ -97,7 +94,7 @@ export function ProductionStudioModal({
     setIsFullscreen(!isFullscreen);
   }, [isFullscreen]);
 
-  const togglePinTab = useCallback((tabId: ProductionStudioTabId) => {
+  const togglePinTab = useCallback((tabId: string) => {
     setPinnedTabs(prev => {
       const newPinned = new Set(prev);
       if (newPinned.has(tabId)) {
@@ -116,6 +113,30 @@ export function ProductionStudioModal({
   }, [initialTab]);
 
   useEffect(() => {
+    if (isOpen) setShowExitConfirm(false);
+  }, [isOpen]);
+
+  const requestClose = useCallback(() => {
+    setShowExitConfirm(true);
+  }, []);
+
+  const confirmExit = useCallback((save: boolean) => {
+    if (save) {
+      try {
+        window.dispatchEvent(new CustomEvent("production-studio:save-request"));
+        localStorage.setItem(
+          "studio_last_session",
+          JSON.stringify({ songId: selectedSongId, tab: activeTab, at: Date.now() }),
+        );
+      } catch {
+        // storage unavailable — still exit
+      }
+    }
+    setShowExitConfirm(false);
+    onClose();
+  }, [activeTab, onClose, selectedSongId]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
 
@@ -124,9 +145,13 @@ export function ProductionStudioModal({
         return;
       }
 
-      // Escape: Close modal
+      // Escape: ask to save progress before closing
       if (e.key === "Escape") {
-        onClose();
+        if (showExitConfirm) {
+          setShowExitConfirm(false);
+        } else {
+          requestClose();
+        }
         return;
       }
 
@@ -144,8 +169,8 @@ export function ProductionStudioModal({
         return;
       }
 
-      // 1-4: Switch tabs
-      if (e.key >= '1' && e.key <= '4') {
+      // 1-3: Switch tabs
+      if (e.key >= '1' && e.key <= '3') {
         const tabIndex = parseInt(e.key) - 1;
         const tabId = STUDIO_TABS[tabIndex]?.id;
         if (tabId) {
@@ -160,7 +185,7 @@ export function ProductionStudioModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose, isSplitView, secondaryTab, toggleSplitView, toggleFullscreen, setActiveTab, togglePinTab, activeTab, pinnedTabs]);
+  }, [isOpen, onClose, isSplitView, secondaryTab, toggleSplitView, toggleFullscreen, setActiveTab, togglePinTab, activeTab, pinnedTabs, requestClose, showExitConfirm]);
 
   const activeSong = useMemo(
     () => songs.find((s) => s.id === selectedSongId) || songs[0] || null,
@@ -183,7 +208,7 @@ export function ProductionStudioModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={requestClose}
             className="fixed inset-0 bg-black/80 backdrop-blur-lg"
           />
 
@@ -340,7 +365,7 @@ export function ProductionStudioModal({
 
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={requestClose}
                   title="Close Studio (Esc)"
                   className="flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)] hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-500"
                 >
@@ -377,6 +402,62 @@ export function ProductionStudioModal({
                 )}
               </Suspense>
             </div>
+
+            {/* Exit confirmation: save progress before leaving Notation & Tabs / Studio */}
+            <AnimatePresence>
+              {showExitConfirm && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowExitConfirm(false)}
+                    className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                    role="alertdialog"
+                    aria-modal="true"
+                    aria-label="Save progress before exiting"
+                    className="relative z-10 w-full max-w-sm rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-modal-surface)] p-5 shadow-2xl"
+                  >
+                    <h3 className="text-base font-black text-[var(--color-foreground)]">
+                      Save progress before exiting?
+                    </h3>
+                    <p className="mt-1 text-xs text-[var(--color-sand-2)]">
+                      Your Notation &amp; Tabs grid is kept as a local draft, and the DAW
+                      session autosaves. Save a snapshot so you can resume right here.
+                    </p>
+                    <div className="mt-4 flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => confirmExit(true)}
+                        className="w-full rounded-xl bg-[var(--color-mint)] px-4 py-2 text-xs font-black uppercase tracking-widest text-black transition hover:brightness-110"
+                      >
+                        Save & exit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => confirmExit(false)}
+                        className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-black uppercase tracking-widest text-[var(--color-foreground)] transition hover:border-red-500/40 hover:text-red-400"
+                      >
+                        Exit without saving
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowExitConfirm(false)}
+                        className="w-full rounded-xl px-4 py-2 text-xs font-bold text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)]"
+                      >
+                        Keep editing
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
       )}

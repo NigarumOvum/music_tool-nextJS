@@ -6,7 +6,9 @@ import { Download, Layers, Music, PlayCircle, Plus, RotateCcw, Trash2, Zap, Slid
 import { toast } from "sonner";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
+import { ChordHowToPlay } from "@/components/music/chord-how-to-play";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
+import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
 import { playKeyboardNote, type KeyboardVoice } from "@/lib/music/keyboard-synth";
 import { CHROMATIC, intervalsToPitchClasses, noteFrequency } from "@/lib/music/notes";
@@ -209,7 +211,7 @@ export function ProgressionClient() {
   };
 
   return (
-    <div className="space-y-6">
+    <SplitViewFullScreen className="space-y-6">
       {/* 1. Progression Timeline & Audio Player (Important: Open by default) */}
       <CollapsibleCard
         defaultOpen={true}
@@ -454,6 +456,12 @@ export function ProgressionClient() {
             }}
           />
 
+          <ChordHowToPlay
+            chordLabel={`${root}${quality === "Maj" ? "" : quality}`}
+            root={root}
+            notes={previewActiveNotes}
+          />
+
           <div className="grid gap-4 md:grid-cols-2 pt-2">
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-4">
               <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-mint)]">
@@ -485,6 +493,6 @@ export function ProgressionClient() {
           </div>
         </div>
       </CollapsibleCard>
-    </div>
+    </SplitViewFullScreen>
   );
 }

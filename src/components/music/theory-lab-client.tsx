@@ -5,7 +5,9 @@ import { Book, Layers, Music, Play, RotateCcw, Search, Sparkles, Piano } from "l
 
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { InfoTooltip } from "@/components/info-tooltip";
+import { ChordHowToPlay } from "@/components/music/chord-how-to-play";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
+import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
 import { KEYBOARD_VOICES, playKeyboardNote, playKeyboardNotes, type KeyboardVoice } from "@/lib/music/keyboard-synth";
 import { CHROMATIC, noteFrequency } from "@/lib/music/notes";
@@ -168,7 +170,7 @@ export function TheoryLabClient() {
   };
 
   return (
-    <div className="space-y-6">
+    <SplitViewFullScreen className="space-y-6">
       {/* 1. Master Keyboard & Visualizer (Important: Open by default) */}
       <CollapsibleCard
         defaultOpen={true}
@@ -423,8 +425,14 @@ export function TheoryLabClient() {
               size="md"
             />
           </div>
+
+          <ChordHowToPlay
+            chordLabel={`${chordRoot} ${chordType}`}
+            root={chordRoot}
+            notes={chordNotes}
+          />
         </div>
       </CollapsibleCard>
-    </div>
+    </SplitViewFullScreen>
   );
 }

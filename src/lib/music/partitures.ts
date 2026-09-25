@@ -1,13 +1,13 @@
 import type { MusicPartitureRecord } from "@/lib/music/types";
+import { AVAILABLE_INSTRUMENTS } from "@/lib/music/instruments";
 
-export const PARTITURE_INSTRUMENTS = [
-  { id: "guitar", label: "Guitar" },
-  { id: "bass", label: "Bass" },
-  { id: "drums", label: "Drums" },
-  { id: "keys", label: "Keys" },
-  { id: "vocals", label: "Vocals" },
-  { id: "other", label: "Other" },
-] as const;
+// DB-backed subset — ids must stay stable for saved partitures.
+const PARTITURE_INSTRUMENT_IDS = ["guitar", "bass", "drums", "keys", "vocals", "other"] as const;
+
+export const PARTITURE_INSTRUMENTS = PARTITURE_INSTRUMENT_IDS.map((id) => ({
+  id,
+  label: AVAILABLE_INSTRUMENTS.find((item) => item.id === id)?.label ?? id,
+})) as readonly { id: (typeof PARTITURE_INSTRUMENT_IDS)[number]; label: string }[];
 
 export type PartitureInstrumentId = (typeof PARTITURE_INSTRUMENTS)[number]["id"];
 

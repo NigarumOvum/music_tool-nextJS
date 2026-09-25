@@ -520,7 +520,7 @@ export function TemplatesClient({
             <button
               type="button"
               onClick={persistTemplate}
-              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--color-copper)] to-[var(--color-rust)] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:brightness-110 active:scale-95"
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-4 py-2 text-xs font-bold text-black shadow-sm transition hover:brightness-110 active:scale-95"
             >
               {draft.id ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               <span>{draft.id ? `Update ${itemLabel}` : `Create ${itemLabel}`}</span>

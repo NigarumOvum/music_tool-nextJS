@@ -238,7 +238,7 @@ export function SongComments({ songId, songTitle, isOpen, onClose }: SongComment
                     <button
                       type="button"
                       onClick={handleAddComment}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-r from-[var(--color-copper)] to-[var(--color-rust)] text-white shadow-md transition hover:brightness-110 active:scale-95"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] text-black shadow-md transition hover:brightness-110 active:scale-95"
                     >
                       <Send className="h-4 w-4" />
                     </button>
