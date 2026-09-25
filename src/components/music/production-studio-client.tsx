@@ -1344,7 +1344,7 @@ function ProductionStudioDashboard() {
                         type="button"
                         onClick={() => handleAudioPreview(song.id)}
                         title="Preview audio"
-                        className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
+                        className={`btn-sound flex h-7 w-7 items-center justify-center rounded-lg border transition ${
                           previewingSong === song.id && isPlaying
                             ? "border-[var(--color-copper)] bg-[var(--color-copper)]/10 text-[var(--color-copper)]"
                             : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] hover:border-[var(--color-copper)]/40 hover:text-[var(--color-copper)]"

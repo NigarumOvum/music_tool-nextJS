@@ -6,6 +6,7 @@ import { HeroUIProvider } from "@heroui/react";
 import { Toaster } from "sonner";
 
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
+import { LanguageProvider } from "@/components/language-provider";
 import { AudioProvider } from "@/components/music/audio-provider";
 import { PWAOfflineIndicator } from "@/components/pwa/pwa-offline-indicator";
 
@@ -14,9 +15,11 @@ function ProviderContent({ children }: { children: ReactNode }) {
 
   return (
     <HeroUIProvider>
-      <AudioProvider>
-        {children}
-      </AudioProvider>
+      <LanguageProvider>
+        <AudioProvider>
+          {children}
+        </AudioProvider>
+      </LanguageProvider>
       <PWAOfflineIndicator />
       <Toaster theme={theme} richColors position="top-right" />
     </HeroUIProvider>

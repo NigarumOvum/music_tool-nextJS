@@ -9,9 +9,9 @@ export const PRODUCTION_STUDIO_TABS = [
 ] as const;
 
 export const MUSIC_TOOLKIT_TABS = [
-  { id: "harmony", label: "Harmony", pageKey: "theory-lab" },
+  { id: "harmony", label: "Timing Precision & Harmony", pageKey: "theory-lab" },
   { id: "progressions", label: "Progressions", pageKey: "progressions" },
-  { id: "practice", label: "Practice", pageKey: "musician-helpers" },
+  { id: "tuner", label: "Tuner", pageKey: "musician-helpers" },
 ] as const;
 
 export type ProductionStudioTabId = (typeof PRODUCTION_STUDIO_TABS)[number]["id"];

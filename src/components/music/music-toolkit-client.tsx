@@ -8,18 +8,20 @@ import { motion } from "framer-motion";
 import { Spinner } from "@heroui/react";
 
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
+import { useI18n } from "@/components/language-provider";
+import type { DictKey } from "@/lib/i18n/dictionaries";
 import type { MusicToolkitTabId } from "@/lib/hub-access";
 
 const tabLoaders = {
   harmony: () => import("@/components/music/theory-lab-client").then((module) => module.TheoryLabClient),
   progressions: () => import("@/components/music/progression-client").then((module) => module.ProgressionClient),
-  practice: () => import("@/components/music/helpers-client").then((module) => module.HelpersClient),
+  tuner: () => import("@/components/music/tuner-client").then((module) => module.TunerClient),
 } as const;
 
 const tabPanels: Record<MusicToolkitTabId, ReturnType<typeof dynamic>> = {
   harmony: dynamic(() => tabLoaders.harmony().then((Component) => ({ default: Component })), { ssr: false }),
   progressions: dynamic(() => tabLoaders.progressions().then((Component) => ({ default: Component })), { ssr: false }),
-  practice: dynamic(() => tabLoaders.practice().then((Component) => ({ default: Component })), { ssr: false }),
+  tuner: dynamic(() => tabLoaders.tuner().then((Component) => ({ default: Component })), { ssr: false }),
 };
 
 type MusicToolkitTab = {
@@ -43,6 +45,7 @@ function TabSpinner() {
 function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const tabParam = searchParams.get("tab") || undefined;
   const [secondaryTab, setSecondaryTab] = useState<MusicToolkitTabId | null>(null);
 
@@ -100,7 +103,7 @@ function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps)
             }`}
             title={secondaryTab === tab.id ? "Remove from split view" : "Right-click to add to split view"}
           >
-            {tab.label}
+            {t(`tabs.${tab.id}` as DictKey) || tab.label}
             {secondaryTab === tab.id && <span className="ml-1 text-[10px]">(2nd)</span>}
           </button>
         ))}

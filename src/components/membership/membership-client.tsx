@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { BadgeCheck, Crown, Loader2, ShieldCheck, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
+import { useI18n } from "@/components/language-provider";
 import type { MembershipPayment, MembershipPlan, MembershipSubscription } from "@/lib/membership";
 import {
   cancelSubscription,
@@ -49,6 +50,7 @@ function loadPaypalSdk(clientId: string, currency: string): Promise<void> {
 
 export function MembershipClient() {
   const searchParams = useSearchParams();
+  const { t } = useI18n();
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [subscription, setSubscription] = useState<(MembershipSubscription & { plan: MembershipPlan | null }) | null>(null);
   const [payments, setPayments] = useState<MembershipPayment[]>([]);
@@ -209,9 +211,9 @@ export function MembershipClient() {
             <Crown className="h-5 w-5" />
           </div>
           <div>
-            <div className="eyebrow text-[0.62rem]">Current membership</div>
+            <div className="eyebrow text-[0.62rem]">{t("membership.currentMembership")}</div>
             <div className="text-lg font-black">
-              {subscription?.plan?.name ?? "No membership yet"}
+              {subscription?.plan?.name ?? t("membership.noMembership")}
               {subscription ? (
                 <span
                   className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest ${
@@ -236,7 +238,7 @@ export function MembershipClient() {
             onClick={() => void handleCancel()}
             className="glass-pill flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-red-400 hover:border-red-500/40"
           >
-            <XCircle className="h-3.5 w-3.5" /> Cancel
+            <XCircle className="h-3.5 w-3.5" /> {t("membership.cancel")}
           </button>
         ) : null}
       </div>
@@ -257,7 +259,7 @@ export function MembershipClient() {
                 <h3 className="text-lg font-black">{plan.name}</h3>
                 {isCurrent ? (
                   <span className="flex items-center gap-1 rounded-full bg-[var(--color-brass)]/15 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">
-                    <BadgeCheck className="h-3.5 w-3.5" /> Current
+                    <BadgeCheck className="h-3.5 w-3.5" /> {t("membership.currentPlan")}
                   </span>
                 ) : null}
               </div>
@@ -265,7 +267,7 @@ export function MembershipClient() {
               <div className="mt-2 flex items-baseline gap-1">
                 <span className="text-3xl font-black">{formatPrice(plan.priceCents, plan.currency)}</span>
                 <span className="text-xs font-bold text-[var(--color-sand-2)]">
-                  {plan.billingInterval === "monthly" ? "/ month" : plan.priceCents === 0 ? "forever" : "one-time"}
+                  {plan.billingInterval === "monthly" ? t("membership.perMonth") : plan.priceCents === 0 ? t("membership.forever") : t("membership.oneTime")}
                 </span>
               </div>
               <ul className="mt-3 flex-1 space-y-1.5">
@@ -285,13 +287,13 @@ export function MembershipClient() {
                 {busy ? (
                   <Loader2 className="mx-auto h-4 w-4 animate-spin" />
                 ) : isCurrent ? (
-                  "Current plan"
+                  t("membership.currentPlan")
                 ) : plan.priceCents === 0 ? (
-                  "Choose Free"
+                  t("membership.chooseFree")
                 ) : plan.billingInterval === "monthly" ? (
-                  "Subscribe with PayPal"
+                  t("membership.subscribeWithPaypal")
                 ) : (
-                  "Pay with PayPal"
+                  t("membership.payWithPaypal")
                 )}
               </button>
               {payingPlanId === plan.id ? (
@@ -302,7 +304,7 @@ export function MembershipClient() {
                     onClick={() => setPayingPlanId(null)}
                     className="mt-2 w-full text-center text-[11px] font-bold text-[var(--color-sand-2)] hover:text-white"
                   >
-                    Cancel checkout
+                    {t("membership.cancelCheckout")}
                   </button>
                 </div>
               ) : null}
@@ -313,9 +315,9 @@ export function MembershipClient() {
 
       {/* Payment history */}
       <div className="panel glass-shine rounded-[1.75rem] p-5">
-        <div className="eyebrow mb-3">Payment history</div>
+        <div className="eyebrow mb-3">{t("membership.paymentHistory")}</div>
         {payments.length === 0 ? (
-          <p className="text-xs text-[var(--color-sand-2)]">No payments yet.</p>
+          <p className="text-xs text-[var(--color-sand-2)]">{t("membership.noPayments")}</p>
         ) : (
           <div className="space-y-2">
             {payments.map((payment) => (
@@ -337,7 +339,7 @@ export function MembershipClient() {
         )}
         <p className="mt-3 flex items-center gap-1.5 text-[11px] text-[var(--color-sand-2)]">
           <ShieldCheck className="h-3.5 w-3.5 text-[var(--color-mint)]" />
-          Payments are processed securely by PayPal. This site never sees your card details.
+          {t("membership.securedNote")}
         </p>
       </div>
     </div>

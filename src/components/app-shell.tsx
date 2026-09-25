@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 
 import { AppNavLinks, type AppNavIconId } from "@/components/app-nav-links";
 import { AppFooter } from "@/components/app-footer";
+import { HeaderAccountLink } from "@/components/header-bits";
+import { LanguageSwitcher } from "@/components/language-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PWAInstallButton } from "@/components/pwa/pwa-install-button";
 import { ensureUserCanAccessPage, requireCurrentUser } from "@/lib/auth";
@@ -76,6 +78,7 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
               </Link>
               <div className="flex items-center gap-2 xl:hidden">
                 <PWAInstallButton />
+                <LanguageSwitcher compact />
                 <ThemeToggle />
               </div>
             </div>
@@ -86,25 +89,15 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
 
             <div className="hidden items-center gap-2 xl:flex">
               <PWAInstallButton />
-              <Link
-                href="/account"
-                className="glass-pill inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-strong)] transition-colors"
-                title="Manage Account"
-              >
-                {user.name || user.email}
-              </Link>
+              <LanguageSwitcher />
+              <HeaderAccountLink name={user.name || user.email} />
               <ThemeToggle />
             </div>
           </div>
 
-          <div className="mt-3 xl:hidden">
-              <Link
-                href="/account"
-                className="glass-pill inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-strong)] transition-colors"
-                title="Manage Account"
-              >
-                {user.name || user.email}
-              </Link>
+          <div className="mt-3 flex flex-wrap items-center gap-2 xl:hidden">
+              <HeaderAccountLink name={user.name || user.email} />
+              <LanguageSwitcher />
           </div>
         </header>
 

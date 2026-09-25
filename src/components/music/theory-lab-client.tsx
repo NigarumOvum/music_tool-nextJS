@@ -6,7 +6,9 @@ import { Book, Layers, Music, Play, RotateCcw, Search, Sparkles, Piano } from "l
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { InfoTooltip } from "@/components/info-tooltip";
 import { ChordHowToPlay } from "@/components/music/chord-how-to-play";
+import { MetronomeCard } from "@/components/music/metronome-card";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
+import { SoundIndicator } from "@/components/ui/sound-indicator";
 import { ScaleInstrumentVisuals, ScaleTheory, NoteButtons, ScaleTypeButtons } from "@/components/music/scale-visuals";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
@@ -180,6 +182,9 @@ export function TheoryLabClient() {
 
   return (
     <SplitViewFullScreen className="space-y-6">
+      {/* 0. Timing Precision (metronome, tap tempo, speed & gap trainers) */}
+      <MetronomeCard />
+
       {/* 1. Master Keyboard & Visualizer (Important: Open by default) */}
       <CollapsibleCard
         defaultOpen={true}
@@ -245,7 +250,8 @@ export function TheoryLabClient() {
             <button
               type="button"
               onClick={() => { setHighlightMode("scale"); playNotes(scaleNotes); }}
-              className="glass-pill px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:bg-[var(--color-brass)] hover:text-black"
+              title="Play scale"
+              className="glass-pill btn-sound px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:bg-[var(--color-brass)] hover:text-black"
             >
               <Play className="mr-1 inline h-3 w-3 fill-current" /> Play Scale
             </button>
@@ -293,11 +299,14 @@ export function TheoryLabClient() {
                 key={`${n}-${i}`}
                 type="button"
                 onClick={() => playNoteAtOctave(n)}
-                className="glass-pill flex min-w-[50px] flex-col items-center border-white/10 bg-white/5 px-4 py-2 hover:border-[var(--color-brass)]"
+                title={`Play ${n}`}
+                className="glass-pill btn-sound flex min-w-[50px] flex-col items-center border-white/10 bg-white/5 px-4 py-2 hover:border-[var(--color-brass)]"
               >
                 <span className="text-[8px] font-black uppercase opacity-40">{i + 1}</span>
                 <span className="text-sm font-black">{n}</span>
-                <span className="text-[8px] font-bold uppercase text-[var(--color-brass)]/70">{intervalName(scaleRoot, n)}</span>
+                <span className="flex items-center gap-1 text-[8px] font-bold uppercase text-[var(--color-brass)]/70">
+                  <SoundIndicator className="h-2.5 w-2.5" />{intervalName(scaleRoot, n)}
+                </span>
               </button>
             ))}
           </div>
@@ -338,11 +347,14 @@ export function TheoryLabClient() {
                       setHighlightMode("chord");
                       playKeyboardNotes(getAudioContext(), triad.map((n) => noteFrequency(n, keyboardOctave)), keyboardVoice, 90);
                     }}
-                    className="glass-pill flex flex-col items-start border-white/10 bg-white/5 px-4 py-2 transition hover:border-[var(--color-berry)]"
-                    title={triad.join(" ")}
+                    className="glass-pill btn-sound flex flex-col items-start border-white/10 bg-white/5 px-4 py-2 transition hover:border-[var(--color-berry)]"
+                    title={`${triad.join(" ")} — tap to play`}
                   >
                     <span className="text-[10px] font-black uppercase text-[var(--color-berry)]">{romanNumeral(degree, quality)}</span>
-                    <span className="text-sm font-black">{triad[0]}{quality === "m" ? "m" : quality === "dim" ? "°" : quality === "aug" ? "+" : ""}</span>
+                    <span className="flex items-center gap-1 text-sm font-black">
+                      <SoundIndicator className="h-3 w-3" />
+                      {triad[0]}{quality === "m" ? "m" : quality === "dim" ? "°" : quality === "aug" ? "+" : ""}
+                    </span>
                   </button>
                 );
               })}
@@ -380,7 +392,8 @@ export function TheoryLabClient() {
             <button
               type="button"
               onClick={() => { setHighlightMode("chord"); playKeyboardNotes(getAudioContext(), chordFrequencies, keyboardVoice, 90); }}
-              className="glass-pill px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:bg-[var(--color-berry)] hover:text-black"
+              title="Arpeggiate chord"
+              className="glass-pill btn-sound px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:bg-[var(--color-berry)] hover:text-black"
             >
               <Play className="mr-1 inline h-3 w-3 fill-current" /> Arpeggiate
             </button>
@@ -449,7 +462,8 @@ export function TheoryLabClient() {
                 key={`${n}-${i}`}
                 type="button"
                 onClick={() => playNoteAtOctave(n)}
-                className={`glass-pill flex min-w-[50px] flex-col items-center border-white/10 bg-white/5 px-4 py-2 ${
+                title={`Play ${n}`}
+                className={`glass-pill btn-sound flex min-w-[50px] flex-col items-center border-white/10 bg-white/5 px-4 py-2 ${
                   i === 0 ? "!border-[var(--color-berry)]" : ""
                 }`}
               >
@@ -457,7 +471,9 @@ export function TheoryLabClient() {
                   {i === 0 ? "Bass" : i === 1 ? "2nd" : i === 2 ? "3rd" : `${i + 1}th`}
                 </span>
                 <span className="text-sm font-black">{n}</span>
-                <span className="text-[8px] font-bold uppercase text-[var(--color-berry)]/70">{intervalName(chordRoot, n)}</span>
+                <span className="flex items-center gap-1 text-[8px] font-bold uppercase text-[var(--color-berry)]/70">
+                  <SoundIndicator className="h-2.5 w-2.5" />{intervalName(chordRoot, n)}
+                </span>
               </button>
             ))}
             <InfoTooltip

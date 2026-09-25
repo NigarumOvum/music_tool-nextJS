@@ -232,7 +232,8 @@ export function ProgressionClient() {
               type="button"
               disabled={progression.length === 0}
               onClick={playProgression}
-              className="glass-pill flex items-center gap-1.5 bg-[var(--color-copper)] px-3.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-30"
+              title="Play progression"
+              className="glass-pill btn-sound flex items-center gap-1.5 bg-[var(--color-copper)] px-3.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-30"
             >
               <PlayCircle className="h-4 w-4" />
               {isPlaying ? "Stop" : "Play"}
@@ -295,7 +296,8 @@ export function ProgressionClient() {
                   role="button"
                   tabIndex={0}
                   aria-label={`Play ${chord.root}${chord.quality}`}
-                  className={`group relative flex h-28 w-[4.5rem] cursor-pointer flex-col items-center justify-center rounded-xl border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-copper)] ${
+                  title={`Tap to play ${chord.root}${chord.quality}`}
+                  className={`group btn-sound relative flex h-28 w-[4.5rem] cursor-pointer flex-col items-center justify-center rounded-xl border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-copper)] ${
                     activeChordId === chord.id
                       ? "border-[var(--color-mint)] bg-[var(--color-success-surface)] shadow-[0_0_20px_rgba(34,197,94,0.25)]"
                       : "song-list-item border-[var(--color-stroke)]"
@@ -437,7 +439,8 @@ export function ProgressionClient() {
           <button
             type="button"
             onClick={() => playChord({ id: "preview", root, quality })}
-            className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+            title="Play chord"
+            className="glass-pill btn-sound px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
           >
             Play Chord
           </button>

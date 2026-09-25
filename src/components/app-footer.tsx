@@ -1,27 +1,33 @@
+"use client";
+
 import Link from "next/link";
 import { Crown, Music2, ShieldCheck } from "lucide-react";
 
-const sections: Array<{ title: string; links: Array<{ label: string; href: string }> }> = [
-  {
-    title: "Studio",
-    links: [
-      { label: "Music Toolkit", href: "/" },
-      { label: "Production Studio", href: "/production-studio" },
-      { label: "Prompt Library", href: "/prompt-library" },
-    ],
-  },
-  {
-    title: "Account",
-    links: [
-      { label: "Membership & Plans", href: "/membership" },
-      { label: "Manage Account", href: "/account" },
-      { label: "Lyrics Library", href: "/lyrics-library" },
-    ],
-  },
-];
+import { useI18n } from "@/components/language-provider";
 
 export function AppFooter() {
+  const { t } = useI18n();
   const year = new Date().getFullYear();
+
+  const sections: Array<{ title: string; links: Array<{ label: string; href: string }> }> = [
+    {
+      title: t("footer.studio"),
+      links: [
+        { label: t("footer.toolkit"), href: "/" },
+        { label: t("footer.production"), href: "/production-studio" },
+        { label: t("footer.prompts"), href: "/prompt-library" },
+      ],
+    },
+    {
+      title: t("footer.account"),
+      links: [
+        { label: t("footer.membership"), href: "/membership" },
+        { label: t("footer.manageAccount"), href: "/account" },
+        { label: t("footer.lyrics"), href: "/lyrics-library" },
+      ],
+    },
+  ];
+
   return (
     <footer className="panel glass-shine rounded-[1.25rem] p-5 sm:p-6 animate-fade-up">
       <div className="grid gap-6 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
@@ -36,12 +42,11 @@ export function AppFooter() {
             </div>
           </div>
           <p className="max-w-sm text-xs leading-relaxed text-[var(--color-sand-2)]">
-            A private, multi-user suite for songwriting, band collaboration, multitrack audio,
-            music theory, and AI prompt workflows.
+            {t("footer.tagline")}
           </p>
           <p className="flex items-center gap-1.5 text-[11px] text-[var(--color-sand-2)]">
             <ShieldCheck className="h-3.5 w-3.5 text-[var(--color-mint)]" />
-            Membership payments are processed securely by PayPal.
+            {t("footer.paymentsNote")}
           </p>
         </div>
 
@@ -65,12 +70,12 @@ export function AppFooter() {
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-stroke)] pt-4">
-        <p className="text-[11px] text-[var(--color-sand-2)]">© {year} Music Tool. All rights reserved.</p>
+        <p className="text-[11px] text-[var(--color-sand-2)]">© {year} Music Tool. {t("footer.rights")}</p>
         <Link
           href="/membership"
           className="glass-pill inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)] transition hover:brightness-110"
         >
-          <Crown className="h-3.5 w-3.5" /> Go Pro
+          <Crown className="h-3.5 w-3.5" /> {t("footer.goPro")}
         </Link>
       </div>
     </footer>

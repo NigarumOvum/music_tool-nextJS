@@ -22,6 +22,8 @@ import { Spinner } from "@heroui/react";
 
 import { useProductionSong } from "@/components/music/production-song-context";
 import { useCurrentUserId, usePersistentState, userKey, writeStored } from "@/lib/persist";
+import { useI18n } from "@/components/language-provider";
+import type { DictKey } from "@/lib/i18n/dictionaries";
 import type { MusicSongSummary, MusicProjectRecord } from "@/lib/music/types";
 
 const tabLoaders = {
@@ -59,6 +61,7 @@ export function ProductionStudioModal({
 }: ProductionStudioModalProps) {
   const { selectedSongId, setSelectedSongId } = useProductionSong();
   const userId = useCurrentUserId();
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [secondaryTab, setSecondaryTab] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -260,6 +263,7 @@ export function ProductionStudioModal({
                   const isActive = activeTab === tab.id;
                   const isSecondaryActive = secondaryTab === tab.id;
                   const isPinned = pinnedTabs.has(tab.id);
+                  const label = t(`tabs.${tab.id}` as DictKey);
                   return (
                     <button
                       key={tab.id}
@@ -295,7 +299,7 @@ export function ProductionStudioModal({
                           isActive ? "text-[var(--color-brass)]" : isSecondaryActive ? "text-[var(--color-copper)]" : "text-[var(--color-sand-2)]"
                         }`}
                       />
-                      <span>{tab.label}</span>
+                      <span>{label}</span>
                       {isPinned && <Pin className="h-3 w-3 text-[var(--color-brass)]" />}
                       {isActive && (
                         <motion.div
@@ -408,7 +412,7 @@ export function ProductionStudioModal({
                     className="relative z-10 w-full max-w-sm rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-modal-surface)] p-5 shadow-2xl"
                   >
                     <h3 className="text-base font-black text-[var(--color-foreground)]">
-                      Save progress before exiting?
+                      {t("common.saveProgressTitle")}
                     </h3>
                     <p className="mt-1 text-xs text-[var(--color-sand-2)]">
                       Your Notation &amp; Tabs grid is kept as a local draft, and the DAW
@@ -420,21 +424,21 @@ export function ProductionStudioModal({
                         onClick={() => confirmExit(true)}
                         className="w-full rounded-xl bg-[var(--color-mint)] px-4 py-2 text-xs font-black uppercase tracking-widest text-black transition hover:brightness-110"
                       >
-                        Save & exit
+                        {t("common.saveExit")}
                       </button>
                       <button
                         type="button"
                         onClick={() => confirmExit(false)}
                         className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-xs font-black uppercase tracking-widest text-[var(--color-foreground)] transition hover:border-red-500/40 hover:text-red-400"
                       >
-                        Exit without saving
+                        {t("common.exitWithoutSaving")}
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowExitConfirm(false)}
                         className="w-full rounded-xl px-4 py-2 text-xs font-bold text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)]"
                       >
-                        Keep editing
+                        {t("common.keepEditing")}
                       </button>
                     </div>
                   </motion.div>

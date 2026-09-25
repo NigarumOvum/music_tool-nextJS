@@ -383,6 +383,64 @@ html[data-theme="dark"] .panel-interactive:hover {
   pointer-events: none;
 }
 
+/* ---------- Soundable buttons (site-wide: anything that plays audio on tap) ---------- */
+.btn-sound {
+  border: 1px solid color-mix(in srgb, var(--color-mint) 38%, var(--color-border));
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 180ms ease;
+}
+
+.btn-sound:hover {
+  border-color: var(--color-mint);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--color-mint) 35%, transparent);
+}
+
+.btn-sound:active {
+  transform: scale(0.96);
+}
+
+.sound-ico {
+  color: var(--color-mint);
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.btn-sound:hover .sound-ico {
+  opacity: 1;
+}
+
+/* ---------- Gradient-border selector buttons (notes & scale types) ---------- */
+.btn-gradient-border {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-surface-soft), var(--color-surface-soft)) padding-box,
+    linear-gradient(135deg, var(--color-brass), var(--color-copper), var(--color-mint)) border-box;
+  transition: transform 150ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.btn-gradient-border:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--color-brass) 25%, transparent);
+}
+
+.btn-gradient-border:active {
+  transform: scale(0.95);
+}
+
+.btn-gradient-border[aria-pressed="true"] {
+  background:
+    linear-gradient(135deg, var(--color-brass), var(--color-gold)) padding-box,
+    linear-gradient(135deg, var(--color-brass), var(--color-copper), var(--color-mint)) border-box;
+  color: #000;
+  box-shadow: 0 8px 26px color-mix(in srgb, var(--color-brass) 40%, transparent);
+}
+
+.btn-gradient-border-berry[aria-pressed="true"] {
+  background:
+    linear-gradient(135deg, var(--color-berry), var(--color-copper)) padding-box,
+    linear-gradient(135deg, var(--color-berry), var(--color-copper), var(--color-mint)) border-box;
+  color: #fff;
+}
+
 .modal-solid {
   background-color: var(--color-modal-surface) !important;
   background-image: none !important;
