@@ -1368,7 +1368,7 @@ function ProductionStudioDashboard() {
           </button>
         </div>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredSongs.map((song, index) => {
             const songProject = projects.find((p) => p.slug === song.project_slug);
             return (
