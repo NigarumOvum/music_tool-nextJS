@@ -8,6 +8,7 @@ export type CollapsibleCardProps = {
   title: ReactNode;
   subtitle?: string;
   eyebrow?: string;
+  eyebrowColor?: string;
   icon?: ReactNode;
   badge?: ReactNode;
   headerActions?: ReactNode;
@@ -25,6 +26,7 @@ export function CollapsibleCard({
   title,
   subtitle,
   eyebrow,
+  eyebrowColor,
   icon,
   badge,
   headerActions,
@@ -84,7 +86,7 @@ export function CollapsibleCard({
           )}
           <div className="min-w-0">
             {eyebrow && (
-              <div className="eyebrow text-[0.62rem] opacity-75">{eyebrow}</div>
+              <div className="eyebrow text-[0.62rem] opacity-75" style={{ color: eyebrowColor || undefined }}>{eyebrow}</div>
             )}
             <div className="flex flex-wrap items-center gap-2">
               <span className="truncate text-base font-bold tracking-tight text-[var(--color-foreground)]">

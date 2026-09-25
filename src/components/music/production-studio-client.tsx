@@ -1028,7 +1028,10 @@ function ProductionStudioDashboard() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-[var(--color-foreground)]">
+                    <h3
+                      className="text-sm font-bold"
+                      style={{ color: activeProject.color || undefined }}
+                    >
                       {activeProject.name}
                     </h3>
                     <span className="glass-pill px-2 py-0.5 text-[10px] text-[var(--color-brass)]">
@@ -1069,7 +1072,7 @@ function ProductionStudioDashboard() {
                 className="flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-foreground)] shadow-xs transition hover:border-[var(--color-copper)]"
               >
                 <Edit3 className="h-3.5 w-3.5" />
-                <span>Manage Band & Members</span>
+                <span className="hidden sm:inline">Manage Band & Members</span>
               </button>
             </div>
           )}
@@ -1205,15 +1208,6 @@ function ProductionStudioDashboard() {
               </option>
             ))}
           </select>
-
-          <button
-            type="button"
-            onClick={() => setIsNewSongModalOpen(true)}
-            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[var(--color-copper)] to-[var(--color-gold)] px-4 py-2 text-xs font-bold text-black shadow-sm transition hover:brightness-110 active:scale-95"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">New Song</span>
-          </button>
         </div>
 
         {/* Advanced Filters */}
@@ -1375,8 +1369,12 @@ function ProductionStudioDashboard() {
                   title={song.title}
                   subtitle={[song.genre, song.emotion].filter(Boolean).join(" / ") || "Unclassified song"}
                   eyebrow={songProject ? songProject.name : "Solo track"}
+                  eyebrowColor={songProject?.color || undefined}
                   icon={
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl text-lg">
+                    <div
+                      className="flex h-8 w-8 items-center justify-center rounded-xl text-lg shadow-sm text-white"
+                      style={{ backgroundColor: songProject?.color || "var(--color-surface-strong)" }}
+                    >
                       {GENRE_ICONS[song.genre || ""] || "🎵"}
                     </div>
                   }
@@ -1396,7 +1394,7 @@ function ProductionStudioDashboard() {
                         type="button"
                         onClick={() => handleAudioPreview(song.id)}
                         title="Preview audio"
-                        className={`flex h-8 w-8 items-center justify-center rounded-xl border transition ${
+                        className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
                           previewingSong === song.id && isPlaying
                             ? "border-[var(--color-copper)] bg-[var(--color-copper)]/10 text-[var(--color-copper)]"
                             : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] hover:border-[var(--color-copper)]/40 hover:text-[var(--color-copper)]"
@@ -1409,7 +1407,7 @@ function ProductionStudioDashboard() {
                         type="button"
                         onClick={() => handleOpenStudio(song.id, "song")}
                         title={`Open ${song.title} in studio`}
-                        className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-3 py-1.5 text-[11px] font-bold text-black shadow-sm transition hover:brightness-110 active:scale-95"
+                        className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-3 py-1.5 text-[11px] font-bold text-black shadow-sm transition hover:brightness-110 active:scale-95"
                       >
                         <Disc3 className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Open</span>
@@ -1420,7 +1418,7 @@ function ProductionStudioDashboard() {
                           type="button"
                           onClick={() => setQuickActionsSong(quickActionsSong === song.id ? null : song.id)}
                           title="Quick actions"
-                          className="flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] transition hover:border-[var(--color-brass)]/40 hover:text-[var(--color-brass)]"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] transition hover:border-[var(--color-brass)]/40 hover:text-[var(--color-brass)]"
                         >
                           <MoreVertical className="h-3.5 w-3.5" />
                         </button>
@@ -1562,7 +1560,12 @@ function ProductionStudioDashboard() {
                   className="h-3 w-3 rounded-full"
                   style={{ backgroundColor: (column as any).color || "#f59e0b" }}
                 />
-                <h3 className="text-sm font-bold text-[var(--color-foreground)]">{column.name}</h3>
+                <h3
+                  className="text-sm font-bold"
+                  style={{ color: (column as any).color || undefined }}
+                >
+                  {column.name}
+                </h3>
                 <span className="text-xs text-[var(--color-sand-2)]">{column.songs.length}</span>
               </div>
               <div className="space-y-3">
@@ -1615,14 +1618,23 @@ function ProductionStudioDashboard() {
                 whileHover={{ scale: 1.01 }}
                 transition={{ type: "spring", stiffness: 320, damping: 24 }}
                 className={`flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3 cursor-grab active:cursor-grabbing ${draggedSong === song.id ? 'opacity-50' : ''}`}
-                style={{ borderLeft: `4px solid ${GENRE_COLORS[song.genre || ""] || "#f59e0b"}` }}
+                style={{ borderLeft: `4px solid ${songProject?.color || GENRE_COLORS[song.genre || ""] || "#f59e0b"}` }}
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg text-lg">
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-lg text-white shadow-sm"
+                  style={{ backgroundColor: songProject?.color || "var(--color-surface-strong)" }}
+                >
                   {GENRE_ICONS[song.genre || ""] || "🎵"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-xs font-bold text-[var(--color-foreground)] truncate">{song.title}</h4>
-                  <p className="text-[10px] text-[var(--color-sand-2)]">{song.genre || "Unclassified"} {songProject ? `• ${songProject.name}` : "• Solo"}</p>
+                  <p className="text-[10px] text-[var(--color-sand-2)]">
+                    {song.genre || "Unclassified"} • {songProject ? (
+                      <span style={{ color: songProject.color || undefined }}>{songProject.name}</span>
+                    ) : (
+                      "Solo"
+                    )}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {song.musical_key && <span className="glass-pill px-2 py-0.5 text-[9px] font-bold text-[var(--color-copper)]">{song.musical_key}</span>}
