@@ -390,7 +390,7 @@ export function ScalesClient() {
                 size="md"
               />
             </div>
-            <PianoKeyboard highlightNotes={scaleNotes} rootNote={root} onNoteClick={playNote} />
+            <PianoKeyboard activeNotes={scaleNotes} onNotePlay={(note) => playNote(note)} />
           </div>
         )}
 
