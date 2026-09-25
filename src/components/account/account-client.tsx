@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { toast } from "sonner";
 
+import { LogoutButton } from "@/components/auth/logout-button";
 import { HUB_ACCESS_GROUPS, MANAGEABLE_PAGES, type ManagedPageKey } from "@/lib/access";
 
 type PageDefinition = {
@@ -224,6 +225,13 @@ export function AccountClient({ currentUser, deniedPage, pageAccess }: AccountCl
             <div className="panel rounded-[1.5rem] p-5">
               <div className="eyebrow">Role</div>
               <p className="mt-3 text-lg font-semibold text-[var(--color-foreground)]">{currentUser.isAdmin ? "Admin" : "Member"}</p>
+            </div>
+            <div className="panel rounded-[1.5rem] p-5 flex items-center justify-between">
+              <div>
+                <div className="eyebrow">Session</div>
+                <p className="mt-3 text-sm text-[var(--color-sand-2)]">Log out to end your session</p>
+              </div>
+              <LogoutButton />
             </div>
           </div>
 
