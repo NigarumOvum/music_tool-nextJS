@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { StudioSidebar } from "@/components/music/studio-sidebar";
 
 import {
   Button,
@@ -28,7 +29,6 @@ import {
   Redo2,
   RefreshCw,
   Save,
-  Search,
   Trash2,
   Type,
   Undo2,
@@ -301,16 +301,6 @@ export function SongStudioClient() {
   const layerOriginalNamesRef = useRef<string[]>([]);
   const skipConfirmRef = useRef(false);
   const { isOpen: deleteOpen, onOpen: openDelete, onOpenChange: onDeleteOpenChange, onClose: closeDelete } = useDisclosure();
-
-  const filteredSongs = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return songs;
-    return songs.filter((song) =>
-      [song.title, song.genre, song.language, song.emotion, song.topic]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query)),
-    );
-  }, [search, songs]);
 
   const isDirty = useMemo(() => {
     if (!selectedSong) return false;
@@ -676,78 +666,17 @@ export function SongStudioClient() {
 
   return (
     <div className="page-grid animate-fade-up">
-      <aside className="panel glass-shine rounded-[1.75rem] p-4">
-        <div className="space-y-4">
-          <div>
-            <div className="eyebrow">Library</div>
-            <h2 className="mt-2 text-2xl font-black">Songs</h2>
-            <p className="mt-1 text-xs text-[var(--color-sand-2)]">{songs.length} in workspace</p>
-          </div>
-
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-sand-2)]" />
-            <input
-              className="field pl-10"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void loadLibrary();
-              }}
-              placeholder="Search title, genre, mood..."
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <Button className="bg-[var(--color-copper)] text-white" radius="full" onPress={() => void loadLibrary()}>
-              <RefreshCw className="h-4 w-4" />
-              Refresh
-            </Button>
-            <Button variant="bordered" radius="full" onPress={() => void createDraftSong()}>
-              <Plus className="h-4 w-4" />
-              New
-            </Button>
-          </div>
-
-          <div className="max-h-[68vh] space-y-2 overflow-auto pr-1 stagger-children">
-            {filteredSongs.map((song) => (
-              <div
-                key={song.id}
-                className={`song-list-item group flex items-start gap-2 rounded-[1.25rem] px-3 py-3 ${
-                  selectedSongId === song.id ? "song-list-item-active" : ""
-                }`}
-              >
-                <button
-                  className="min-w-0 flex-1 text-left"
-                  onClick={() => void selectSong(song.id)}
-                  type="button"
-                >
-                  <div className="truncate text-sm font-black text-[var(--color-sand-1)]">{song.title}</div>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {song.genre ? <Chip size="sm" variant="flat">{song.genre}</Chip> : null}
-                    {song.bpm ? <Chip size="sm" variant="flat">{song.bpm} BPM</Chip> : null}
-                  </div>
-                  <div className="mt-1 text-[10px] uppercase tracking-wider text-[var(--color-sand-2)]">
-                    {song.section_count} sections · {song.layer_count} layers
-                  </div>
-                </button>
-                <button
-                  aria-label={`Delete ${song.title}`}
-                  className="glass-pill mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center text-[var(--color-sand-2)] opacity-0 transition hover:text-red-400 group-hover:opacity-100"
-                  onClick={() => confirmDeleteSong(song)}
-                  type="button"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
-            {filteredSongs.length === 0 ? (
-              <div className="rounded-[1.25rem] border border-dashed border-white/10 px-4 py-6 text-center text-sm text-[var(--color-sand-2)]">
-                No songs match your search.
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </aside>
+      <StudioSidebar
+        songs={songs}
+        selectedSongId={selectedSongId}
+        search={search}
+        onSearchChange={setSearch}
+        onSearchSubmit={() => void loadLibrary()}
+        onRefresh={() => void loadLibrary()}
+        onNew={() => void createDraftSong()}
+        onSelectSong={(id) => void selectSong(id)}
+        onDeleteSong={confirmDeleteSong}
+      />
 
       <section className="space-y-5">
         {loading ? (

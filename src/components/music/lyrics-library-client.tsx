@@ -15,13 +15,13 @@ import {
   Book,
   CopyPlus,
   Eraser,
-  Plus,
   Save,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useProductionSong } from "@/components/music/production-song-context";
+import { StudioSidebar } from "@/components/music/studio-sidebar";
 import {
   createSong,
   deleteSong,
@@ -68,15 +68,6 @@ export function LyricsLibraryClient() {
     });
   }, [songs, search, genre, language]);
 
-  const genres = useMemo(
-    () => Array.from(new Set(songs.map((s) => s.genre).filter((g): g is string => Boolean(g)))).sort(),
-    [songs],
-  );
-  const languages = useMemo(
-    () => Array.from(new Set(songs.map((s) => s.language).filter((l): l is string => Boolean(l)))).sort(),
-    [songs],
-  );
-
   const stats = useMemo(() => lyricsStats(selectedSong?.song.lyrics_text ?? ""), [selectedSong]);
 
   function snapshotLyrics(song: MusicSongDetail) {
@@ -105,6 +96,30 @@ export function LyricsLibraryClient() {
       toast.error((error as Error).message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadLibrary() {
+    try {
+      const payload = await fetchSongs();
+      setSongs(payload.songs);
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  }
+
+  async function createNewSong() {
+    try {
+      const response = await createSong({
+        title: "New Song",
+      });
+      toast.success("Song created");
+      await loadLibrary();
+      const listPayload = await fetchSongs();
+      setSongs(listPayload.songs);
+      await loadSong(response.song.song.id);
+    } catch (error) {
+      toast.error((error as Error).message);
     }
   }
 
@@ -237,14 +252,15 @@ export function LyricsLibraryClient() {
     });
   }
 
-  async function removeSong() {
-    if (!selectedSongId) return;
+  async function removeSong(song?: MusicSongSummary) {
+    const songId = song?.id || selectedSongId;
+    if (!songId) return;
     try {
-      await deleteSong(selectedSongId);
+      await deleteSong(songId);
       toast.success("Song deleted");
       const payload = await fetchSongs();
       setSongs(payload.songs);
-      const nextId = payload.songs.find((song) => song.id !== selectedSongId)?.id ?? "";
+      const nextId = payload.songs.find((s) => s.id !== songId)?.id ?? "";
       if (nextId) {
         await loadSong(nextId);
       } else {
@@ -266,52 +282,22 @@ export function LyricsLibraryClient() {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
-      <aside className="panel rounded-[1.75rem] p-4">
-        <div className="eyebrow">Catalog</div>
-        <div className="mt-3 space-y-2">
-          <input
-            className="field"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search title..."
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <select value={genre} onChange={(e) => setGenre(e.target.value)} className="field">
-              <option value="">All genres</option>
-              {genres.map((g) => <option key={g} value={g}>{g}</option>)}
-            </select>
-            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="field">
-              <option value="">All languages</option>
-              {languages.map((l) => <option key={l} value={l}>{l}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="mt-4 text-[10px] font-bold uppercase tracking-widest text-[var(--color-sand-2)]">
-          {filteredSongs.length} of {songs.length} songs
-        </div>
-        <div className="mt-2 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex-col xl:overflow-visible xl:pb-0">
-          {filteredSongs.map((song) => (
-            <button
-              key={song.id}
-              type="button"
-              onClick={() => void loadSong(song.id)}
-              className={`min-w-[220px] rounded-2xl border px-4 py-4 text-left transition xl:w-full xl:min-w-0 ${
-                song.id === selectedSongId
-                  ? "border-[var(--color-copper)] bg-[var(--color-copper)]/10"
-                  : "glass-card-soft hover:-translate-y-0.5"
-              }`}
-            >
-              <div className="font-bold text-[var(--color-foreground)]">{song.title}</div>
-              <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-[var(--color-sand-2)]">
-                {song.genre || "N/A"}
-              </div>
-            </button>
-          ))}
-          {filteredSongs.length === 0 ? (
-            <div className="py-4 text-sm text-[var(--color-sand-2)]">No songs match the filters.</div>
-          ) : null}
-        </div>
-      </aside>
+      <StudioSidebar
+        songs={songs}
+        selectedSongId={selectedSongId}
+        search={search}
+        onSearchChange={setSearch}
+        onSearchSubmit={() => {}}
+        onRefresh={() => void loadLibrary()}
+        onNew={() => void createNewSong()}
+        onSelectSong={(id) => void loadSong(id)}
+        onDeleteSong={(song) => removeSong(song)}
+        catalogMode
+        genre={genre}
+        onGenreChange={setGenre}
+        language={language}
+        onLanguageChange={setLanguage}
+      />
 
       <section className="space-y-6">
         {loading ? (
