@@ -339,7 +339,7 @@ export function ScalesClient() {
                 onChange={(e) => setVoice(e.target.value as KeyboardVoice)}
               >
                 {KEYBOARD_VOICES.map((v) => (
-                  <option key={v} value={v}>{v}</option>
+                  <option key={v.id} value={v.id}>{v.label}</option>
                 ))}
               </select>
               <InfoTooltip
