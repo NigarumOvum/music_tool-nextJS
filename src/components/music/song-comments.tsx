@@ -28,43 +28,50 @@ type SongCommentsProps = {
 };
 
 // Simulated comments storage (in real app, this would be backed by a database)
-const COMMENTS_STORAGE_KEY = "song_comments";
+import { readStored, useCurrentUserId, userKey, writeStored } from "@/lib/persist";
 
-function getComments(): Comment[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(COMMENTS_STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
+const COMMENTS_STORAGE_KEY = "song_comments";
+const COMMENT_AUTHOR_KEY = "comment_author";
+
+function commentsKey(userId: string | null) {
+  return userId ? userKey(userId, COMMENTS_STORAGE_KEY) : COMMENTS_STORAGE_KEY;
 }
 
-function saveComments(comments: Comment[]) {
+function authorKey(userId: string | null) {
+  return userId ? userKey(userId, COMMENT_AUTHOR_KEY) : COMMENT_AUTHOR_KEY;
+}
+
+function getComments(userId: string | null): Comment[] {
+  if (typeof window === "undefined") return [];
+  return readStored<Comment[]>(commentsKey(userId), []);
+}
+
+function saveComments(userId: string | null, comments: Comment[]) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(COMMENTS_STORAGE_KEY, JSON.stringify(comments));
+    writeStored(commentsKey(userId), comments);
   } catch (error) {
     console.error("Failed to save comments:", error);
   }
 }
 
 export function SongComments({ songId, songTitle, isOpen, onClose }: SongCommentsProps) {
+  const userId = useCurrentUserId();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [author, setAuthor] = useState("");
 
   useEffect(() => {
     if (isOpen) {
-      const allComments = getComments();
+      const allComments = getComments(userId);
       const songComments = allComments.filter((c) => c.songId === songId);
       setComments(songComments);
 
       // Load saved author name
-      const savedAuthor = localStorage.getItem("comment_author");
+      const savedAuthor = readStored<string>(authorKey(userId), "");
       if (savedAuthor) setAuthor(savedAuthor);
     }
-  }, [isOpen, songId]);
+  }, [isOpen, songId, userId]);
 
   const handleAddComment = () => {
     if (!newComment.trim()) {
@@ -85,20 +92,20 @@ export function SongComments({ songId, songTitle, isOpen, onClose }: SongComment
       timestamp: new Date().toISOString(),
     };
 
-    const allComments = getComments();
+    const allComments = getComments(userId);
     allComments.push(comment);
-    saveComments(allComments);
+    saveComments(userId, allComments);
 
     setComments([...comments, comment]);
     setNewComment("");
-    localStorage.setItem("comment_author", author.trim());
+    writeStored(authorKey(userId), author.trim());
     toast.success("Comment added");
   };
 
   const handleDeleteComment = (commentId: string) => {
-    const allComments = getComments();
+    const allComments = getComments(userId);
     const filtered = allComments.filter((c) => c.id !== commentId);
-    saveComments(filtered);
+    saveComments(userId, filtered);
 
     const songComments = filtered.filter((c) => c.songId === songId);
     setComments(songComments);

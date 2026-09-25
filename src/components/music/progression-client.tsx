@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { ChordHowToPlay } from "@/components/music/chord-how-to-play";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
+import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
 import { playKeyboardNote, type KeyboardVoice } from "@/lib/music/keyboard-synth";
@@ -91,17 +92,18 @@ function analyzeCadence(progression: Chord[], keyRoot: string): { label: string;
 
 export function ProgressionClient() {
   const { getAudioContext } = useAudio();
-  const [progression, setProgression] = useState<Chord[]>([]);
-  const [root, setRoot] = useState("C");
-  const [quality, setQuality] = useState("Maj");
-  const [keyRoot, setKeyRoot] = useState("C");
-  const [bpm, setBpm] = useState(80);
+  const userId = useCurrentUserId();
+  const [progression, setProgression] = usePersistentState<Chord[]>("progression_chords", [], { userId });
+  const [root, setRoot] = usePersistentState("progression_root", "C", { userId });
+  const [quality, setQuality] = usePersistentState("progression_quality", "Maj", { userId });
+  const [keyRoot, setKeyRoot] = usePersistentState("progression_key", "C", { userId });
+  const [bpm, setBpm] = usePersistentState("progression_bpm", 80, { userId });
   const [isPlaying, setIsPlaying] = useState(false);
-  const [loopPlayback, setLoopPlayback] = useState(false);
-  const [presetCategory, setPresetCategory] = useState<string>("All");
+  const [loopPlayback, setLoopPlayback] = usePersistentState("progression_loop", false, { userId });
+  const [presetCategory, setPresetCategory] = usePersistentState("progression_category", "All", { userId });
   const [activeChordId, setActiveChordId] = useState<string | null>(null);
-  const [keyboardVoice, setKeyboardVoice] = useState<KeyboardVoice>("electric-piano");
-  const [keyboardOctave, setKeyboardOctave] = useState(3);
+  const [keyboardVoice, setKeyboardVoice] = usePersistentState<KeyboardVoice>("progression_voice", "electric-piano", { userId });
+  const [keyboardOctave, setKeyboardOctave] = usePersistentState("progression_octave", 3, { userId });
   const playingRef = useRef(false);
 
   const chordIntervals: Record<string, number[]> = {

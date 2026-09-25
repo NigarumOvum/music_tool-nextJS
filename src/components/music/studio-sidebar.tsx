@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Button, Chip } from "@heroui/react";
 import type { MusicSongSummary } from "@/lib/music/types";
+import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 
 const SIDEBAR_COLLAPSED_KEY = "studio_sidebar_collapsed";
 
@@ -41,20 +41,8 @@ export function StudioSidebar({
   language = "",
   onLanguageChange,
 }: StudioSidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
-
-  // Load collapsed state from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
-    if (saved) {
-      setCollapsed(saved === "true");
-    }
-  }, []);
-
-  // Save collapsed state to localStorage
-  useEffect(() => {
-    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
-  }, [collapsed]);
+  const userId = useCurrentUserId();
+  const [collapsed, setCollapsed] = usePersistentState<boolean>(SIDEBAR_COLLAPSED_KEY, false, { userId });
 
   const filteredSongs = songs.filter((song) => {
     const query = search.trim().toLowerCase();

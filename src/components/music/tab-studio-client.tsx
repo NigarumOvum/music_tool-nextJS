@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { useAudio } from "@/components/music/audio-provider";
 import { useProductionSong } from "@/components/music/production-song-context";
 import { createPartiture, deletePartiture, downloadBlob, fetchPartitures } from "@/lib/music/client";
+import { readStoredRaw, removeStored, useCurrentUserId, userKey, writeStored } from "@/lib/persist";
 import type { MusicPartitureRecord } from "@/lib/music/types";
 import { parseMidiFile, type MidiTrackData, type ParsedMidi } from "@/lib/music/midi-parser";
 import {
@@ -216,13 +217,13 @@ export function TabStudioClient() {
   const [loadingPartitures, setLoadingPartitures] = useState(false);
   const [pastedAscii, setPastedAscii] = useState("");
   const [showPasteImport, setShowPasteImport] = useState(false);
-  const [draftAvailable, setDraftAvailable] = useState(() => {
-    try {
-      return typeof window !== "undefined" && Boolean(window.localStorage.getItem(TAB_DRAFT_KEY));
-    } catch {
-      return false;
-    }
-  });
+  const [draftAvailable, setDraftAvailable] = useState(false);
+  const userId = useCurrentUserId();
+  const draftKey = userId && selectedSongId
+    ? userKey(userId, `tab_studio_draft:${selectedSongId}`)
+    : TAB_DRAFT_KEY;
+  const lastWrittenDraftRef = useRef<string | null>(null);
+  const draftConsumedRef = useRef(false);
 
   // Multi-track MIDI separation state
   const [multiTracks, setMultiTracks] = useState<MultiTrackItem[]>([]);
@@ -438,27 +439,46 @@ export function TabStudioClient() {
     };
   }, [selectedSongId]);
 
+  // Track the stored draft for this song/user. Autosave writes every change
+  // (debounced) unless an untouched draft is waiting for restore/discard.
+  useEffect(() => {
+    draftConsumedRef.current = false;
+    const raw = readStoredRaw(draftKey);
+    lastWrittenDraftRef.current = raw;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDraftAvailable(Boolean(raw));
+  }, [draftKey]);
+
+  const draftSnapshot = useMemo(
+    () => JSON.stringify({ grid, columnCount, instrument, tuningId, bpm }),
+    [grid, columnCount, instrument, tuningId, bpm],
+  );
+
+  useEffect(() => {
+    if (draftAvailable && !draftConsumedRef.current) return;
+    if (lastWrittenDraftRef.current === draftSnapshot) return;
+    const timer = window.setTimeout(() => {
+      writeStored(draftKey, JSON.parse(draftSnapshot));
+      lastWrittenDraftRef.current = draftSnapshot;
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [draftSnapshot, draftKey, draftAvailable]);
+
   // Studio exit confirmation ("Save & exit") flushes a local draft of the grid.
   useEffect(() => {
     const flushDraft = () => {
-      try {
-        localStorage.setItem(
-          TAB_DRAFT_KEY,
-          JSON.stringify({ grid, columnCount, instrument, tuningId, bpm, songId: selectedSongId, at: Date.now() }),
-        );
-        setDraftAvailable(true);
-        toast.success("Tab draft saved locally");
-      } catch {
-        toast.error("Could not save local draft");
-      }
+      writeStored(draftKey, JSON.parse(draftSnapshot));
+      lastWrittenDraftRef.current = draftSnapshot;
+      setDraftAvailable(true);
+      toast.success("Tab draft saved locally");
     };
     window.addEventListener("production-studio:save-request", flushDraft);
     return () => window.removeEventListener("production-studio:save-request", flushDraft);
-  }, [grid, columnCount, instrument, tuningId, bpm, selectedSongId]);
+  }, [draftSnapshot, draftKey]);
 
   function restoreDraft() {
     try {
-      const raw = localStorage.getItem(TAB_DRAFT_KEY);
+      const raw = readStoredRaw(draftKey);
       if (!raw) return;
       const draft = JSON.parse(raw) as { grid?: GridRow[]; bpm?: number };
       if (!Array.isArray(draft.grid) || draft.grid.length === 0) {
@@ -479,18 +499,18 @@ export function TabStudioClient() {
       setColumnCount(cols);
       if (typeof draft.bpm === "number" && draft.bpm >= 40 && draft.bpm <= 260) setBpm(draft.bpm);
       setMultiTracks([]);
-      toast.success("Draft restored");
+      draftConsumedRef.current = true;
+      setDraftAvailable(false);
+      toast.success("Draft restored — changes keep autosaving");
     } catch {
       toast.error("Could not restore draft");
     }
   }
 
   function discardDraft() {
-    try {
-      localStorage.removeItem(TAB_DRAFT_KEY);
-    } catch {
-      // ignore
-    }
+    removeStored(draftKey);
+    lastWrittenDraftRef.current = draftSnapshot;
+    draftConsumedRef.current = true;
     setDraftAvailable(false);
     toast.message("Draft discarded");
   }
@@ -961,7 +981,7 @@ export function TabStudioClient() {
       {draftAvailable && (
         <div className="panel flex flex-wrap items-center justify-between gap-2 rounded-[1.25rem] border border-[var(--color-brass)]/30 bg-[var(--color-brass)]/5 p-3">
           <p className="text-xs text-[var(--color-sand-1)]">
-            A locally saved tab draft is available from your last session.
+            Unsaved tab changes were autosaved locally. Restore the draft or discard it.
           </p>
           <div className="flex gap-2">
             <button

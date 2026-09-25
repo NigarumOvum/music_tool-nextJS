@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 
 import { useProductionSong } from "@/components/music/production-song-context";
+import { readStoredRaw, removeStored, useCurrentUserId, userKey, writeStored } from "@/lib/persist";
 import { StudioSidebar } from "@/components/music/studio-sidebar";
 import {
   createSong,
@@ -53,6 +54,10 @@ export function LyricsLibraryClient() {
   const [language, setLanguage] = useState("");
   const [dirty, setDirty] = useState(false);
   const savedSnapshotRef = useRef("");
+  const userId = useCurrentUserId();
+  const [lyricsDraftAvailable, setLyricsDraftAvailable] = useState(false);
+  const discardedLyricsRef = useRef<string | null>(null);
+  const lyricsDraftKey = userId && selectedSongId ? userKey(userId, `lyrics_draft:${selectedSongId}`) : null;
 
   const { isOpen: deleteOpen, onOpenChange: onDeleteOpenChange, onOpen: openDelete, onClose: closeDelete } = useDisclosure();
 
@@ -166,6 +171,72 @@ export function LyricsLibraryClient() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
+
+  // Autosave unsaved lyrics locally (per user + song); clean up once saved.
+  useEffect(() => {
+    if (!lyricsDraftKey) return;
+    if (!selectedSong || !dirty) {
+      if (!selectedSong) return;
+      removeStored(lyricsDraftKey);
+      return;
+    }
+    const snapshot = snapshotLyrics(selectedSong);
+    if (snapshot === discardedLyricsRef.current) return;
+    const timer = window.setTimeout(
+      () => writeStored(lyricsDraftKey, { snapshot, at: Date.now() }),
+      800,
+    );
+    return () => window.clearTimeout(timer);
+  }, [selectedSong, dirty, lyricsDraftKey]);
+
+  // Surface a restore banner when a local draft differs from the server version.
+  useEffect(() => {
+    discardedLyricsRef.current = null;
+    let available = false;
+    try {
+      if (lyricsDraftKey && savedSnapshotRef.current) {
+        const raw = readStoredRaw(lyricsDraftKey);
+        if (raw) {
+          const draft = JSON.parse(raw) as { snapshot?: string };
+          available = Boolean(draft.snapshot) && draft.snapshot !== savedSnapshotRef.current;
+        }
+      }
+    } catch {
+      available = false;
+    }
+    setLyricsDraftAvailable(available);
+  }, [lyricsDraftKey, selectedSongId]);
+
+  function restoreLyricsDraft() {
+    if (!lyricsDraftKey || !selectedSong) return;
+    try {
+      const raw = readStoredRaw(lyricsDraftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as { snapshot?: { lyrics?: string; structure?: string } | string };
+      const parsed = typeof draft.snapshot === "string" ? JSON.parse(draft.snapshot) : draft.snapshot;
+      if (!parsed) return;
+      setSelectedSong({
+        ...selectedSong,
+        song: {
+          ...selectedSong.song,
+          lyrics_text: parsed.lyrics ?? selectedSong.song.lyrics_text,
+          structure_text: parsed.structure ?? selectedSong.song.structure_text,
+        },
+      });
+      discardedLyricsRef.current = null;
+      setLyricsDraftAvailable(false);
+      toast.success("Draft restored — keep editing, it keeps autosaving");
+    } catch {
+      toast.error("Could not restore draft");
+    }
+  }
+
+  function discardLyricsDraft() {
+    if (lyricsDraftKey) removeStored(lyricsDraftKey);
+    discardedLyricsRef.current = selectedSong ? snapshotLyrics(selectedSong) : null;
+    setLyricsDraftAvailable(false);
+    toast.message("Draft discarded");
+  }
 
   // persistSectionText function - Kept for reuse later (Song Sections moved to Song Studio)
   // async function persistSectionText(index: number, text: string) {
@@ -300,6 +371,29 @@ export function LyricsLibraryClient() {
       />
 
       <section className="space-y-6">
+        {lyricsDraftAvailable && selectedSong ? (
+          <div className="panel flex flex-wrap items-center justify-between gap-2 rounded-[1.25rem] border border-[var(--color-brass)]/30 bg-[var(--color-brass)]/5 p-3">
+            <p className="text-xs text-[var(--color-sand-1)]">
+              Unsaved lyrics were autosaved locally. Restore the draft or discard it.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={restoreLyricsDraft}
+                className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+              >
+                Restore draft
+              </button>
+              <button
+                type="button"
+                onClick={discardLyricsDraft}
+                className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        ) : null}
         {loading ? (
           <div className="panel flex min-h-[320px] items-center justify-center rounded-[1.75rem] p-6">
             <Spinner color="danger" />

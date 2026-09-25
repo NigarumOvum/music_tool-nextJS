@@ -7,7 +7,8 @@ import { CollapsibleCard } from "@/components/collapsible-card";
 import { InfoTooltip } from "@/components/info-tooltip";
 import { ChordHowToPlay } from "@/components/music/chord-how-to-play";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
-import { ScaleInstrumentVisuals, ScaleTheory } from "@/components/music/scale-visuals";
+import { ScaleInstrumentVisuals, ScaleTheory, NoteButtons, ScaleTypeButtons } from "@/components/music/scale-visuals";
+import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
 import { KEYBOARD_VOICES, playKeyboardNote, playKeyboardNotes, type KeyboardVoice } from "@/lib/music/keyboard-synth";
@@ -139,14 +140,15 @@ function romanNumeral(degree: number, quality: string) {
 
 export function TheoryLabClient() {
   const { getAudioContext } = useAudio();
-  const [scaleRoot, setScaleRoot] = useState("C");
-  const [chordRoot, setChordRoot] = useState("C");
-  const [scaleType, setScaleType] = useState("Major");
-  const [chordType, setChordType] = useState("Major");
-  const [inversion, setInversion] = useState(0);
-  const [highlightMode, setHighlightMode] = useState<"scale" | "chord" | "none">("scale");
-  const [keyboardVoice, setKeyboardVoice] = useState<KeyboardVoice>("piano");
-  const [keyboardOctave, setKeyboardOctave] = useState(4);
+  const userId = useCurrentUserId();
+  const [scaleRoot, setScaleRoot] = usePersistentState("theory_scale_root", "C", { userId });
+  const [chordRoot, setChordRoot] = usePersistentState("theory_chord_root", "C", { userId });
+  const [scaleType, setScaleType] = usePersistentState("theory_scale_type", "Major", { userId });
+  const [chordType, setChordType] = usePersistentState("theory_chord_type", "Major", { userId });
+  const [inversion, setInversion] = usePersistentState("theory_inversion", 0, { userId });
+  const [highlightMode, setHighlightMode] = usePersistentState<"scale" | "chord" | "none">("theory_highlight", "scale", { userId });
+  const [keyboardVoice, setKeyboardVoice] = usePersistentState<KeyboardVoice>("theory_voice", "piano", { userId });
+  const [keyboardOctave, setKeyboardOctave] = usePersistentState("theory_octave", 4, { userId });
   const [scaleSearch, setScaleSearch] = useState("");
 
   const playFrequency = (frequency: number) => {
@@ -256,21 +258,20 @@ export function TheoryLabClient() {
         }
       >
         <div className="space-y-5">
-          <div className="flex flex-wrap gap-2">
-            <div className="flex flex-1 items-center gap-2">
-              <select value={scaleRoot} onChange={(e) => setScaleRoot(e.target.value)} className="field flex-1">
-                {CHROMATIC.map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="field-label">Root note</span>
               <InfoTooltip
                 content="Select the root note (starting note) for the scale."
                 position="top"
                 size="sm"
               />
             </div>
-            <div className="flex flex-[2] items-center gap-2">
-              <select value={scaleType} onChange={(e) => setScaleType(e.target.value)} className="field flex-[2]">
-                {filteredScaleTypes.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+            <NoteButtons value={scaleRoot} onChange={setScaleRoot} ariaLabel="Select scale root note" />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="field-label">Scale type</span>
               <InfoTooltip
                 content="Choose from 13 different scale types. Each has a unique interval pattern that creates its characteristic sound."
                 position="top"
@@ -278,11 +279,12 @@ export function TheoryLabClient() {
               />
             </div>
             <input
-              className="field min-w-[140px] flex-1"
+              className="field w-full sm:max-w-[240px]"
               placeholder="Search scales..."
               value={scaleSearch}
               onChange={(e) => setScaleSearch(e.target.value)}
             />
+            <ScaleTypeButtons types={filteredScaleTypes} value={scaleType} onChange={setScaleType} />
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -391,21 +393,23 @@ export function TheoryLabClient() {
         }
       >
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <div className="flex flex-1 items-center gap-2">
-              <select
-                value={chordRoot}
-                onChange={(e) => { setChordRoot(e.target.value); setInversion(0); }}
-                className="field flex-1"
-              >
-                {CHROMATIC.map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="field-label">Chord root note</span>
               <InfoTooltip
                 content="Select the root note (bass note) for the chord."
                 position="top"
                 size="sm"
               />
             </div>
+            <NoteButtons
+              value={chordRoot}
+              onChange={(note) => { setChordRoot(note); setInversion(0); }}
+              accent="berry"
+              ariaLabel="Select chord root note"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
             <div className="flex flex-[2] items-center gap-2">
               <select
                 value={chordType}

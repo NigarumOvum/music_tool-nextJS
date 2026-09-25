@@ -5,6 +5,7 @@ import { Activity, FastForward, Flame, Guitar, Hand, Mic, MicOff, Play, Sliders,
 
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
+import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { useAudio } from "@/components/music/audio-provider";
 import { detectPitchAutocorrelation, type PitchDetection } from "@/lib/music/pitch";
 import { playReferencePluck, type PluckInstrument } from "@/lib/music/instrument-synth";
@@ -57,14 +58,15 @@ function isAccentBeat(beat: number, sig: (typeof TIME_SIGNATURES)[number]): bool
 
 export function HelpersClient() {
   const { getAudioContext } = useAudio();
-  const [bpm, setBpm] = useState(120);
+  const userId = useCurrentUserId();
+  const [bpm, setBpm] = usePersistentState("helpers_bpm", 120, { userId });
   const [isPlaying, setIsPlaying] = useState(false);
-  const [timeSignature, setTimeSignature] = useState<(typeof TIME_SIGNATURES)[number]>("4/4");
-  const [subdivision, setSubdivision] = useState<1 | 2 | 3 | 4 | 6>(1);
-  const [soundType, setSoundType] = useState<MetronomeSoundType>("digital");
+  const [timeSignature, setTimeSignature] = usePersistentState<(typeof TIME_SIGNATURES)[number]>("helpers_signature", "4/4", { userId });
+  const [subdivision, setSubdivision] = usePersistentState<1 | 2 | 3 | 4 | 6>("helpers_subdivision", 1, { userId });
+  const [soundType, setSoundType] = usePersistentState<MetronomeSoundType>("helpers_sound", "digital", { userId });
   const [beatCount, setBeatCount] = useState(0);
-  const [clickVolume, setClickVolume] = useState(0.75);
-  const [countInBars, setCountInBars] = useState(0);
+  const [clickVolume, setClickVolume] = usePersistentState("helpers_click_volume", 0.75, { userId });
+  const [countInBars, setCountInBars] = usePersistentState("helpers_count_in", 0, { userId });
   const [tapTimes, setTapTimes] = useState<number[]>([]);
   const [accentFlash, setAccentFlash] = useState(false);
 
@@ -79,11 +81,11 @@ export function HelpersClient() {
   const [gapPlayBars, setGapPlayBars] = useState(3);
   const [gapMuteBars, setGapMuteBars] = useState(1);
 
-  const [instrumentMode, setInstrumentMode] = useState<InstrumentMode>("guitar");
-  const [bassStringCount, setBassStringCount] = useState<BassStringCount>(4);
-  const [showExtendedBass, setShowExtendedBass] = useState(false);
-  const [tuningId, setTuningId] = useState(GUITAR_TUNINGS[0].id);
-  const [pluckVoice, setPluckVoice] = useState<PluckInstrument>("guitar-steel");
+  const [instrumentMode, setInstrumentMode] = usePersistentState<InstrumentMode>("helpers_instrument", "guitar", { userId });
+  const [bassStringCount, setBassStringCount] = usePersistentState<BassStringCount>("helpers_bass_strings", 4, { userId });
+  const [showExtendedBass, setShowExtendedBass] = usePersistentState("helpers_extended_bass", false, { userId });
+  const [tuningId, setTuningId] = usePersistentState("helpers_tuning", GUITAR_TUNINGS[0].id, { userId });
+  const [pluckVoice, setPluckVoice] = usePersistentState<PluckInstrument>("helpers_pluck", "guitar-steel", { userId });
   const [activeStringLabel, setActiveStringLabel] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [detectedPitch, setDetectedPitch] = useState<PitchDetection | null>(null);

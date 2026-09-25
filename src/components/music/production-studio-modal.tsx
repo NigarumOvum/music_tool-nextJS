@@ -21,6 +21,7 @@ import {
 import { Spinner } from "@heroui/react";
 
 import { useProductionSong } from "@/components/music/production-song-context";
+import { useCurrentUserId, usePersistentState, userKey, writeStored } from "@/lib/persist";
 import type { MusicSongSummary, MusicProjectRecord } from "@/lib/music/types";
 
 const tabLoaders = {
@@ -57,29 +58,16 @@ export function ProductionStudioModal({
   onClose,
 }: ProductionStudioModalProps) {
   const { selectedSongId, setSelectedSongId } = useProductionSong();
+  const userId = useCurrentUserId();
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [secondaryTab, setSecondaryTab] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSplitView, setIsSplitView] = useState(false);
-  const [pinnedTabs, setPinnedTabs] = useState<Set<string>>(new Set());
+  const [pinnedTabIds, setPinnedTabIds] = usePersistentState<string[]>("studio_pinned_tabs", [], { userId });
+  const pinnedTabs = useMemo(() => new Set(pinnedTabIds), [pinnedTabIds]);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
-  // Load pinned tabs from localStorage
-  useEffect(() => {
-    const savedPinnedTabs = localStorage.getItem("studio_pinned_tabs");
-    if (savedPinnedTabs) {
-      try {
-        setPinnedTabs(new Set(JSON.parse(savedPinnedTabs)));
-      } catch (error) {
-        console.error("Failed to load pinned tabs:", error);
-      }
-    }
-  }, []);
-
-  // Save pinned tabs to localStorage
-  useEffect(() => {
-    localStorage.setItem("studio_pinned_tabs", JSON.stringify(Array.from(pinnedTabs)));
-  }, [pinnedTabs]);
+  // Pinned tabs persist automatically per user via usePersistentState.
 
   const toggleSplitView = useCallback(() => {
     setIsSplitView(!isSplitView);
@@ -95,16 +83,10 @@ export function ProductionStudioModal({
   }, [isFullscreen]);
 
   const togglePinTab = useCallback((tabId: string) => {
-    setPinnedTabs(prev => {
-      const newPinned = new Set(prev);
-      if (newPinned.has(tabId)) {
-        newPinned.delete(tabId);
-      } else {
-        newPinned.add(tabId);
-      }
-      return newPinned;
-    });
-  }, []);
+    setPinnedTabIds((prev) =>
+      prev.includes(tabId) ? prev.filter((id) => id !== tabId) : [...prev, tabId],
+    );
+  }, [setPinnedTabIds]);
 
   useEffect(() => {
     if (initialTab) {
@@ -113,6 +95,7 @@ export function ProductionStudioModal({
   }, [initialTab]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (isOpen) setShowExitConfirm(false);
   }, [isOpen]);
 
@@ -124,9 +107,9 @@ export function ProductionStudioModal({
     if (save) {
       try {
         window.dispatchEvent(new CustomEvent("production-studio:save-request"));
-        localStorage.setItem(
-          "studio_last_session",
-          JSON.stringify({ songId: selectedSongId, tab: activeTab, at: Date.now() }),
+        writeStored(
+          userId ? userKey(userId, "studio_last_session") : "studio_last_session",
+          { songId: selectedSongId, tab: activeTab, at: Date.now() },
         );
       } catch {
         // storage unavailable — still exit
@@ -134,7 +117,7 @@ export function ProductionStudioModal({
     }
     setShowExitConfirm(false);
     onClose();
-  }, [activeTab, onClose, selectedSongId]);
+  }, [activeTab, onClose, selectedSongId, userId]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

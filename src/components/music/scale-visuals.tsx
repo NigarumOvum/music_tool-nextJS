@@ -24,6 +24,89 @@ export function scaleInstrumentLabel(id: ScaleInstrumentId): string {
   return AVAILABLE_INSTRUMENTS.find((item) => item.id === id)?.label ?? id;
 }
 
+function activeButtonTone(accent: "brass" | "berry") {
+  return accent === "berry"
+    ? "border-[var(--color-berry)] bg-[var(--color-berry)] text-white shadow-md"
+    : "border-[var(--color-brass)] bg-[var(--color-brass)] text-black shadow-md";
+}
+
+/** All 12 chromatic notes as tap-friendly buttons (replaces root-note dropdowns). */
+export function NoteButtons({
+  value,
+  onChange,
+  accent = "brass",
+  ariaLabel = "Select root note",
+}: {
+  value: string;
+  onChange: (note: string) => void;
+  accent?: "brass" | "berry";
+  ariaLabel?: string;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label={ariaLabel}>
+      {CHROMATIC.map((note) => {
+        const active = value === note;
+        const isSharp = note.includes("#");
+        return (
+          <button
+            key={note}
+            type="button"
+            onClick={() => onChange(note)}
+            aria-pressed={active}
+            title={note}
+            className={`min-w-10 rounded-xl border px-2.5 py-1.5 text-xs font-black transition active:scale-95 ${
+              active
+                ? activeButtonTone(accent)
+                : isSharp
+                  ? "border-white/10 bg-zinc-900/70 text-[var(--color-sand-1)] hover:border-white/30 hover:text-white"
+                  : "border-white/10 bg-white/5 text-[var(--color-foreground)] hover:border-white/30"
+            }`}
+          >
+            {note}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** All scale types as buttons (replaces the scale-type dropdown). */
+export function ScaleTypeButtons({
+  types,
+  value,
+  onChange,
+}: {
+  types: string[];
+  value: string;
+  onChange: (scaleType: string) => void;
+}) {
+  if (types.length === 0) {
+    return <p className="text-xs text-[var(--color-sand-2)]">No scale types match your search.</p>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Select scale type">
+      {types.map((scaleType) => {
+        const active = value === scaleType;
+        return (
+          <button
+            key={scaleType}
+            type="button"
+            onClick={() => onChange(scaleType)}
+            aria-pressed={active}
+            className={`rounded-xl border px-3 py-1.5 text-[11px] font-black transition active:scale-95 ${
+              active
+                ? "border-[var(--color-brass)] bg-[var(--color-brass)] text-black shadow-md"
+                : "border-white/10 bg-white/5 text-[var(--color-sand-1)] hover:border-[var(--color-brass)]/50 hover:text-[var(--color-foreground)]"
+            }`}
+          >
+            {scaleType}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function GuitarFretboard({ notes, root }: { notes: string[]; root: string }) {
   const strings = ["E", "A", "D", "G", "B", "E"];
   const frets = 12;

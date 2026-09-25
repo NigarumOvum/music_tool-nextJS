@@ -19,6 +19,7 @@ import { toast } from "sonner";
 
 import { useAudio } from "@/components/music/audio-provider";
 import { useProductionSong } from "@/components/music/production-song-context";
+import { readStoredRaw, useCurrentUserId, userKey, writeStored } from "@/lib/persist";
 import { createPartiture } from "@/lib/music/client";
 import {
   midiNoteName,
@@ -327,6 +328,35 @@ export function DawClient() {
   const [currentTime, setCurrentTime] = useState(0);
   const [sessionBpm, setSessionBpm] = useState(120);
   const [audioDurations, setAudioDurations] = useState<Record<string, number>>({});
+  const userId = useCurrentUserId();
+  const sessionKey = userId ? userKey(userId, DAW_STORAGE_KEY) : DAW_STORAGE_KEY;
+
+  function applyStoredSession(raw: string | null) {
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as StoredDawSession;
+    if (Array.isArray(parsed.layers)) {
+      setLayers(parsed.layers.map((layer) => ({
+        ...layer,
+        midiTrackIndex: layer.midiTrackIndex ?? 0,
+      })));
+    }
+    if (Array.isArray(parsed.assets)) {
+      setAssets(parsed.assets.map((asset) => ({ ...asset })));
+    }
+    if (parsed.midiClips) {
+      const restored: Record<string, ParsedMidi> = {};
+      for (const [assetId, stored] of Object.entries(parsed.midiClips)) {
+        restored[assetId] = restoreMidiClip(stored);
+      }
+      setMidiClips(restored);
+    }
+    if (parsed.selectedAssetId) {
+      setSelectedAssetId(parsed.selectedAssetId);
+    }
+    if (parsed.bpm) {
+      setSessionBpm(parsed.bpm);
+    }
+  }
 
   const sessionDuration = useMemo(() => {
     let max = 8;
@@ -388,37 +418,28 @@ export function DawClient() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(DAW_STORAGE_KEY) || localStorage.getItem("music-tool-daw-session-v1");
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as StoredDawSession;
-      if (Array.isArray(parsed.layers)) {
-        setLayers(parsed.layers.map((layer) => ({
-          ...layer,
-          midiTrackIndex: layer.midiTrackIndex ?? 0,
-        })));
-      }
-      if (Array.isArray(parsed.assets)) {
-        setAssets(parsed.assets.map((asset) => ({ ...asset })));
-      }
-      if (parsed.midiClips) {
-        const restored: Record<string, ParsedMidi> = {};
-        for (const [assetId, stored] of Object.entries(parsed.midiClips)) {
-          restored[assetId] = restoreMidiClip(stored);
-        }
-        setMidiClips(restored);
-      }
-      if (parsed.selectedAssetId) {
-        setSelectedAssetId(parsed.selectedAssetId);
-      }
-      if (parsed.bpm) {
-        setSessionBpm(parsed.bpm);
-      }
+      // Legacy global session first (instant first paint, migrates old users).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      applyStoredSession(
+        readStoredRaw(DAW_STORAGE_KEY) ?? readStoredRaw("music-tool-daw-session-v1"),
+      );
     } catch {
       // Ignore invalid stored sessions.
     } finally {
       hydratedRef.current = true;
     }
   }, []);
+
+  // Adopt the per-user session once the login is known.
+  useEffect(() => {
+    if (!userId || !hydratedRef.current) return;
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      applyStoredSession(readStoredRaw(userKey(userId, DAW_STORAGE_KEY)));
+    } catch {
+      // Ignore invalid stored sessions.
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (!hydratedRef.current) return;
@@ -431,8 +452,8 @@ export function DawClient() {
       selectedAssetId,
       bpm: sessionBpm,
     };
-    localStorage.setItem(DAW_STORAGE_KEY, JSON.stringify(payload));
-  }, [assets, layers, midiClips, selectedAssetId, sessionBpm]);
+    writeStored(sessionKey, payload);
+  }, [assets, layers, midiClips, selectedAssetId, sessionBpm, sessionKey]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

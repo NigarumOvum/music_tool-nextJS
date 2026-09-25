@@ -31,6 +31,7 @@ import {
 import { toast } from "sonner";
 
 import { useProductionSong } from "@/components/music/production-song-context";
+import { readStoredRaw, removeStored, useCurrentUserId, userKey, writeStored } from "@/lib/persist";
 import {
   createPartiture,
   createSong,
@@ -222,6 +223,11 @@ export function SongStudioClient() {
   const [partitures, setPartitures] = useState<EditablePartiture[]>([]);
   const [addInstrument, setAddInstrument] = useState<PartitureInstrumentId>("guitar");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const userId = useCurrentUserId();
+  const [songDraftAvailable, setSongDraftAvailable] = useState(false);
+  const songDraftConsumedRef = useRef(false);
+  const discardedSnapshotRef = useRef<string | null>(null);
+  const songDraftKey = userId && selectedSongId ? userKey(userId, `song_studio_draft:${selectedSongId}`) : null;
 
   const bootedRef = useRef(false);
   const historyRef = useRef<string[]>([]);
@@ -376,6 +382,69 @@ export function SongStudioClient() {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
+
+  // Autosave unsaved song edits locally (per user + song); clean up once saved.
+  useEffect(() => {
+    if (!songDraftKey) return;
+    if (!selectedSong || !isDirty) {
+      if (!selectedSong) return;
+      removeStored(songDraftKey);
+      return;
+    }
+    const snapshot = JSON.stringify(selectedSong);
+    if (snapshot === discardedSnapshotRef.current) return;
+    const timer = window.setTimeout(
+      () => writeStored(songDraftKey, { snapshot, at: Date.now() }),
+      800,
+    );
+    return () => window.clearTimeout(timer);
+  }, [selectedSong, isDirty, songDraftKey]);
+
+  // Surface a restore banner when a local draft differs from the server version.
+  useEffect(() => {
+    songDraftConsumedRef.current = false;
+    discardedSnapshotRef.current = null;
+    let available = false;
+    try {
+      if (songDraftKey && savedSnapshot) {
+        const raw = readStoredRaw(songDraftKey);
+        if (raw) {
+          const draft = JSON.parse(raw) as { snapshot?: string };
+          available = Boolean(draft.snapshot) && draft.snapshot !== savedSnapshot;
+        }
+      }
+    } catch {
+      available = false;
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSongDraftAvailable(available);
+  }, [songDraftKey, savedSnapshot]);
+
+  function restoreSongDraft() {
+    if (!songDraftKey) return;
+    try {
+      const raw = readStoredRaw(songDraftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as { snapshot?: string };
+      if (!draft.snapshot) return;
+      pushHistory();
+      setSelectedSong(JSON.parse(draft.snapshot) as MusicSongDetail);
+      songDraftConsumedRef.current = true;
+      discardedSnapshotRef.current = null;
+      setSongDraftAvailable(false);
+      toast.success("Draft restored — keep editing, it keeps autosaving");
+    } catch {
+      toast.error("Could not restore draft");
+    }
+  }
+
+  function discardSongDraft() {
+    if (songDraftKey) removeStored(songDraftKey);
+    discardedSnapshotRef.current = selectedSong ? JSON.stringify(selectedSong) : null;
+    songDraftConsumedRef.current = true;
+    setSongDraftAvailable(false);
+    toast.message("Draft discarded");
+  }
 
   async function saveSongFields() {
     if (!selectedSong) return;
@@ -549,6 +618,29 @@ export function SongStudioClient() {
       />
 
       <section className="space-y-5">
+        {songDraftAvailable && selectedSong ? (
+          <div className="panel flex flex-wrap items-center justify-between gap-2 rounded-[1.25rem] border border-[var(--color-brass)]/30 bg-[var(--color-brass)]/5 p-3">
+            <p className="text-xs text-[var(--color-sand-1)]">
+              Unsaved song changes were autosaved locally. Restore the draft or discard it.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={restoreSongDraft}
+                className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+              >
+                Restore draft
+              </button>
+              <button
+                type="button"
+                onClick={discardSongDraft}
+                className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        ) : null}
         {loading ? (
           <div className="panel flex min-h-[360px] items-center justify-center rounded-[1.75rem] p-6">
             <Spinner color="warning" />

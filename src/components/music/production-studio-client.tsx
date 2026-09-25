@@ -58,6 +58,7 @@ import {
 } from "@/lib/music/client";
 import type { MusicSongSummary, MusicProjectRecord } from "@/lib/music/types";
 import { INSTRUMENT_FILTER_PRESETS } from "@/lib/music/instruments";
+import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 
 type ProductionStudioClientProps = {
   allowedTabs: Array<{ id: string; label: string }>;
@@ -187,17 +188,18 @@ const SONG_TEMPLATES = [
 
 function ProductionStudioDashboard() {
   const { setSelectedSongId, refreshSongs } = useProductionSong();
+  const userId = useCurrentUserId();
   const [songs, setSongs] = useState<MusicSongSummary[]>([]);
   const [projects, setProjects] = useState<MusicProjectRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedGenre, setSelectedGenre] = useState<string>("all");
-  const [selectedKey, setSelectedKey] = useState<string>("all");
-  const [selectedEmotion, setSelectedEmotion] = useState<string>("all");
-  const [selectedMood, setSelectedMood] = useState<string>("all");
-  const [selectedProjectSlug, setSelectedProjectSlug] = useState<string>("all");
-  const [selectedInstrument, setSelectedInstrument] = useState<string>("all");
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [selectedGenre, setSelectedGenre] = usePersistentState<string>("production_studio_genre_filter", "all", { userId });
+  const [selectedKey, setSelectedKey] = usePersistentState<string>("production_studio_key_filter", "all", { userId });
+  const [selectedEmotion, setSelectedEmotion] = usePersistentState<string>("production_studio_emotion_filter", "all", { userId });
+  const [selectedMood, setSelectedMood] = usePersistentState<string>("production_studio_mood_filter", "all", { userId });
+  const [selectedProjectSlug, setSelectedProjectSlug] = usePersistentState<string>("production_studio_project_filter", "all", { userId });
+  const [selectedInstrument, setSelectedInstrument] = usePersistentState<string>("production_studio_instrument_filter", "all", { userId });
+  const [showAdvancedFilters, setShowAdvancedFilters] = usePersistentState<boolean>("production_studio_advanced_filters", false, { userId });
 
   // Modals state
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
@@ -225,12 +227,12 @@ function ProductionStudioDashboard() {
   const [commentsSong, setCommentsSong] = useState<{ id: string; title: string } | null>(null);
 
   // Tags state
-  const [songTags, setSongTags] = useState<Record<string, string[]>>({});
+  const [songTags, setSongTags] = usePersistentState<Record<string, string[]>>("song_tags", {}, { userId });
   const [tagModalSong, setTagModalSong] = useState<MusicSongSummary | null>(null);
   const [newTag, setNewTag] = useState("");
 
   // Filter presets state
-  const [filterPresets, setFilterPresets] = useState<Array<{ id: string; name: string; filters: { genre: string; key: string; emotion: string; mood: string; project: string; instrument: string } }>>([]);
+  const [filterPresets, setFilterPresets] = usePersistentState<Array<{ id: string; name: string; filters: { genre: string; key: string; emotion: string; mood: string; project: string; instrument: string } }>>("filter_presets", [], { userId });
   const [showPresetModal, setShowPresetModal] = useState(false);
   const [newPresetName, setNewPresetName] = useState("");
 
@@ -239,80 +241,28 @@ function ProductionStudioDashboard() {
   const [commandSearch, setCommandSearch] = useState("");
 
   // Sidebar state
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = usePersistentState<boolean>("production_studio_sidebar_open", false, { userId });
   const [selectedSongForSidebar, setSelectedSongForSidebar] = useState<MusicSongSummary | null>(null);
 
   // Search suggestions state
   const [searchFocused, setSearchFocused] = useState(false);
 
   // Accessibility state
-  const [reducedMotion, setReducedMotion] = useState(false);
-  const [highContrast, setHighContrast] = useState(false);
+  const [reducedMotion, setReducedMotion] = usePersistentState<boolean>("production_studio_reduced_motion", false, { userId });
+  const [highContrast, setHighContrast] = usePersistentState<boolean>("production_studio_high_contrast", false, { userId });
 
   // Drag and drop state
   const [draggedSong, setDraggedSong] = useState<string | null>(null);
 
   // Layout state
-  const [viewMode, setViewMode] = useState<"grid" | "kanban" | "compact">("grid");
+  const [viewMode, setViewMode] = usePersistentState<"grid" | "kanban" | "compact">("production_studio_view_mode", "grid", { userId });
 
-  // Load persisted preferences on mount
+  // System accessibility preference (applies on top of the saved choice)
   useEffect(() => {
-    const savedViewMode = localStorage.getItem("production_studio_view_mode");
-    if (savedViewMode && ["grid", "kanban", "compact"].includes(savedViewMode)) {
-      setViewMode(savedViewMode as "grid" | "kanban" | "compact");
-    }
-
-    const savedGenre = localStorage.getItem("production_studio_genre_filter");
-    if (savedGenre) setSelectedGenre(savedGenre);
-
-    const savedKey = localStorage.getItem("production_studio_key_filter");
-    if (savedKey) setSelectedKey(savedKey);
-
-    const savedInstrument = localStorage.getItem("production_studio_instrument_filter");
-    if (savedInstrument) setSelectedInstrument(savedInstrument);
-
-    // Load song tags
-    const savedTags = localStorage.getItem("song_tags");
-    if (savedTags) {
-      try {
-        setSongTags(JSON.parse(savedTags));
-      } catch (error) {
-        console.error("Failed to load song tags:", error);
-      }
-    }
-
-    // Load filter presets
-    const savedPresets = localStorage.getItem("filter_presets");
-    if (savedPresets) {
-      try {
-        setFilterPresets(JSON.parse(savedPresets));
-      } catch (error) {
-        console.error("Failed to load filter presets:", error);
-      }
-    }
-
-    // Load sidebar state
-    const savedSidebarOpen = localStorage.getItem("production_studio_sidebar_open");
-    if (savedSidebarOpen) {
-      setIsSidebarOpen(savedSidebarOpen === "true");
-    }
-
-    // Load accessibility preferences
-    const savedReducedMotion = localStorage.getItem("production_studio_reduced_motion");
-    if (savedReducedMotion) {
-      setReducedMotion(savedReducedMotion === "true");
-    }
-
-    const savedHighContrast = localStorage.getItem("production_studio_high_contrast");
-    if (savedHighContrast) {
-      setHighContrast(savedHighContrast === "true");
-    }
-
-    // Check system preferences
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setReducedMotion(true);
     }
-  }, []);
+  }, [setReducedMotion]);
 
   // Keyboard shortcuts for command palette
   useEffect(() => {
@@ -345,44 +295,7 @@ function ProductionStudioDashboard() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showCommandPalette, isSidebarOpen]);
 
-  // Save preferences when they change
-  useEffect(() => {
-    localStorage.setItem("production_studio_view_mode", viewMode);
-  }, [viewMode]);
-
-  useEffect(() => {
-    localStorage.setItem("production_studio_genre_filter", selectedGenre);
-  }, [selectedGenre]);
-
-  useEffect(() => {
-    localStorage.setItem("production_studio_key_filter", selectedKey);
-  }, [selectedKey]);
-
-  useEffect(() => {
-    localStorage.setItem("production_studio_instrument_filter", selectedInstrument);
-  }, [selectedInstrument]);
-
-  useEffect(() => {
-    localStorage.setItem("production_studio_sidebar_open", String(isSidebarOpen));
-  }, [isSidebarOpen]);
-
-  useEffect(() => {
-    localStorage.setItem("production_studio_reduced_motion", String(reducedMotion));
-  }, [reducedMotion]);
-
-  useEffect(() => {
-    localStorage.setItem("production_studio_high_contrast", String(highContrast));
-  }, [highContrast]);
-
-  // Save song tags to localStorage
-  useEffect(() => {
-    localStorage.setItem("song_tags", JSON.stringify(songTags));
-  }, [songTags]);
-
-  // Save filter presets to localStorage
-  useEffect(() => {
-    localStorage.setItem("filter_presets", JSON.stringify(filterPresets));
-  }, [filterPresets]);
+  // Preferences persist automatically per user via usePersistentState.
 
   const handleSavePreset = () => {
     if (!newPresetName.trim()) {
