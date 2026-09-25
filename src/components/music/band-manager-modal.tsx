@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, Trash2, Check, Sparkles } from "lucide-react";
+import { X, Users, Trash2, Check, Sparkles, ChevronDown } from "lucide-react";
 import { Spinner } from "@heroui/react";
 import { toast } from "sonner";
 
@@ -10,13 +10,141 @@ import { createProject, updateProject, deleteProject, fetchCollaborators } from 
 import type { MusicCollaboratorUser, MusicProjectRecord } from "@/lib/music/types";
 
 const COLOR_PRESETS = [
+  // Reds
+  { name: "Crimson Red", hex: "#dc2626" },
+  { name: "Rose", hex: "#f43f5e" },
+  { name: "Pink", hex: "#ec4899" },
+  { name: "Hot Pink", hex: "#ff1493" },
+  { name: "Coral", hex: "#ff6b6b" },
+  { name: "Salmon", hex: "#fa8072" },
+  { name: "Terra Cotta", hex: "#e2725b" },
+  { name: "Burnt Orange", hex: "#cc5500" },
+
+  // Oranges
   { name: "Neon Amber", hex: "#f59e0b" },
-  { name: "Electric Cyan", hex: "#06b6d4" },
-  { name: "Emerald Glow", hex: "#10b981" },
-  { name: "Hot Magenta", hex: "#f43f5e" },
-  { name: "Royal Violet", hex: "#8b5cf6" },
-  { name: "Cobalt Blue", hex: "#3b82f6" },
   { name: "Sunset Orange", hex: "#f97316" },
+  { name: "Tangerine", hex: "#ff9500" },
+  { name: "Peach", hex: "#ffb347" },
+  { name: "Apricot", hex: "#fbceb1" },
+  { name: "Gold", hex: "#ffd700" },
+  { name: "Dark Gold", hex: "#c5a059" },
+  { name: "Bronze", hex: "#cd7f32" },
+
+  // Yellows
+  { name: "Canary", hex: "#ffef00" },
+  { name: "Lemon", hex: "#fff44f" },
+  { name: "Banana", hex: "#ffe135" },
+  { name: "Vanilla", hex: "#f3e5ab" },
+  { name: "Mustard", hex: "#ffdb58" },
+  { name: "Butter", hex: "#f6e7bc" },
+  { name: "Cream", hex: "#fffdd0" },
+  { name: "Ivory", hex: "#fffff0" },
+
+  // Greens
+  { name: "Emerald", hex: "#10b981" },
+  { name: "Forest", hex: "#228b22" },
+  { name: "Mint", hex: "#98fb98" },
+  { name: "Teal", hex: "#008080" },
+  { name: "Sea Green", hex: "#2e8b57" },
+  { name: "Olive", hex: "#808000" },
+  { name: "Lime", hex: "#32cd32" },
+  { name: "Chartreuse", hex: "#7fff00" },
+
+  // Cyans
+  { name: "Electric Cyan", hex: "#06b6d4" },
+  { name: "Turquoise", hex: "#40e0d0" },
+  { name: "Aqua", hex: "#00ffff" },
+  { name: "Sky Blue", hex: "#87ceeb" },
+  { name: "Powder Blue", hex: "#b0e0e6" },
+  { name: "Alice Blue", hex: "#f0f8ff" },
+  { name: "Baby Blue", hex: "#89cff0" },
+  { name: "Light Blue", hex: "#add8e6" },
+
+  // Blues
+  { name: "Cobalt Blue", hex: "#3b82f6" },
+  { name: "Royal Blue", hex: "#4169e1" },
+  { name: "Navy", hex: "#000080" },
+  { name: "Midnight", hex: "#191970" },
+  { name: "Steel Blue", hex: "#4682b4" },
+  { name: "Slate Blue", hex: "#6a5acd" },
+  { name: "Indigo", hex: "#4b0082" },
+  { name: "Cornflower", hex: "#6495ed" },
+
+  // Purples
+  { name: "Royal Violet", hex: "#8b5cf6" },
+  { name: "Purple", hex: "#800080" },
+  { name: "Lavender", hex: "#e6e6fa" },
+  { name: "Thistle", hex: "#d8bfd8" },
+  { name: "Plum", hex: "#dda0dd" },
+  { name: "Orchid", hex: "#da70d6" },
+  { name: "Fuchsia", hex: "#ff00ff" },
+  { name: "Magenta", hex: "#ff00ff" },
+
+  // Violets
+  { name: "Violet", hex: "#ee82ee" },
+  { name: "Periwinkle", hex: "#ccccff" },
+  { name: "Iris", hex: "#5a4fcf" },
+  { name: "Heliotrope", hex: "#df73ff" },
+  { name: "Amethyst", hex: "#9966cc" },
+  { name: "Grape", hex: "#6f2da8" },
+  { name: "Mulberry", hex: "#c54b8b" },
+  { name: "Wisteria", hex: "#c9a0dc" },
+
+  // Pinks
+  { name: "Hot Pink", hex: "#ff69b4" },
+  { name: "Deep Pink", hex: "#ff1493" },
+  { name: "Pale Pink", hex: "#ffd6dc" },
+  { name: "Rose", hex: "#ff007f" },
+  { name: "Blossom", hex: "#ffb7c5" },
+  { name: "Blush", hex: "#de5d83" },
+  { name: "Carnation", hex: "#ff4040" },
+  { name: "Ruby", hex: "#e0115f" },
+
+  // Browns
+  { name: "Chocolate", hex: "#d2691e" },
+  { name: "Sienna", hex: "#a0522d" },
+  { name: "Saddle Brown", hex: "#8b4513" },
+  { name: "Coffee", hex: "#6f4e37" },
+  { name: "Mocha", hex: "#c2b280" },
+  { name: "Tan", hex: "#d2b48c" },
+  { name: "Beige", hex: "#f5f5dc" },
+  { name: "Khaki", hex: "#c3b091" },
+
+  // Grays
+  { name: "Silver", hex: "#c0c0c0" },
+  { name: "Platinum", hex: "#e5e4e2" },
+  { name: "Gray", hex: "#808080" },
+  { name: "Slate", hex: "#708090" },
+  { name: "Charcoal", hex: "#36454f" },
+  { name: "Black", hex: "#000000" },
+  { name: "White", hex: "#ffffff" },
+  { name: "Off White", hex: "#fafafa" },
+
+  // Neons
+  { name: "Neon Green", hex: "#39ff14" },
+  { name: "Neon Pink", hex: "#ff6ff2" },
+  { name: "Neon Blue", hex: "#1f51ff" },
+  { name: "Neon Purple", hex: "#bc13fe" },
+  { name: "Neon Orange", hex: "#ff5f1f" },
+  { name: "Neon Yellow", hex: "#dfff00" },
+  { name: "Neon Red", hex: "#ff073a" },
+  { name: "Neon Cyan", hex: "#00ffff" },
+];
+
+// Group colors by category for better organization
+const COLOR_CATEGORIES = [
+  { name: "Reds", colors: COLOR_PRESETS.slice(0, 8) },
+  { name: "Oranges", colors: COLOR_PRESETS.slice(8, 16) },
+  { name: "Yellows", colors: COLOR_PRESETS.slice(16, 24) },
+  { name: "Greens", colors: COLOR_PRESETS.slice(24, 32) },
+  { name: "Cyans", colors: COLOR_PRESETS.slice(32, 40) },
+  { name: "Blues", colors: COLOR_PRESETS.slice(40, 48) },
+  { name: "Purples", colors: COLOR_PRESETS.slice(48, 56) },
+  { name: "Violets", colors: COLOR_PRESETS.slice(56, 64) },
+  { name: "Pinks", colors: COLOR_PRESETS.slice(64, 72) },
+  { name: "Browns", colors: COLOR_PRESETS.slice(72, 80) },
+  { name: "Grays", colors: COLOR_PRESETS.slice(80, 88) },
+  { name: "Neons", colors: COLOR_PRESETS.slice(88, 96) },
 ];
 
 type BandManagerModalProps = {
@@ -37,6 +165,8 @@ export function BandManagerModal({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#f59e0b");
+  const [customColorInput, setCustomColorInput] = useState("#f59e0b");
+  const [colorCategoryOpen, setColorCategoryOpen] = useState<string | null>(null);
   const [isSharedWithAll, setIsSharedWithAll] = useState(true);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [collaborators, setCollaborators] = useState<MusicCollaboratorUser[]>([]);
@@ -50,12 +180,14 @@ export function BandManagerModal({
         setName(projectToEdit.name);
         setDescription(projectToEdit.description || "");
         setColor(projectToEdit.color || "#f59e0b");
+        setCustomColorInput(projectToEdit.color || "#f59e0b");
         setIsSharedWithAll(projectToEdit.isSharedWithAll);
         setSelectedMemberIds(projectToEdit.members.map((m) => m.userId));
       } else {
         setName("");
         setDescription("");
         setColor("#f59e0b");
+        setCustomColorInput("#f59e0b");
         setIsSharedWithAll(true);
         setSelectedMemberIds([]);
       }
@@ -186,30 +318,87 @@ export function BandManagerModal({
 
               <div className="space-y-1.5">
                 <label className="field-label">Brand / Accent Color</label>
-                <div className="flex flex-wrap items-center gap-2">
-                  {COLOR_PRESETS.map((preset) => (
-                    <button
-                      key={preset.hex}
-                      type="button"
-                      onClick={() => setColor(preset.hex)}
-                      className={`relative flex h-8 w-8 items-center justify-center rounded-xl border-2 transition ${
-                        color === preset.hex
-                          ? "scale-110 border-white shadow-md"
-                          : "border-transparent opacity-80 hover:opacity-100"
-                      }`}
-                      style={{ backgroundColor: preset.hex }}
-                      title={preset.name}
-                    >
-                      {color === preset.hex && <Check className="h-4 w-4 text-white" />}
-                    </button>
-                  ))}
+
+                {/* Current color preview with hex input */}
+                <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3">
+                  <div
+                    className="h-10 w-10 shrink-0 rounded-lg border-2 border-white/20 shadow-sm"
+                    style={{ backgroundColor: color }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      value={customColorInput}
+                      onChange={(e) => {
+                        const hex = e.target.value;
+                        setCustomColorInput(hex);
+                        if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                          setColor(hex);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (/^#[0-9A-Fa-f]{6}$/.test(customColorInput)) {
+                          setColor(customColorInput);
+                        } else {
+                          setCustomColorInput(color);
+                        }
+                      }}
+                      placeholder="#RRGGBB"
+                      className="field text-xs font-mono py-2"
+                    />
+                    <div className="mt-1 text-[10px] text-[var(--color-sand-2)] font-mono">
+                      RGB: {parseInt(color.slice(1, 3), 16)}, {parseInt(color.slice(3, 5), 16)}, {parseInt(color.slice(5, 7), 16)}
+                    </div>
+                  </div>
                   <input
                     type="color"
                     value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    className="h-8 w-8 cursor-pointer rounded-xl border border-[var(--color-border)] bg-transparent p-0"
-                    title="Custom color"
+                    onChange={(e) => {
+                      setColor(e.target.value);
+                      setCustomColorInput(e.target.value);
+                    }}
+                    className="h-10 w-10 cursor-pointer rounded-lg border border-[var(--color-border)] bg-transparent p-0"
+                    title="Color picker"
                   />
+                </div>
+
+                {/* Color categories */}
+                <div className="mt-3 space-y-2 max-h-60 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-2">
+                  {COLOR_CATEGORIES.map((category) => (
+                    <div key={category.name}>
+                      <button
+                        type="button"
+                        onClick={() => setColorCategoryOpen(colorCategoryOpen === category.name ? null : category.name)}
+                        className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-semibold text-[var(--color-foreground)] hover:bg-[var(--color-surface)] rounded-lg transition"
+                      >
+                        <span>{category.name}</span>
+                        <ChevronDown className={`h-3 w-3 transition-transform ${colorCategoryOpen === category.name ? 'rotate-180' : ''}`} />
+                      </button>
+                      {colorCategoryOpen === category.name && (
+                        <div className="mt-2 flex flex-wrap gap-1.5 px-2 pb-2">
+                          {category.colors.map((preset) => (
+                            <button
+                              key={preset.hex}
+                              type="button"
+                              onClick={() => {
+                                setColor(preset.hex);
+                                setCustomColorInput(preset.hex);
+                              }}
+                              className={`relative flex h-7 w-7 items-center justify-center rounded-lg border-2 transition ${
+                                color === preset.hex
+                                  ? "scale-110 border-white shadow-md"
+                                  : "border-transparent opacity-80 hover:opacity-100"
+                              }`}
+                              style={{ backgroundColor: preset.hex }}
+                              title={`${preset.name} (${preset.hex})`}
+                            >
+                              {color === preset.hex && <Check className="h-3.5 w-3.5 text-white" />}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
