@@ -872,7 +872,8 @@ export function SongStudioClient() {
                   </div>
                 ) : null}
 
-                {editorTab === "lyrics" ? (
+                {/* Lyrics tab moved to Lyrics & Rhymes - content hidden
+                {false && selectedSong && editorTab === "lyrics" ? (
                   <div className="grid gap-4 lg:grid-cols-2">
                     <FieldGroup label="Lyrics">
                       <textarea
@@ -901,7 +902,8 @@ export function SongStudioClient() {
                   </div>
                 ) : null}
 
-                {editorTab === "sections" ? (
+                {/* Sections tab moved to Partitures in Notation & Tabs - content hidden */}
+                {false && selectedSong && editorTab === "sections" ? (
                   <div className="grid gap-6 xl:grid-cols-2">
                     <div>
                       <div className="mb-4 flex items-center gap-2">
@@ -909,7 +911,7 @@ export function SongStudioClient() {
                         <h3 className="text-xl font-black">Sections</h3>
                       </div>
                       <div className="space-y-3">
-                        {selectedSong.sections.map((section, sectionIdx) => (
+                        {selectedSong?.sections.map((section, sectionIdx) => (
                           <div key={section.name} className="glass-card-soft rounded-[1.25rem] p-4">
                             <FieldGroup label="Section name">
                               <input
@@ -960,7 +962,7 @@ export function SongStudioClient() {
                         <h3 className="text-xl font-black">Layers</h3>
                       </div>
                       <div className="space-y-3">
-                        {selectedSong.layers.map((layer, layerIdx) => (
+                        {selectedSong?.layers.map((layer, layerIdx) => (
                           <div key={layer.name} className="glass-card-soft rounded-[1.25rem] p-4">
                             <FieldGroup label="Layer name">
                               <input
