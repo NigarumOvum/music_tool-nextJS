@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, NotebookPen, PanelTop, type LucideIcon } from "lucide-react";
+import { NotebookPen, PanelTop, type LucideIcon } from "lucide-react";
 
-export type AppNavIconId = "production" | "toolkit" | "prompt-library";
+export type AppNavIconId = "production" | "prompt-library";
 
 const NAV_ICONS: Record<AppNavIconId, LucideIcon> = {
   production: PanelTop,
-  toolkit: BookOpen,
   "prompt-library": NotebookPen,
 };
 

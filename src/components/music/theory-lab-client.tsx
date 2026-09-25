@@ -7,6 +7,7 @@ import { CollapsibleCard } from "@/components/collapsible-card";
 import { InfoTooltip } from "@/components/info-tooltip";
 import { ChordHowToPlay } from "@/components/music/chord-how-to-play";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
+import { ScaleInstrumentVisuals, ScaleTheory } from "@/components/music/scale-visuals";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
 import { KEYBOARD_VOICES, playKeyboardNote, playKeyboardNotes, type KeyboardVoice } from "@/lib/music/keyboard-synth";
@@ -146,6 +147,7 @@ export function TheoryLabClient() {
   const [highlightMode, setHighlightMode] = useState<"scale" | "chord" | "none">("scale");
   const [keyboardVoice, setKeyboardVoice] = useState<KeyboardVoice>("piano");
   const [keyboardOctave, setKeyboardOctave] = useState(4);
+  const [scaleSearch, setScaleSearch] = useState("");
 
   const playFrequency = (frequency: number) => {
     playKeyboardNote(getAudioContext(), frequency, keyboardVoice);
@@ -156,6 +158,11 @@ export function TheoryLabClient() {
   };
 
   const scaleNotes = getNotes(scaleRoot, SCALES[scaleType]);
+  const scaleIntervals = SCALES[scaleType];
+  const filteredScaleTypes = useMemo(
+    () => Object.keys(SCALES).filter((s) => s.toLowerCase().includes(scaleSearch.toLowerCase())),
+    [scaleSearch],
+  );
   const chordNotes = invertNotes(getNotes(chordRoot, CHORDS[chordType]), inversion).map((entry) => entry.label);
   const activeNotes = highlightMode === "scale" ? scaleNotes : highlightMode === "chord" ? chordNotes : [];
 
@@ -249,7 +256,7 @@ export function TheoryLabClient() {
         }
       >
         <div className="space-y-5">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <div className="flex flex-1 items-center gap-2">
               <select value={scaleRoot} onChange={(e) => setScaleRoot(e.target.value)} className="field flex-1">
                 {CHROMATIC.map((n) => <option key={n} value={n}>{n}</option>)}
@@ -262,7 +269,7 @@ export function TheoryLabClient() {
             </div>
             <div className="flex flex-[2] items-center gap-2">
               <select value={scaleType} onChange={(e) => setScaleType(e.target.value)} className="field flex-[2]">
-                {Object.keys(SCALES).map((s) => <option key={s} value={s}>{s}</option>)}
+                {filteredScaleTypes.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
               <InfoTooltip
                 content="Choose from 13 different scale types. Each has a unique interval pattern that creates its characteristic sound."
@@ -270,6 +277,12 @@ export function TheoryLabClient() {
                 size="sm"
               />
             </div>
+            <input
+              className="field min-w-[140px] flex-1"
+              placeholder="Search scales..."
+              value={scaleSearch}
+              onChange={(e) => setScaleSearch(e.target.value)}
+            />
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -286,6 +299,13 @@ export function TheoryLabClient() {
               </button>
             ))}
           </div>
+
+          <ScaleInstrumentVisuals
+            notes={scaleNotes}
+            root={scaleRoot}
+            voice={keyboardVoice}
+            onPlayNote={(note) => playNoteAtOctave(note)}
+          />
 
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-4">
             <div className="mb-3 flex items-center justify-between">
@@ -325,6 +345,23 @@ export function TheoryLabClient() {
                 );
               })}
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="eyebrow text-[0.62rem]">Scale Theory</span>
+              <InfoTooltip
+                content="Learn about the theory behind scales including interval patterns and note relationships. Understanding theory helps you compose and improvise more effectively."
+                position="top"
+                size="md"
+              />
+            </div>
+            <ScaleTheory
+              intervals={scaleIntervals}
+              intervalNames={INTERVAL_NAMES}
+              notes={scaleNotes}
+              root={scaleRoot}
+            />
           </div>
         </div>
       </CollapsibleCard>

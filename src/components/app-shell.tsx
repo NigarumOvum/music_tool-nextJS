@@ -4,24 +4,24 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { AppNavLinks, type AppNavIconId } from "@/components/app-nav-links";
+import { AppFooter } from "@/components/app-footer";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PWAInstallButton } from "@/components/pwa/pwa-install-button";
 import { ensureUserCanAccessPage, requireCurrentUser } from "@/lib/auth";
 import type { ManagedPageKey } from "@/lib/access";
-import { canAccessMusicToolkit, canAccessProductionStudio } from "@/lib/hub-access";
+import { canAccessProductionStudio } from "@/lib/hub-access";
 import { Music2 } from "lucide-react";
 
 type NavItemConfig = {
   href: string;
   label: string;
   icon: AppNavIconId;
-  hub?: "production" | "toolkit";
+  hub?: "production";
   pageKey?: ManagedPageKey;
 };
 
 const navItems: NavItemConfig[] = [
   { href: "/production-studio", label: "Production Studio", icon: "production", hub: "production" },
-  { href: "/music-toolkit", label: "Music Toolkit", icon: "toolkit", hub: "toolkit" },
   { href: "/prompt-library", label: "Prompt Library", icon: "prompt-library", pageKey: "prompt-library" },
 ];
 
@@ -50,10 +50,6 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
 
         if (item.hub === "production") {
           return (await canAccessProductionStudio(user)) ? item : null;
-        }
-
-        if (item.hub === "toolkit") {
-          return (await canAccessMusicToolkit(user)) ? item : null;
         }
 
         return item;
@@ -125,6 +121,8 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
             {children}
           </section>
         </main>
+
+        <AppFooter />
       </div>
     </div>
   );

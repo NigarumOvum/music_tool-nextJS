@@ -14,14 +14,12 @@ const tabLoaders = {
   harmony: () => import("@/components/music/theory-lab-client").then((module) => module.TheoryLabClient),
   progressions: () => import("@/components/music/progression-client").then((module) => module.ProgressionClient),
   practice: () => import("@/components/music/helpers-client").then((module) => module.HelpersClient),
-  scales: () => import("@/components/music/scales-client").then((module) => module.ScalesClient),
 } as const;
 
 const tabPanels: Record<MusicToolkitTabId, ReturnType<typeof dynamic>> = {
   harmony: dynamic(() => tabLoaders.harmony().then((Component) => ({ default: Component })), { ssr: false }),
   progressions: dynamic(() => tabLoaders.progressions().then((Component) => ({ default: Component })), { ssr: false }),
   practice: dynamic(() => tabLoaders.practice().then((Component) => ({ default: Component })), { ssr: false }),
-  scales: dynamic(() => tabLoaders.scales().then((Component) => ({ default: Component })), { ssr: false }),
 };
 
 type MusicToolkitTab = {
@@ -64,7 +62,7 @@ function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps)
   const SecondaryPanel = secondaryTab ? tabPanels[secondaryTab] : null;
 
   function selectTab(tabId: MusicToolkitTabId) {
-    router.replace(`/music-toolkit?tab=${tabId}`, { scroll: false });
+    router.replace(`/?tab=${tabId}`, { scroll: false });
   }
 
   const handleTabClick = useCallback((tabId: MusicToolkitTabId) => {

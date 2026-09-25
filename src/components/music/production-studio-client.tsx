@@ -1385,7 +1385,21 @@ function ProductionStudioDashboard() {
                 onDragEnd={handleDragEnd}
                 whileHover={{ y: -3 }}
                 transition={{ type: "spring", stiffness: 320, damping: 24 }}
-                className={`min-w-0 cursor-grab active:cursor-grabbing ${draggedSong === song.id ? 'opacity-50' : ''}`}
+                onClick={(e) => {
+                  // Card click opens the studio — inner controls stop this via the guard.
+                  if ((e.target as HTMLElement).closest("button, a, input, select, textarea, [contenteditable]")) return;
+                  handleOpenStudio(song.id, "lyrics");
+                }}
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) {
+                    e.preventDefault();
+                    handleOpenStudio(song.id, "lyrics");
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open ${song.title} in studio`}
+                className={`min-w-0 cursor-pointer ${draggedSong === song.id ? 'opacity-50' : ''}`}
               >
                 <CollapsibleCard
                   defaultOpen={index === 0}
@@ -1561,8 +1575,22 @@ function ProductionStudioDashboard() {
                   variant="glass"
                   className="h-full"
                 >
-                  <div className="pt-4">
-                    <p className="text-xs text-[var(--color-sand-2)]">{song.topic || "No description"}</p>
+                  <div className="space-y-2 pt-4">
+                    {[
+                      { label: "Language", value: song.language },
+                      { label: "Emotion / Mood", value: song.emotion },
+                      { label: "Topic", value: song.topic },
+                      { label: "Instrumentation", value: song.instrumentation },
+                    ].map((detail) => (
+                      <div key={detail.label} className="flex items-baseline gap-2 text-xs">
+                        <span className="w-28 shrink-0 text-[10px] font-black uppercase tracking-widest text-[var(--color-sand-2)]">
+                          {detail.label}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-[var(--color-foreground)]" title={detail.value || undefined}>
+                          {detail.value || "—"}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </CollapsibleCard>
               </motion.div>
@@ -1606,7 +1634,11 @@ function ProductionStudioDashboard() {
                     onDragEnd={handleDragEnd}
                     whileHover={{ scale: 1.02 }}
                     transition={{ type: "spring", stiffness: 320, damping: 24 }}
-                    className={`cursor-grab active:cursor-grabbing rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3 ${draggedSong === song.id ? 'opacity-50' : ''}`}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest("button, a, input, select, textarea, [contenteditable]")) return;
+                      handleOpenStudio(song.id, "lyrics");
+                    }}
+                    className={`cursor-pointer rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3 ${draggedSong === song.id ? 'opacity-50' : ''}`}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
@@ -1644,7 +1676,11 @@ function ProductionStudioDashboard() {
                 onDragEnd={handleDragEnd}
                 whileHover={{ scale: 1.01 }}
                 transition={{ type: "spring", stiffness: 320, damping: 24 }}
-                className={`flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3 cursor-grab active:cursor-grabbing ${draggedSong === song.id ? 'opacity-50' : ''}`}
+                onClick={(e) => {
+                  if ((e.target as HTMLElement).closest("button, a, input, select, textarea, [contenteditable]")) return;
+                  handleOpenStudio(song.id, "lyrics");
+                }}
+                className={`flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3 cursor-pointer ${draggedSong === song.id ? 'opacity-50' : ''}`}
                 style={{ borderLeft: `4px solid ${songProject?.color || GENRE_COLORS[song.genre || ""] || "#f59e0b"}` }}
               >
                 <div
