@@ -35,14 +35,14 @@ export function AppNavLinks({ items }: AppNavLinksProps) {
           <Link
             key={item.href}
             href={item.href}
-            className={`glass-pill inline-flex items-center gap-2 rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition sm:px-4 ${
+            className={`glass-pill inline-flex items-center justify-center rounded-full p-2 transition ${
               active
                 ? "glass-pill-active text-[var(--color-foreground)]"
                 : "text-[var(--color-foreground)] hover:-translate-y-0.5 hover:border-[var(--color-info-border)]"
             }`}
+            title={item.label}
           >
-            <Icon className="h-3.5 w-3.5" />
-            {item.label}
+            <Icon className="h-4 w-4" />
           </Link>
         );
       })}
