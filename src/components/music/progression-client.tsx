@@ -12,7 +12,7 @@ import { useI18n } from "@/components/language-provider";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
-import { playKeyboardNote, type KeyboardVoice } from "@/lib/music/keyboard-synth";
+import { playKeyboardNote, preloadVoice, type KeyboardVoice } from "@/lib/music/keyboard-synth";
 import { CHROMATIC, intervalsToPitchClasses, noteFrequency } from "@/lib/music/notes";
 import {
   PROGRESSION_CATEGORIES,
@@ -141,6 +141,12 @@ export function ProgressionClient() {
   useEffect(() => {
     playingRef.current = isPlaying;
   }, [isPlaying]);
+
+  // Preload real instrument samples in the background; playback stays live regardless.
+  useEffect(() => {
+    void preloadVoice(getAudioContext(), keyboardVoice).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyboardVoice]);
 
   const filteredPresets = useMemo(() => {
     if (presetCategory === "All") return PROGRESSION_PRESETS;

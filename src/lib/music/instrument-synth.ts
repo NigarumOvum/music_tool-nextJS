@@ -1,14 +1,87 @@
+import {
+  isInstrumentReady,
+  playSampledNote,
+  preloadInstrument,
+  type SampleInstrumentId,
+} from "@/lib/music/sample-engine";
+
 export type PluckInstrument = "guitar-steel" | "guitar-nylon" | "bass" | "bass-pick";
 
-function createOverdriveCurve() {
-  const nSamples = 44100;
-  const curve = new Float32Array(nSamples);
-  const deg = Math.PI / 180;
-  for (let i = 0; i < nSamples; i += 1) {
-    const x = (i * 2) / nSamples - 1;
-    curve[i] = ((3 + 20) * x * 20 * deg) / (Math.PI + 20 * Math.abs(x));
+const PLUCK_TO_SAMPLE: Record<PluckInstrument, SampleInstrumentId> = {
+  "guitar-steel": "guitar-steel",
+  "guitar-nylon": "guitar-nylon",
+  bass: "bass",
+  "bass-pick": "bass-pick",
+};
+
+/** Fetch + decode real pluck samples (see public/samples/README.md). */
+export function preloadPluck(audioContext: AudioContext, instrument: PluckInstrument): Promise<boolean> {
+  return preloadInstrument(audioContext, PLUCK_TO_SAMPLE[instrument]);
+}
+
+export function isPluckSampled(audioContext: AudioContext, instrument: PluckInstrument): boolean {
+  return isInstrumentReady(audioContext, PLUCK_TO_SAMPLE[instrument]);
+}
+
+function karplusStrongDamping(instrument: PluckInstrument, frequency: number) {
+  // Higher strings decay faster; nylon is softer than steel.
+  const base =
+    instrument === "guitar-nylon" ? 0.996 : instrument === "bass" || instrument === "bass-pick" ? 0.9985 : 0.9975;
+  return Math.min(0.9995, base - frequency / 48000);
+}
+
+/**
+ * Karplus-Strong plucked-string synthesis — dramatically closer to a real
+ * string than a plain oscillator, with zero downloads.
+ */
+function playKarplusStrong(
+  audioContext: AudioContext,
+  out: AudioNode,
+  frequency: number,
+  instrument: PluckInstrument,
+  velocity: number,
+  when: number,
+) {
+  const sampleRate = audioContext.sampleRate;
+  const ringSeconds = instrument.startsWith("bass") ? 2.4 : 1.8;
+  const length = Math.min(Math.ceil(sampleRate * ringSeconds), sampleRate * 3);
+  const buffer = audioContext.createBuffer(1, length, sampleRate);
+  const data = buffer.getChannelData(0);
+
+  const period = Math.max(2, Math.round(sampleRate / frequency));
+  const bright = instrument === "guitar-steel" || instrument === "bass-pick";
+  for (let i = 0; i < period; i += 1) {
+    // Noise burst excitation; brighter pickups keep more high end.
+    data[i] = (Math.random() * 2 - 1) * (bright ? 1 : 0.8);
   }
-  return curve;
+
+  const rho = karplusStrongDamping(instrument, frequency);
+  for (let i = period; i < length; i += 1) {
+    data[i] = rho * 0.5 * (data[i - period] + data[i - period + 1 >= length ? i - period : i - period + 1]);
+  }
+
+  const source = audioContext.createBufferSource();
+  source.buffer = buffer;
+
+  // Gentle lowpass keeps nylon/bass round and tames aliasing up high.
+  const filter = audioContext.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(
+    Math.min(12000, Math.max(2500, frequency * (bright ? 10 : 6))),
+    when,
+  );
+
+  const gain = audioContext.createGain();
+  const peak = (instrument.startsWith("bass") ? 0.38 : 0.28) * (0.35 + velocity * 0.65);
+  gain.gain.setValueAtTime(0, when);
+  gain.gain.linearRampToValueAtTime(peak, when + 0.004);
+  gain.gain.exponentialRampToValueAtTime(0.001, when + ringSeconds);
+
+  source.connect(filter);
+  filter.connect(gain);
+  gain.connect(out);
+  source.start(when);
+  source.stop(when + ringSeconds + 0.05);
 }
 
 export function playReferencePluck(
@@ -16,47 +89,49 @@ export function playReferencePluck(
   frequency: number,
   instrument: PluckInstrument,
   when = audioContext.currentTime,
+  velocity = 0.85,
+  out: AudioNode | null = null,
 ) {
   if (frequency <= 0) return;
+  const destination = out ?? audioContext.destination;
 
-  const masterGain = audioContext.createGain();
-  masterGain.gain.setValueAtTime(instrument.startsWith("bass") ? 0.38 : 0.28, when);
-  masterGain.connect(audioContext.destination);
+  // Real samples first — silently falls through to KS synthesis when missing.
+  const midi = Math.round(69 + 12 * Math.log2(frequency / 440));
+  if (
+    playSampledNote(audioContext, destination, PLUCK_TO_SAMPLE[instrument], midi, {
+      when,
+      velocity,
+      duration: instrument.startsWith("bass") ? 2.2 : 1.6,
+    })
+  ) {
+    if (instrument === "bass" || instrument === "bass-pick") {
+      // Add sub weight under the sample like the old synth did.
+      const sub = audioContext.createOscillator();
+      sub.type = "sine";
+      sub.frequency.setValueAtTime(frequency / 2, when);
+      const subGain = audioContext.createGain();
+      subGain.gain.setValueAtTime(0.1 * velocity, when);
+      subGain.gain.exponentialRampToValueAtTime(0.001, when + 1.5);
+      sub.connect(subGain);
+      subGain.connect(destination);
+      sub.start(when);
+      sub.stop(when + 1.6);
+    }
+    return;
+  }
 
-  const osc = audioContext.createOscillator();
-  const gain = audioContext.createGain();
+  playKarplusStrong(audioContext, destination, frequency, instrument, velocity, when);
 
-  if (instrument === "guitar-nylon") {
-    osc.type = "sine";
-    gain.gain.setValueAtTime(0, when);
-    gain.gain.linearRampToValueAtTime(0.18, when + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001, when + 1.4);
-  } else if (instrument === "bass" || instrument === "bass-pick") {
-    osc.type = "triangle";
-    gain.gain.setValueAtTime(0, when);
-    gain.gain.linearRampToValueAtTime(instrument === "bass-pick" ? 0.3 : 0.22, when + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.001, when + 2.2);
-
+  if (instrument === "bass" || instrument === "bass-pick") {
     const sub = audioContext.createOscillator();
     sub.type = "sine";
     sub.frequency.setValueAtTime(frequency / 2, when);
     const subGain = audioContext.createGain();
-    subGain.gain.setValueAtTime(0.12, when);
+    subGain.gain.setValueAtTime(0.12 * velocity, when);
     subGain.gain.exponentialRampToValueAtTime(0.001, when + 1.8);
     sub.connect(subGain);
-    subGain.connect(masterGain);
+    subGain.connect(destination);
     sub.start(when);
     sub.stop(when + 1.9);
-  } else {
-    osc.type = "triangle";
-    gain.gain.setValueAtTime(0, when);
-    gain.gain.linearRampToValueAtTime(0.22, when + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.001, when + 1.6);
   }
-
-  osc.frequency.setValueAtTime(frequency, when);
-  osc.connect(gain);
-  gain.connect(masterGain);
-  osc.start(when);
-  osc.stop(when + 2.2);
 }

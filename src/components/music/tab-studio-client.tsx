@@ -40,6 +40,7 @@ import {
   type TuningPreset,
   type TuningString,
 } from "@/lib/music/tunings";
+import { playReferencePluck, preloadPluck, type PluckInstrument } from "@/lib/music/instrument-synth";
 import { playMetronomeSound } from "@/lib/music/metronome-sound";
 
 type InstrumentType = "Steel" | "Nylon" | "Bass" | "Overdrive";
@@ -270,6 +271,14 @@ export function TabStudioClient() {
     });
   }, [strings, columnCount]);
 
+  // Preload real string samples in the background; grid keeps playing live regardless.
+  useEffect(() => {
+    const pluck: PluckInstrument =
+      instrument === "Nylon" ? "guitar-nylon" : instrument === "Bass" ? "bass" : "guitar-steel";
+    void preloadPluck(getAudioContext(), pluck).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instrument]);
+
   // Keyboard shortcut: Space to play/pause
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -311,42 +320,10 @@ export function TabStudioClient() {
       masterGain.connect(ctx.destination);
     }
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    if (instrument === "Nylon") {
-      osc.type = "sine";
-      gain.gain.setValueAtTime(0, time);
-      gain.gain.linearRampToValueAtTime(0.15, time + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 1.2);
-    } else if (instrument === "Bass") {
-      osc.type = "triangle";
-      gain.gain.setValueAtTime(0, time);
-      gain.gain.linearRampToValueAtTime(0.25, time + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 2.0);
-
-      const sub = ctx.createOscillator();
-      sub.type = "sine";
-      sub.frequency.setValueAtTime(freq / 2, time);
-      const subGain = ctx.createGain();
-      subGain.gain.setValueAtTime(0.1, time);
-      subGain.gain.exponentialRampToValueAtTime(0.001, time + 1.5);
-      sub.connect(subGain);
-      subGain.connect(masterGain);
-      sub.start(time);
-      sub.stop(time + 1.5);
-    } else {
-      osc.type = "triangle";
-      gain.gain.setValueAtTime(0, time);
-      gain.gain.linearRampToValueAtTime(0.2, time + 0.005);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 1.5);
-    }
-
-    osc.frequency.setValueAtTime(freq, time);
-    osc.connect(gain);
-    gain.connect(masterGain);
-    osc.start(time);
-    osc.stop(time + 2.0);
+    // Shared pluck engine: real samples when loaded, Karplus-Strong string otherwise.
+    const pluck: PluckInstrument =
+      instrument === "Nylon" ? "guitar-nylon" : instrument === "Bass" ? "bass" : "guitar-steel";
+    playReferencePluck(ctx, freq, pluck, time, 0.9, masterGain);
   }, [createOverdriveCurve, getAudioContext, instrument, strings]);
 
   const playMetronomeClick = useCallback((time: number, accent: boolean) => {

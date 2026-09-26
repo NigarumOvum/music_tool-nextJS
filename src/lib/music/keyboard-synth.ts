@@ -1,4 +1,10 @@
 import { playReferencePluck, type PluckInstrument } from "@/lib/music/instrument-synth";
+import {
+  isInstrumentReady,
+  playSampledNote,
+  preloadInstrument,
+  type SampleInstrumentId,
+} from "@/lib/music/sample-engine";
 
 export type KeyboardVoice =
   | "piano"
@@ -23,6 +29,30 @@ export const KEYBOARD_VOICES: { id: KeyboardVoice; label: string }[] = [
   { id: "bass-pick", label: "Pick bass" },
 ];
 
+const VOICE_TO_SAMPLE: Record<KeyboardVoice, SampleInstrumentId> = {
+  piano: "piano",
+  "electric-piano": "electric-piano",
+  organ: "organ",
+  strings: "strings",
+  synth: "synth",
+  "guitar-steel": "guitar-steel",
+  "guitar-nylon": "guitar-nylon",
+  bass: "bass",
+  "bass-pick": "bass-pick",
+};
+
+/**
+ * Fetch + decode real samples for a voice (see public/samples/README.md).
+ * Playback falls back to synthesis until this resolves true.
+ */
+export function preloadVoice(audioContext: AudioContext, voice: KeyboardVoice): Promise<boolean> {
+  return preloadInstrument(audioContext, VOICE_TO_SAMPLE[voice]);
+}
+
+export function isVoiceSampled(audioContext: AudioContext, voice: KeyboardVoice): boolean {
+  return isInstrumentReady(audioContext, VOICE_TO_SAMPLE[voice]);
+}
+
 export function playKeyboardNote(
   audioContext: AudioContext,
   frequency: number,
@@ -30,6 +60,17 @@ export function playKeyboardNote(
   when = audioContext.currentTime,
 ) {
   if (frequency <= 0) return;
+
+  // Real samples first — silently falls through to synthesis when missing.
+  const midi = Math.round(69 + 12 * Math.log2(frequency / 440));
+  if (
+    playSampledNote(audioContext, audioContext.destination, VOICE_TO_SAMPLE[voice], midi, {
+      when,
+      velocity: 0.8,
+    })
+  ) {
+    return;
+  }
 
   if (voice === "guitar-steel" || voice === "guitar-nylon" || voice === "bass" || voice === "bass-pick") {
     playReferencePluck(audioContext, frequency, voice as PluckInstrument, when);

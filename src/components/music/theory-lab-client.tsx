@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Book, Layers, Music, Play, RotateCcw, Search, Sparkles, Piano } from "lucide-react";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
@@ -14,7 +14,7 @@ import { ScaleInstrumentVisuals, ScaleTheory, NoteButtons, ScaleTypeButtons } fr
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
-import { KEYBOARD_VOICES, playKeyboardNote, playKeyboardNotes, type KeyboardVoice } from "@/lib/music/keyboard-synth";
+import { KEYBOARD_VOICES, playKeyboardNote, playKeyboardNotes, preloadVoice, type KeyboardVoice } from "@/lib/music/keyboard-synth";
 import { CHROMATIC, noteFrequency } from "@/lib/music/notes";
 
 const SCALES: Record<string, number[]> = {
@@ -162,6 +162,12 @@ export function TheoryLabClient() {
   const playNoteAtOctave = (note: string, octave = keyboardOctave) => {
     playFrequency(noteFrequency(note, octave));
   };
+
+  // Preload real instrument samples in the background; playback stays live regardless.
+  useEffect(() => {
+    void preloadVoice(getAudioContext(), keyboardVoice).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyboardVoice]);
 
   const scaleNotes = getNotes(scaleRoot, SCALES[scaleType]);
   const scaleIntervals = SCALES[scaleType];

@@ -10,7 +10,7 @@ import { SoundIndicator } from "@/components/ui/sound-indicator";
 import { useAudio } from "@/components/music/audio-provider";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { detectPitchAutocorrelation, type PitchDetection } from "@/lib/music/pitch";
-import { playReferencePluck, type PluckInstrument } from "@/lib/music/instrument-synth";
+import { playReferencePluck, preloadPluck, type PluckInstrument } from "@/lib/music/instrument-synth";
 import {
   BASS_TUNINGS,
   GUITAR_TUNINGS,
@@ -159,6 +159,12 @@ export function TunerCard() {
     if (requestRef.current) cancelAnimationFrame(requestRef.current);
     streamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
+
+  // Preload real pluck samples in the background; reference stays live regardless.
+  useEffect(() => {
+    void preloadPluck(getAudioContext(), pluckVoice).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pluckVoice]);
 
   function playStringReference(tuningString: TuningString) {
     const ctx = getAudioContext();
