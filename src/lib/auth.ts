@@ -912,6 +912,38 @@ export async function changePassword(input: {
   }
 }
 
+/**
+ * Logged-out password change from the login screen: the current password
+ * proves ownership, so no session is required. Rotates all sessions.
+ */
+export async function changePasswordByEmail(input: {
+  email: string;
+  currentPassword: string;
+  nextPassword: string;
+}) {
+  const email = normalizeEmail(input.email);
+  if (!email || !email.includes("@")) {
+    throw new Error("A valid email is required");
+  }
+
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const result = await db.execute({
+    sql: "select id from app_user where email = ? limit 1",
+    args: [email],
+  });
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    throw new Error("Invalid email or password");
+  }
+
+  await changePassword({
+    userId: String(row.id),
+    currentPassword: input.currentPassword,
+    nextPassword: input.nextPassword,
+  });
+}
+
 async function sendEmailChangeConfirmation(user: AuthUser, newEmail: string, token: string) {
   const url = `${getBaseUrl()}/account?email-change=${encodeURIComponent(token)}`;
   const result = await sendEmail({

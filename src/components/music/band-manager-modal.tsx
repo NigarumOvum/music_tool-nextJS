@@ -7,6 +7,7 @@ import { Spinner } from "@heroui/react";
 import { toast } from "sonner";
 
 import { createProject, updateProject, deleteProject, fetchCollaborators } from "@/lib/music/client";
+import { useI18n } from "@/components/language-provider";
 import type { MusicCollaboratorUser, MusicProjectRecord } from "@/lib/music/types";
 
 const COLOR_PRESETS = [
@@ -162,6 +163,7 @@ export function BandManagerModal({
   onSaved,
   onDeleted,
 }: BandManagerModalProps) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [color, setColor] = useState("#f59e0b");
@@ -260,7 +262,7 @@ export function BandManagerModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-2 sm:p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -274,22 +276,22 @@ export function BandManagerModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 14 }}
             transition={{ type: "spring", stiffness: 350, damping: 28 }}
-            className="relative z-10 w-full max-w-xl overflow-hidden rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-modal-surface)] shadow-2xl"
+            className="relative z-10 flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-modal-surface)] shadow-2xl sm:rounded-[1.75rem]"
           >
-            <div className="flex items-center justify-between border-b border-[var(--color-stroke)] px-6 py-5">
-              <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--color-stroke)] px-4 py-3.5 sm:px-5">
+              <div className="flex min-w-0 items-center gap-3">
                 <div
                   className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/20 text-white shadow-md"
                   style={{ backgroundColor: color }}
                 >
                   <Users className="h-5 w-5" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="eyebrow text-[0.62rem] text-[var(--color-brass)]">
-                    Band & Project Collaboration
+                    {t("band.collab")}
                   </div>
-                  <h2 className="text-xl font-bold tracking-tight text-[var(--color-foreground)]">
-                    {projectToEdit ? "Manage Band / Project" : "Create Band / Project"}
+                  <h2 className="truncate text-lg font-bold tracking-tight text-[var(--color-foreground)] sm:text-xl">
+                    {projectToEdit ? t("band.manage") : t("band.create")}
                   </h2>
                 </div>
               </div>
@@ -297,15 +299,16 @@ export function BandManagerModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)]"
+                aria-label={t("common.close")}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)]"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-5 p-6">
+            <form id="band-form" onSubmit={handleSave} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
               <div className="space-y-1.5">
-                <label className="field-label">Band / Project Name</label>
+                <label className="field-label">{t("band.name")}</label>
                 <input
                   type="text"
                   required
@@ -317,7 +320,7 @@ export function BandManagerModal({
               </div>
 
               <div className="space-y-1.5">
-                <label className="field-label">Brand / Accent Color</label>
+                <label className="field-label">{t("band.color")}</label>
 
                 {/* Current color preview with hex input */}
                 <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3">
@@ -358,12 +361,12 @@ export function BandManagerModal({
                       setCustomColorInput(e.target.value);
                     }}
                     className="h-10 w-10 cursor-pointer rounded-lg border border-[var(--color-border)] bg-transparent p-0"
-                    title="Color picker"
+                    title={t("band.colorPicker")}
                   />
                 </div>
 
                 {/* Color categories */}
-                <div className="mt-3 space-y-2 max-h-60 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-2">
+                <div className="mt-2.5 space-y-1.5 max-h-40 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-2">
                   {COLOR_CATEGORIES.map((category) => (
                     <div key={category.name}>
                       <button
@@ -403,10 +406,10 @@ export function BandManagerModal({
               </div>
 
               <div className="space-y-1.5">
-                <label className="field-label">Description / Bio (Optional)</label>
+                <label className="field-label">{t("band.description")}</label>
                 <textarea
                   rows={2}
-                  placeholder="Musical direction, release goals, or member lineup..."
+                  placeholder={t("band.descriptionPh")}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="field text-xs resize-none"
@@ -415,20 +418,20 @@ export function BandManagerModal({
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="field-label mb-0">Select Band Collaborators</label>
+                  <label className="field-label mb-0">{t("band.collaborators")}</label>
                   <span className="text-[11px] text-[var(--color-sand-2)]">
-                    {selectedMemberIds.length} selected
+                    {t("band.selectedN").replace("{n}", String(selectedMemberIds.length))}
                   </span>
                 </div>
 
                 <div className="max-h-44 space-y-1.5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-2">
                   {loadingUsers ? (
                     <div className="flex items-center justify-center py-6 text-xs text-[var(--color-sand-2)]">
-                      <Spinner size="sm" color="warning" className="mr-2" /> Loading users...
+                      <Spinner size="sm" color="warning" className="mr-2" /> {t("common.loading")}
                     </div>
                   ) : collaborators.length === 0 ? (
                     <p className="py-4 text-center text-xs text-[var(--color-sand-2)]">
-                      No other registered users found in workspace.
+                      {t("band.noUsers")}
                     </p>
                   ) : (
                     collaborators.map((user) => {
@@ -477,10 +480,10 @@ export function BandManagerModal({
               <div className="flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3">
                 <div className="space-y-0.5">
                   <div className="text-xs font-semibold text-[var(--color-foreground)]">
-                    Workspace-Wide Visibility
+                    {t("band.visibility")}
                   </div>
                   <div className="text-[11px] text-[var(--color-sand-2)]">
-                    Allow all registered users in this private workspace to see songs assigned to this band
+                    {t("band.visibilityDesc")}
                   </div>
                 </div>
                 <input
@@ -500,7 +503,7 @@ export function BandManagerModal({
                     className="flex items-center gap-1.5 rounded-xl border border-red-500/30 px-3.5 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-500/10 disabled:opacity-50"
                   >
                     {deleting ? <Spinner size="sm" color="danger" /> : <Trash2 className="h-3.5 w-3.5" />}
-                    Delete Band
+                    {t("band.deleteBand")}
                   </button>
                 ) : (
                   <div />
@@ -526,7 +529,7 @@ export function BandManagerModal({
                     ) : (
                       <Sparkles className="h-3.5 w-3.5" />
                     )}
-                    {projectToEdit ? "Save Changes" : "Create Band"}
+                    {projectToEdit ? t("band.saveChanges") : t("band.createBand")}
                   </button>
                 </div>
               </div>

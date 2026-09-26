@@ -186,6 +186,8 @@ export const musicBEn = {
   "band.visibility": "Workspace-Wide Visibility",
   "band.visibilityDesc": "Allow all registered users in this private workspace to see songs assigned to this band",
   "band.deleteBand": "Delete Band",
+  "band.noUsers": "No other registered users found in workspace.",
+  "band.selectedN": "{n} selected",
   "band.saveChanges": "Save Changes",
   "band.createBand": "Create Band",
 
@@ -236,6 +238,17 @@ export const musicBEn = {
   "auth.hasAccount": "Already have an account?",
   "auth.needAccount": "Need an account?",
   "auth.signIn": "Sign in",
+  "auth.changePassword": "Change password?",
+  "auth.changePasswordTitle": "Change your password",
+  "auth.currentPassword": "Current password",
+  "auth.newPassword": "New password",
+  "auth.confirmNew": "Confirm new password",
+  "auth.updatePassword": "Update password",
+  "auth.backToLogin": "Back to login",
+  "auth.passwordChangedLogin": "Password changed — now log in",
+  "auth.name": "Name",
+  "auth.namePh": "Artist or producer name",
+  "auth.resend": "Resend confirmation",
 } as const;
 
 export type MusicBKey = keyof typeof musicBEn;
@@ -422,6 +435,8 @@ const es: Record<MusicBKey, string> = {
   "band.visibility": "Visibilidad en el espacio",
   "band.visibilityDesc": "Permite a todos los usuarios registrados ver las canciones de esta banda",
   "band.deleteBand": "Eliminar banda",
+  "band.noUsers": "No hay más usuarios registrados en el espacio.",
+  "band.selectedN": "{n} elegidos",
   "band.saveChanges": "Guardar cambios",
   "band.createBand": "Crear banda",
 
@@ -472,6 +487,17 @@ const es: Record<MusicBKey, string> = {
   "auth.hasAccount": "¿Ya tienes cuenta?",
   "auth.needAccount": "¿Necesitas cuenta?",
   "auth.signIn": "Entrar",
+  "auth.changePassword": "¿Cambiar contraseña?",
+  "auth.changePasswordTitle": "Cambia tu contraseña",
+  "auth.currentPassword": "Contraseña actual",
+  "auth.newPassword": "Nueva contraseña",
+  "auth.confirmNew": "Confirma la nueva",
+  "auth.updatePassword": "Actualizar contraseña",
+  "auth.backToLogin": "Volver a entrar",
+  "auth.passwordChangedLogin": "Contraseña cambiada — entra ahora",
+  "auth.name": "Nombre",
+  "auth.namePh": "Nombre de artista o productor",
+  "auth.resend": "Reenviar confirmación",
 };
 
 const de: Record<MusicBKey, string> = {
@@ -656,6 +682,8 @@ const de: Record<MusicBKey, string> = {
   "band.visibility": "Bereichsweite Sichtbarkeit",
   "band.visibilityDesc": "Alle registrierten Nutzer dürfen Songs dieser Band sehen",
   "band.deleteBand": "Band löschen",
+  "band.noUsers": "Keine weiteren registrierten Nutzer im Bereich.",
+  "band.selectedN": "{n} ausgewählt",
   "band.saveChanges": "Änderungen speichern",
   "band.createBand": "Band erstellen",
 
@@ -706,6 +734,17 @@ const de: Record<MusicBKey, string> = {
   "auth.hasAccount": "Schon ein Konto?",
   "auth.needAccount": "Konto benötigt?",
   "auth.signIn": "Anmelden",
+  "auth.changePassword": "Passwort ändern?",
+  "auth.changePasswordTitle": "Passwort ändern",
+  "auth.currentPassword": "Aktuelles Passwort",
+  "auth.newPassword": "Neues Passwort",
+  "auth.confirmNew": "Neues Passwort bestätigen",
+  "auth.updatePassword": "Passwort aktualisieren",
+  "auth.backToLogin": "Zurück zum Login",
+  "auth.passwordChangedLogin": "Passwort geändert — jetzt anmelden",
+  "auth.name": "Name",
+  "auth.namePh": "Künstler- oder Produzentenname",
+  "auth.resend": "Bestätigung erneut senden",
 };
 
 const fr: Record<MusicBKey, string> = {
@@ -890,6 +929,8 @@ const fr: Record<MusicBKey, string> = {
   "band.visibility": "Visibilité de l’espace",
   "band.visibilityDesc": "Tous les utilisateurs inscrits voient les morceaux de ce groupe",
   "band.deleteBand": "Supprimer le groupe",
+  "band.noUsers": "Aucun autre utilisateur inscrit dans l’espace.",
+  "band.selectedN": "{n} sélectionné(s)",
   "band.saveChanges": "Enregistrer",
   "band.createBand": "Créer le groupe",
 
@@ -940,6 +981,17 @@ const fr: Record<MusicBKey, string> = {
   "auth.hasAccount": "Déjà un compte ?",
   "auth.needAccount": "Besoin d’un compte ?",
   "auth.signIn": "Se connecter",
+  "auth.changePassword": "Changer le mot de passe ?",
+  "auth.changePasswordTitle": "Changez votre mot de passe",
+  "auth.currentPassword": "Mot de passe actuel",
+  "auth.newPassword": "Nouveau mot de passe",
+  "auth.confirmNew": "Confirmez le nouveau",
+  "auth.updatePassword": "Mettre à jour",
+  "auth.backToLogin": "Retour à la connexion",
+  "auth.passwordChangedLogin": "Mot de passe changé — connectez-vous",
+  "auth.name": "Nom",
+  "auth.namePh": "Nom d’artiste ou producteur",
+  "auth.resend": "Renvoyer la confirmation",
 };
 
 const ru: Record<MusicBKey, string> = {
@@ -1124,6 +1176,8 @@ const ru: Record<MusicBKey, string> = {
   "band.visibility": "Видимость в пространстве",
   "band.visibilityDesc": "Все зарегистрированные пользователи видят песни этой группы",
   "band.deleteBand": "Удалить группу",
+  "band.noUsers": "Других зарегистрированных пользователей нет.",
+  "band.selectedN": "Выбрано: {n}",
   "band.saveChanges": "Сохранить",
   "band.createBand": "Создать группу",
 
@@ -1174,6 +1228,17 @@ const ru: Record<MusicBKey, string> = {
   "auth.hasAccount": "Уже есть аккаунт?",
   "auth.needAccount": "Нужен аккаунт?",
   "auth.signIn": "Войти",
+  "auth.changePassword": "Сменить пароль?",
+  "auth.changePasswordTitle": "Смените пароль",
+  "auth.currentPassword": "Текущий пароль",
+  "auth.newPassword": "Новый пароль",
+  "auth.confirmNew": "Подтвердите новый",
+  "auth.updatePassword": "Обновить пароль",
+  "auth.backToLogin": "Назад ко входу",
+  "auth.passwordChangedLogin": "Пароль изменён — войдите",
+  "auth.name": "Имя",
+  "auth.namePh": "Имя артиста или продюсера",
+  "auth.resend": "Отправить подтверждение снова",
 };
 
 export const MUSIC_B: Record<string, Record<MusicBKey, string>> = {
