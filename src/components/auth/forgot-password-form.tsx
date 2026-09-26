@@ -52,7 +52,7 @@ export function ForgotPasswordForm() {
               <h1 className="text-3xl font-black tracking-tight">Reset your password</h1>
             </div>
             <p className="text-sm leading-7 text-[var(--color-sand-2)]">
-              Enter the account email and Music Tool will send a password reset link.
+              Enter the account email and BandsChamber Studio will send a password reset link.
             </p>
             <form className="space-y-4" onSubmit={handleSubmit}>
               <label className="block space-y-2">

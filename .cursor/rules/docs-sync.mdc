@@ -1,0 +1,18 @@
+---
+description: Keep docs in sync with code (mandatory protocol)
+globs: ["src/**/*", "docs/**/*", "public/manifest.webmanifest"]
+alwaysApply: true
+---
+
+# BandsChamber Studio — docs sync (Cursor)
+
+Follow the repo agent rules in `AGENTS.md` and the full protocol in
+`docs/AGENT_PROTOCOL.md`:
+
+- Read `docs/README.md`, `docs/ARCHITECTURE.md`, `docs/REQUIREMENTS.md`,
+  `docs/ACCEPTANCE.md` before editing code.
+- Every behavior/API/DB-schema/access change updates `docs/` in the same
+  change. Append FR/NFR numbers, never renumber.
+- UI strings require all 5 i18n locales (`src/lib/i18n/`).
+- New pages/API routes must enforce auth/access (no middleware exists).
+- Verify with `npx tsc --noEmit` + `npm test` (`npm run build` for UI/API).

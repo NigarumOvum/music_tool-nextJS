@@ -52,7 +52,7 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
               <h1 className="text-3xl font-black tracking-tight">Choose a new password</h1>
             </div>
             <p className="text-sm leading-7 text-[var(--color-sand-2)]">
-              Set a new password for your Music Tool account.
+              Set a new password for your BandsChamber Studio account.
             </p>
             <form className="space-y-4" onSubmit={handleSubmit}>
               <label className="block space-y-2">

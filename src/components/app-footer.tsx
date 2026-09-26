@@ -37,7 +37,7 @@ export function AppFooter() {
             </div>
             <div>
               <div className="eyebrow">Studio Hub</div>
-              <div className="text-base font-black tracking-tight text-[var(--color-foreground)]">Music Tool</div>
+              <div className="text-base font-black tracking-tight text-[var(--color-foreground)]">BandsChamber Studio</div>
             </div>
           </div>
           <p className="max-w-sm text-xs leading-relaxed text-[var(--color-sand-2)]">
@@ -69,7 +69,7 @@ export function AppFooter() {
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-stroke)] pt-4">
-        <p className="text-[11px] text-[var(--color-sand-2)]">© {year} Music Tool. {t("footer.rights")}</p>
+        <p className="text-[11px] text-[var(--color-sand-2)]">© {year} BandsChamber Studio. {t("footer.rights")}</p>
         <Link
           href="/membership"
           className="glass-pill inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)] transition hover:brightness-110"

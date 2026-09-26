@@ -129,7 +129,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
         <Card className="panel w-full max-w-5xl overflow-hidden rounded-[2.25rem] border-0 bg-transparent shadow-none">
           <CardBody className="grid gap-0 p-0 lg:grid-cols-[0.95fr_1.05fr]">
             <section className="order-2 border-t border-[var(--color-border)] bg-[linear-gradient(155deg,var(--color-info-surface),transparent_58%)] p-6 sm:p-8 lg:order-1 lg:border-r lg:border-t-0 lg:p-10 xl:p-12">
-              <div className="eyebrow">Music Tool</div>
+              <div className="eyebrow">BandsChamber Studio</div>
               <h1 className="mt-4 max-w-[11ch] text-4xl font-black tracking-[-0.05em] text-[var(--color-foreground)] sm:max-w-none sm:text-5xl">
                 {isRegister ? t("auth.createTitle") : t("auth.loginTitle")}
               </h1>

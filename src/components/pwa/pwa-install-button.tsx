@@ -17,7 +17,7 @@ export function PWAInstallButton({ className = "" }: { className?: string }) {
           type="button"
           onClick={() => setShowIOSInstructions(true)}
           className={`glass-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold tracking-wider text-[var(--color-copper)] border border-[var(--color-copper)]/30 hover:bg-[var(--color-copper)]/10 transition-colors ${className}`}
-          title="Install Music Tool on iOS"
+          title="Install BandsChamber Studio on iOS"
         >
           <Smartphone className="h-3.5 w-3.5" />
           <span>Install App</span>
@@ -40,7 +40,7 @@ export function PWAInstallButton({ className = "" }: { className?: string }) {
                   <Smartphone className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-[var(--color-foreground)]">Install Music Tool</h3>
+                  <h3 className="font-bold text-sm text-[var(--color-foreground)]">Install BandsChamber Studio</h3>
                   <p className="text-xs text-[var(--color-sand-2)]">Add to your Home Screen</p>
                 </div>
               </div>
@@ -81,7 +81,7 @@ export function PWAInstallButton({ className = "" }: { className?: string }) {
       type="button"
       onClick={() => installApp()}
       className={`glass-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold tracking-wider text-[var(--color-copper)] border border-[var(--color-copper)]/30 hover:bg-[var(--color-copper)]/10 transition-colors ${className}`}
-      title="Install Music Tool as an App"
+      title="Install BandsChamber Studio as an App"
     >
       <Download className="h-3.5 w-3.5" />
       <span>Install App</span>

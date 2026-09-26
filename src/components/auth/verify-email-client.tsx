@@ -13,7 +13,7 @@ type VerifyEmailClientProps = {
 export function VerifyEmailClient({ token }: VerifyEmailClientProps) {
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
-  const [message, setMessage] = useState("Click below to confirm your Music Tool account.");
+  const [message, setMessage] = useState("Click below to confirm your BandsChamber Studio account.");
 
   async function handleVerify() {
     setSubmitting(true);
@@ -29,7 +29,7 @@ export function VerifyEmailClient({ token }: VerifyEmailClientProps) {
       }
 
       setStatus("success");
-      setMessage("Your Music Tool account is verified. You can log in now.");
+      setMessage("Your BandsChamber Studio account is verified. You can log in now.");
       toast.success("Email confirmed");
     } catch (error) {
       setStatus("error");

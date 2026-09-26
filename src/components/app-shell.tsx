@@ -73,7 +73,7 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
                 </div>
                 <div className="min-w-0">
                   <div className="eyebrow">Studio Hub</div>
-                  <div className="truncate text-lg font-black tracking-tight text-[var(--color-foreground)]">Music Tool</div>
+                  <div className="truncate text-lg font-black tracking-tight text-[var(--color-foreground)]">BandsChamber Studio</div>
                 </div>
               </Link>
               <div className="flex items-center gap-2 xl:hidden">

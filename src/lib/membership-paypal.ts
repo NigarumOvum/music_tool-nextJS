@@ -119,7 +119,7 @@ async function ensureProductId(plan: MembershipPlan): Promise<string> {
     method: "POST",
     headers: { "PayPal-Request-Id": `product-${plan.id}` },
     body: JSON.stringify({
-      name: `Music Tool ${plan.name}`,
+      name: `BandsChamber Studio ${plan.name}`,
       description: plan.description ?? plan.name,
       type: "SERVICE",
       category: "SOFTWARE",
@@ -133,7 +133,7 @@ async function createBillingPlan(plan: MembershipPlan, productId: string): Promi
     method: "POST",
     body: JSON.stringify({
       product_id: productId,
-      name: `Music Tool ${plan.name}`,
+      name: `BandsChamber Studio ${plan.name}`,
       description: plan.description ?? plan.name,
       billing_cycles: [
         {
@@ -182,7 +182,7 @@ export async function createPaypalSubscription(plan: MembershipPlan) {
     body: JSON.stringify({
       plan_id: billingPlanId,
       application_context: {
-        brand_name: "Music Tool",
+        brand_name: "BandsChamber Studio",
         user_action: "SUBSCRIBE_NOW",
         return_url: `${baseUrl}/membership?approved=1`,
         cancel_url: `${baseUrl}/membership?cancelled=1`,

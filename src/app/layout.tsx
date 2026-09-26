@@ -20,18 +20,18 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
   ),
   title: {
-    default: "Music Tool",
-    template: "%s · Music Tool",
+    default: "BandsChamber Studio",
+    template: "%s · BandsChamber Studio",
   },
   description: "Standalone music production workspace for songs, lyrics, DAW flows, and tab editing.",
-  applicationName: "Music Tool",
-  authors: [{ name: "Music Tool" }],
+  applicationName: "BandsChamber Studio",
+  authors: [{ name: "BandsChamber Studio" }],
   keywords: ["music", "DAW", "lyrics", "tabs", "production", "songwriting", "studio"],
   manifest: "/manifest.webmanifest",
   category: "music",
   appleWebApp: {
     capable: true,
-    title: "Music Tool",
+    title: "BandsChamber Studio",
     statusBarStyle: "black-translucent",
     startupImage: [
       { url: "/icons/icon-512x512.png" },
@@ -44,21 +44,21 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    siteName: "Music Tool",
-    title: "Music Tool",
+    siteName: "BandsChamber Studio",
+    title: "BandsChamber Studio",
     description: "Standalone music production workspace for songs, lyrics, DAW flows, and tab editing.",
     images: [
       {
         url: "/icons/icon-512x512.png",
         width: 512,
         height: 512,
-        alt: "Music Tool",
+        alt: "BandsChamber Studio",
       },
     ],
   },
   twitter: {
     card: "summary",
-    title: "Music Tool",
+    title: "BandsChamber Studio",
     description: "Standalone music production workspace for songs, lyrics, DAW flows, and tab editing.",
     images: ["/icons/icon-512x512.png"],
   },
@@ -115,9 +115,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="MusicTool" />
+        <meta name="apple-mobile-web-app-title" content="BandsChamber" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="application-name" content="Music Tool" />
+        <meta name="application-name" content="BandsChamber Studio" />
         <meta name="msapplication-TileColor" content="#8b5cf6" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
         <meta name="theme-color" media="(prefers-color-scheme: light)" content="#8b5cf6" />

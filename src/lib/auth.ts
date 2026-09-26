@@ -231,18 +231,18 @@ async function sendVerificationEmail(user: AuthUser, token: string) {
   const url = `${getBaseUrl()}/verify-email?token=${encodeURIComponent(token)}`;
   const result = await sendEmail({
     to: user.email,
-    subject: "Confirm your Music Tool email",
+    subject: "Confirm your BandsChamber Studio email",
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
         <h1 style="font-size:24px">Confirm your email</h1>
         <p>Hi ${user.name || user.email},</p>
-        <p>Confirm your Music Tool account to finish setup.</p>
+        <p>Confirm your BandsChamber Studio account to finish setup.</p>
         <p><a href="${url}" style="display:inline-block;padding:12px 18px;background:#c2793f;color:#fff;text-decoration:none;border-radius:9999px">Confirm email</a></p>
         <p>If the button does not work, open this link:</p>
         <p>${url}</p>
       </div>
     `,
-    text: `Confirm your Music Tool email: ${url}`,
+    text: `Confirm your BandsChamber Studio email: ${url}`,
   });
   return { sent: result.ok, url };
 }
@@ -251,18 +251,18 @@ async function sendPasswordResetEmail(user: AuthUser, token: string) {
   const url = `${getBaseUrl()}/reset-password?token=${encodeURIComponent(token)}`;
   const result = await sendEmail({
     to: user.email,
-    subject: "Reset your Music Tool password",
+    subject: "Reset your BandsChamber Studio password",
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
         <h1 style="font-size:24px">Reset your password</h1>
         <p>Hi ${user.name || user.email},</p>
-        <p>Use the link below to set a new Music Tool password.</p>
+        <p>Use the link below to set a new BandsChamber Studio password.</p>
         <p><a href="${url}" style="display:inline-block;padding:12px 18px;background:#c2793f;color:#fff;text-decoration:none;border-radius:9999px">Reset password</a></p>
         <p>If the button does not work, open this link:</p>
         <p>${url}</p>
       </div>
     `,
-    text: `Reset your Music Tool password: ${url}`,
+    text: `Reset your BandsChamber Studio password: ${url}`,
   });
   return { sent: result.ok, url };
 }
@@ -948,19 +948,19 @@ async function sendEmailChangeConfirmation(user: AuthUser, newEmail: string, tok
   const url = `${getBaseUrl()}/account?email-change=${encodeURIComponent(token)}`;
   const result = await sendEmail({
     to: newEmail,
-    subject: "Confirm your new Music Tool email",
+    subject: "Confirm your new BandsChamber Studio email",
     html: `
       <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
         <h1 style="font-size:24px">Confirm your new email</h1>
         <p>Hi ${user.name || user.email},</p>
-        <p>Confirm <strong>${newEmail}</strong> as your new Music Tool login email.</p>
+        <p>Confirm <strong>${newEmail}</strong> as your new BandsChamber Studio login email.</p>
         <p><a href="${url}" style="display:inline-block;padding:12px 18px;background:#c2793f;color:#fff;text-decoration:none;border-radius:9999px">Confirm new email</a></p>
         <p>If the button does not work, open this link:</p>
         <p>${url}</p>
         <p>If you did not request this change, just ignore this email.</p>
       </div>
     `,
-    text: `Confirm your new Music Tool email: ${url}`,
+    text: `Confirm your new BandsChamber Studio email: ${url}`,
   });
   return { sent: result.ok, url };
 }

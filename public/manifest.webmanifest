@@ -1,6 +1,6 @@
 {
-  "name": "Music Tool",
-  "short_name": "MusicTool",
+  "name": "BandsChamber Studio",
+  "short_name": "BandsChamber",
   "description": "Standalone music production workspace for songs, lyrics, DAW flows, and tab editing.",
   "start_url": "/",
   "scope": "/",
