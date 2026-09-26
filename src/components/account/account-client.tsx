@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { LogoutButton } from "@/components/auth/logout-button";
+import { useI18n } from "@/components/language-provider";
 import { HUB_ACCESS_GROUPS, MANAGEABLE_PAGES, type ManagedPageKey } from "@/lib/access";
 
 type PageDefinition = {
@@ -31,6 +32,7 @@ type AccountClientProps = {
     isAdmin: boolean;
   };
   deniedPage?: string;
+  emailChangeToken?: string;
   pageAccess: Record<ManagedPageKey, boolean>;
 };
 
@@ -51,7 +53,8 @@ function buildFullPageAccessMap(enabled: boolean, pages: PageDefinition[]) {
   return Object.fromEntries(pages.map((page) => [page.key, enabled])) as Record<ManagedPageKey, boolean>;
 }
 
-export function AccountClient({ currentUser, deniedPage, pageAccess }: AccountClientProps) {
+export function AccountClient({ currentUser, deniedPage, emailChangeToken, pageAccess }: AccountClientProps) {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<"profile" | "access">("profile");
   const [pages, setPages] = useState<PageDefinition[]>(MANAGEABLE_PAGES.map((page) => ({ ...page })));
   const [users, setUsers] = useState<RegisteredUserAccess[]>([]);
@@ -59,6 +62,47 @@ export function AccountClient({ currentUser, deniedPage, pageAccess }: AccountCl
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [editingNameUserId, setEditingNameUserId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState("");
+
+  // Change password form
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [nextPassword, setNextPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  // Change email form
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [savingEmail, setSavingEmail] = useState(false);
+
+  // Auto-confirm a pending email change opened from the inbox link.
+  useEffect(() => {
+    if (!emailChangeToken) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/account/email/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: emailChangeToken }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error((payload as { error?: string }).error || "Failed to confirm email change");
+        }
+        if (!cancelled) {
+          const confirmedEmail = String((payload as { email?: string }).email ?? "");
+          toast.success(t("account.emailChanged").replace("{email}", confirmedEmail));
+          window.setTimeout(() => window.location.replace("/account"), 1200);
+        }
+      } catch (error) {
+        if (!cancelled) toast.error((error as Error).message);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailChangeToken]);
 
   const ownHubSummary = useMemo(() => getHubAccessSummary(pageAccess), [pageAccess]);
 
@@ -181,6 +225,61 @@ export function AccountClient({ currentUser, deniedPage, pageAccess }: AccountCl
     setDraftName(user.name || "");
   }
 
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (nextPassword !== confirmPassword) {
+      toast.error(t("account.passwordMismatch"));
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const response = await fetch("/api/account/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, nextPassword }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error((payload as { error?: string }).error || "Failed to change password");
+      }
+      setCurrentPassword("");
+      setNextPassword("");
+      setConfirmPassword("");
+      toast.success(t("account.passwordChanged"));
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setSavingPassword(false);
+    }
+  }
+
+  async function handleChangeEmail(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingEmail(true);
+    try {
+      const response = await fetch("/api/account/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: emailPassword, newEmail }),
+      });
+      const payload = await response.json().catch(() => ({})) as { sent?: boolean; url?: string | null; newEmail?: string };
+      if (!response.ok) {
+        throw new Error((payload as { error?: string }).error || "Failed to request email change");
+      }
+      setEmailPassword("");
+      if (payload.sent) {
+        toast.success(t("account.emailSent").replace("{email}", payload.newEmail || newEmail));
+      } else if (payload.url) {
+        toast.message(t("account.emailFallback"));
+      }
+      setNewEmail("");
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setSavingEmail(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
@@ -189,7 +288,7 @@ export function AccountClient({ currentUser, deniedPage, pageAccess }: AccountCl
           onClick={() => setActiveTab("profile")}
           className={`glass-pill px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${activeTab === "profile" ? "border-[var(--color-info-border)] bg-[var(--color-info-surface)] text-[var(--color-foreground)]" : "text-[var(--color-sand-2)] hover:-translate-y-0.5"}`}
         >
-          Profile
+          {t("account.profile")}
         </button>
         {currentUser.isAdmin ? (
           <button
@@ -197,7 +296,7 @@ export function AccountClient({ currentUser, deniedPage, pageAccess }: AccountCl
             onClick={() => setActiveTab("access")}
             className={`glass-pill px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${activeTab === "access" ? "border-[var(--color-info-border)] bg-[var(--color-info-surface)] text-[var(--color-foreground)]" : "text-[var(--color-sand-2)] hover:-translate-y-0.5"}`}
           >
-            Access Control
+            {t("account.accessControl")}
           </button>
         ) : null}
       </div>
@@ -211,34 +310,119 @@ export function AccountClient({ currentUser, deniedPage, pageAccess }: AccountCl
               </div>
             ) : null}
             <div className="panel rounded-[1.5rem] p-5">
-              <div className="eyebrow">Email</div>
+              <div className="eyebrow">{t("account.email")}</div>
               <p className="mt-3 text-lg font-semibold text-[var(--color-foreground)]">{currentUser.email}</p>
             </div>
             <div className="panel rounded-[1.5rem] p-5">
-              <div className="eyebrow">Name</div>
+              <div className="eyebrow">{t("account.name")}</div>
               <p className="mt-3 text-lg font-semibold text-[var(--color-foreground)]">{currentUser.name || "Not set"}</p>
             </div>
             <div className="panel rounded-[1.5rem] p-5">
-              <div className="eyebrow">Verification</div>
-              <p className="mt-3 text-lg font-semibold text-[var(--color-foreground)]">{currentUser.emailVerifiedAt ? "Verified" : "Pending"}</p>
+              <div className="eyebrow">{t("account.verification")}</div>
+              <p className="mt-3 text-lg font-semibold text-[var(--color-foreground)]">{currentUser.emailVerifiedAt ? t("account.verified") : t("account.pending")}</p>
             </div>
             <div className="panel rounded-[1.5rem] p-5">
-              <div className="eyebrow">Role</div>
-              <p className="mt-3 text-lg font-semibold text-[var(--color-foreground)]">{currentUser.isAdmin ? "Admin" : "Member"}</p>
+              <div className="eyebrow">{t("account.role")}</div>
+              <p className="mt-3 text-lg font-semibold text-[var(--color-foreground)]">{currentUser.isAdmin ? t("account.admin") : t("account.member")}</p>
             </div>
             <div className="panel rounded-[1.5rem] p-5 flex items-center justify-between">
               <div>
-                <div className="eyebrow">Session</div>
-                <p className="mt-3 text-sm text-[var(--color-sand-2)]">Log out to end your session</p>
+                <div className="eyebrow">{t("account.session")}</div>
+                <p className="mt-3 text-sm text-[var(--color-sand-2)]">{t("account.logoutHint")}</p>
               </div>
               <LogoutButton />
             </div>
           </div>
 
+          <div className="panel rounded-[1.5rem] p-5">
+            <div className="eyebrow">{t("account.security")}</div>
+            <p className="mt-2 text-sm text-[var(--color-sand-2)]">{t("account.securityHint")}</p>
+            <div className="mt-4 grid gap-6 md:grid-cols-2">
+              <form onSubmit={(e) => void handleChangePassword(e)} className="space-y-3">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--color-foreground)]">{t("account.changePassword")}</h3>
+                <label className="field-group">
+                  <span className="field-label">{t("account.currentPassword")}</span>
+                  <input
+                    type="password"
+                    className="field"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    autoComplete="current-password"
+                    required
+                  />
+                </label>
+                <label className="field-group">
+                  <span className="field-label">{t("account.newPassword")}</span>
+                  <input
+                    type="password"
+                    className="field"
+                    value={nextPassword}
+                    onChange={(e) => setNextPassword(e.target.value)}
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                  />
+                </label>
+                <label className="field-group">
+                  <span className="field-label">{t("account.confirmPassword")}</span>
+                  <input
+                    type="password"
+                    className="field"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={savingPassword}
+                  className="glass-pill px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-foreground)] transition hover:-translate-y-0.5 disabled:opacity-50"
+                >
+                  {t("account.updatePassword")}
+                </button>
+              </form>
+
+              <form onSubmit={(e) => void handleChangeEmail(e)} className="space-y-3">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-[var(--color-foreground)]">{t("account.changeEmail")}</h3>
+                <label className="field-group">
+                  <span className="field-label">{t("account.newEmail")}</span>
+                  <input
+                    type="email"
+                    className="field"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder={currentUser.email}
+                    required
+                  />
+                </label>
+                <label className="field-group">
+                  <span className="field-label">{t("account.yourPassword")}</span>
+                  <input
+                    type="password"
+                    className="field"
+                    value={emailPassword}
+                    onChange={(e) => setEmailPassword(e.target.value)}
+                    autoComplete="current-password"
+                    required
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={savingEmail}
+                  className="glass-pill px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-foreground)] transition hover:-translate-y-0.5 disabled:opacity-50"
+                >
+                  {t("account.sendConfirmation")}
+                </button>
+              </form>
+            </div>
+          </div>
+
           {!currentUser.isAdmin ? (
             <div className="panel rounded-[1.5rem] p-5">
-              <div className="eyebrow">Your access</div>
-              <p className="mt-2 text-sm text-[var(--color-sand-2)]">Hubs and pages currently enabled for your account.</p>
+              <div className="eyebrow">{t("account.yourAccess")}</div>
+              <p className="mt-2 text-sm text-[var(--color-sand-2)]">{t("account.accessHint")}</p>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 {ownHubSummary.map((hub) => (
                   <div

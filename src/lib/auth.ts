@@ -380,6 +380,25 @@ async function ensureAuthTables() {
     CREATE INDEX IF NOT EXISTS app_page_access_user_idx
     ON app_page_access (user_id, page_key)
   `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS app_email_change (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL,
+      new_email text NOT NULL,
+      token_hash text NOT NULL,
+      expires_at text NOT NULL,
+      created_at text NOT NULL,
+      consumed_at text
+    )
+  `);
+  await db.execute(`
+    CREATE UNIQUE INDEX IF NOT EXISTS app_email_change_hash_idx
+    ON app_email_change (token_hash)
+  `);
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS app_email_change_user_idx
+    ON app_email_change (user_id, expires_at)
+  `);
   await ensureBootstrapAdmins();
 
   authTablesReady = true;
@@ -849,6 +868,166 @@ export async function resetPassword(token: string, nextPassword: string) {
   await db.execute({ sql: "delete from app_session where user_id = ?", args: [user.id] });
 
   return user;
+}
+
+export async function changePassword(input: {
+  userId: string;
+  currentPassword: string;
+  nextPassword: string;
+  keepSessionId?: string | null;
+}) {
+  const nextPassword = input.nextPassword.trim();
+  if (nextPassword.length < 8) {
+    throw new Error("Password must be at least 8 characters");
+  }
+
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const result = await db.execute({
+    sql: "select * from app_user where id = ? limit 1",
+    args: [input.userId],
+  });
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    throw new Error("User not found");
+  }
+
+  if (!verifyPassword(input.currentPassword, String(row.password_hash))) {
+    throw new Error("Current password is incorrect");
+  }
+
+  const now = isoNow();
+  await db.execute({
+    sql: "update app_user set password_hash = ?, updated_at = ? where id = ?",
+    args: [hashPassword(nextPassword), now, input.userId],
+  });
+  // Rotate other sessions; keep the one the change was made from.
+  if (input.keepSessionId) {
+    await db.execute({
+      sql: "delete from app_session where user_id = ? and id != ?",
+      args: [input.userId, input.keepSessionId],
+    });
+  } else {
+    await db.execute({ sql: "delete from app_session where user_id = ?", args: [input.userId] });
+  }
+}
+
+async function sendEmailChangeConfirmation(user: AuthUser, newEmail: string, token: string) {
+  const url = `${getBaseUrl()}/account?email-change=${encodeURIComponent(token)}`;
+  const result = await sendEmail({
+    to: newEmail,
+    subject: "Confirm your new Music Tool email",
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
+        <h1 style="font-size:24px">Confirm your new email</h1>
+        <p>Hi ${user.name || user.email},</p>
+        <p>Confirm <strong>${newEmail}</strong> as your new Music Tool login email.</p>
+        <p><a href="${url}" style="display:inline-block;padding:12px 18px;background:#c2793f;color:#fff;text-decoration:none;border-radius:9999px">Confirm new email</a></p>
+        <p>If the button does not work, open this link:</p>
+        <p>${url}</p>
+        <p>If you did not request this change, just ignore this email.</p>
+      </div>
+    `,
+    text: `Confirm your new Music Tool email: ${url}`,
+  });
+  return { sent: result.ok, url };
+}
+
+export async function requestEmailChange(input: { userId: string; password: string; newEmail: string }) {
+  const newEmail = normalizeEmail(input.newEmail);
+  if (!newEmail || !newEmail.includes("@")) {
+    throw new Error("A valid email is required");
+  }
+
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const result = await db.execute({
+    sql: "select * from app_user where id = ? limit 1",
+    args: [input.userId],
+  });
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    throw new Error("User not found");
+  }
+
+  if (!verifyPassword(input.password, String(row.password_hash))) {
+    throw new Error("Password is incorrect");
+  }
+
+  if (newEmail === normalizeEmail(String(row.email))) {
+    throw new Error("This is already your email");
+  }
+
+  const taken = await db.execute({
+    sql: "select id from app_user where email = ? limit 1",
+    args: [newEmail],
+  });
+  if (taken.rows[0]) {
+    throw new Error("This email is already registered");
+  }
+
+  const token = randomBytes(32).toString("hex");
+  const now = isoNow();
+  await db.execute({
+    sql: `
+      insert into app_email_change (id, user_id, new_email, token_hash, expires_at, created_at, consumed_at)
+      values (?, ?, ?, ?, ?, ?, ?)
+    `,
+    args: [
+      crypto.randomUUID(),
+      input.userId,
+      newEmail,
+      hashToken(token),
+      new Date(Date.now() + EMAIL_CONFIRMATION_DURATION_MS).toISOString(),
+      now,
+      null,
+    ],
+  });
+
+  const user = mapUserRow(row);
+  const { sent, url } = await sendEmailChangeConfirmation(user, newEmail, token);
+  if (!sent) {
+    console.error("Email-change confirmation could not be delivered; surfacing fallback link", url);
+    return { sent: false as const, url, newEmail };
+  }
+  return { sent: true as const, url: null as string | null, newEmail };
+}
+
+export async function confirmEmailChange(input: { userId: string; token: string }) {
+  await ensureAuthTables();
+  const db = getAuthClient();
+  const result = await db.execute({
+    sql: "select * from app_email_change where token_hash = ? and user_id = ? limit 1",
+    args: [hashToken(input.token), input.userId],
+  });
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row || row.consumed_at) {
+    throw new Error("Invalid or expired token");
+  }
+  if (new Date(String(row.expires_at)).getTime() <= Date.now()) {
+    throw new Error("Invalid or expired token");
+  }
+
+  const newEmail = normalizeEmail(String(row.new_email));
+  const taken = await db.execute({
+    sql: "select id from app_user where email = ? and id != ? limit 1",
+    args: [newEmail, input.userId],
+  });
+  if (taken.rows[0]) {
+    throw new Error("This email is already registered");
+  }
+
+  const now = isoNow();
+  await db.execute({
+    sql: "update app_user set email = ?, email_verified_at = ?, updated_at = ? where id = ?",
+    args: [newEmail, now, now, input.userId],
+  });
+  await db.execute({
+    sql: "update app_email_change set consumed_at = ? where id = ?",
+    args: [now, String(row.id)],
+  });
+
+  return { email: newEmail };
 }
 
 export async function logoutUser(request: Request) {
