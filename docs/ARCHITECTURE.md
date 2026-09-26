@@ -26,7 +26,7 @@ route**. Any new route must do the same (see §5).
 | `/music-toolkit`, `/theory-lab`, `/progressions`, `/musician-helpers` | Redirect aliases to `/?tab=…` | login |
 | `/production-studio?tab=notation\|audio\|lyrics` (+ `song`) | Studio hub shell + song catalog + studio modal | login + ≥1 studio tab |
 | `/tab-studio`, `/daw`, `/lyrics-library`, `/song-studio` | Redirect aliases to `/production-studio?tab=…` | login |
-| `/prompt-library` | Prompt templates + runner | login + `prompt-library` pageKey |
+| `/prompt-library` | Prompt templates + runner (full-width library, top-right Create Prompt modal editor, color-enriched details modal) | login + `prompt-library` pageKey |
 | `/membership` | Plans, PayPal checkout, history | login |
 | `/account` | Profile, security, membership, access (admin tab) | login |
 | `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email` | Auth flows | logged-in users redirect to `/` |
