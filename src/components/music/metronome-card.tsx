@@ -5,6 +5,7 @@ import { Activity, FastForward, Play, Square, VolumeX } from "lucide-react";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { useAudio } from "@/components/music/audio-provider";
+import { useI18n } from "@/components/language-provider";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { playMetronomeSound, type MetronomeSoundType } from "@/lib/music/metronome-sound";
 
@@ -36,6 +37,7 @@ function isAccentBeat(beat: number, sig: (typeof TIME_SIGNATURES)[number]): bool
 
 export function MetronomeCard() {
   const { getAudioContext } = useAudio();
+  const { t } = useI18n();
   const userId = useCurrentUserId();
   const [bpm, setBpm] = usePersistentState("helpers_bpm", 120, { userId });
   const [isPlaying, setIsPlaying] = useState(false);
@@ -47,6 +49,16 @@ export function MetronomeCard() {
   const [countInBars, setCountInBars] = usePersistentState("helpers_count_in", 0, { userId });
   const [tapTimes, setTapTimes] = useState<number[]>([]);
   const [accentFlash, setAccentFlash] = useState(false);
+  const subdivisionName =
+    subdivision === 1
+      ? t("metro.quarter")
+      : subdivision === 2
+      ? t("metro.eighths")
+      : subdivision === 3
+      ? t("metro.triplets")
+      : subdivision === 4
+      ? t("metro.sixteenths")
+      : t("metro.sextuplets");
 
   // Speed Trainer Mode
   const [speedTrainer, setSpeedTrainer] = useState(false);
@@ -205,18 +217,8 @@ export function MetronomeCard() {
   return (
     <CollapsibleCard
       defaultOpen={true}
-      title="Pro Metronome & Tap Tempo"
-      subtitle={`${bpm} BPM · ${timeSignature} · ${
-        subdivision === 1
-          ? "Quarter"
-          : subdivision === 2
-          ? "Eighths"
-          : subdivision === 3
-          ? "Triplets"
-          : subdivision === 4
-          ? "Sixteenths"
-          : "Sextuplets"
-      } · ${soundType.toUpperCase()}`}
+      title={t("metro.title")}
+      subtitle={`${bpm} BPM · ${timeSignature} · ${subdivisionName} · ${soundType.toUpperCase()}`}
       eyebrow="Timing Precision"
       icon={<Activity className="h-5 w-5 text-[var(--color-mint)]" />}
       badge={
@@ -238,7 +240,7 @@ export function MetronomeCard() {
             isPlaying ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "bg-[var(--color-mint)] text-black shadow-lg shadow-emerald-500/20"
           }`}
         >
-          {isPlaying ? "Stop" : "Start"}
+          {isPlaying ? t("metro.stop") : t("metro.start")}
         </button>
       }
     >
@@ -305,7 +307,7 @@ export function MetronomeCard() {
           {/* Meter, Subdivision & Count-in */}
           <div className="flex flex-wrap items-center justify-center gap-3">
             <label className="field-group">
-              <span className="field-label">Signature</span>
+              <span className="field-label">{t("metro.signature")}</span>
               <select
                 value={timeSignature}
                 onChange={(event) => setTimeSignature(event.target.value as (typeof TIME_SIGNATURES)[number])}
@@ -319,29 +321,29 @@ export function MetronomeCard() {
               </select>
             </label>
             <label className="field-group">
-              <span className="field-label">Subdivision</span>
+              <span className="field-label">{t("metro.subdivision")}</span>
               <select
                 value={subdivision}
                 onChange={(event) => setSubdivision(Number(event.target.value) as 1 | 2 | 3 | 4 | 6)}
                 className="field py-1.5 text-xs font-bold"
               >
-                <option value={1}>Quarter (1x)</option>
-                <option value={2}>Eighths (2x)</option>
-                <option value={3}>Triplets (3x)</option>
-                <option value={4}>Sixteenths (4x)</option>
-                <option value={6}>Sextuplets (6x)</option>
+                <option value={1}>{t("metro.quarter")} (1x)</option>
+                <option value={2}>{t("metro.eighths")} (2x)</option>
+                <option value={3}>{t("metro.triplets")} (3x)</option>
+                <option value={4}>{t("metro.sixteenths")} (4x)</option>
+                <option value={6}>{t("metro.sextuplets")} (6x)</option>
               </select>
             </label>
             <label className="field-group">
-              <span className="field-label">Count-in</span>
+              <span className="field-label">{t("metro.countIn")}</span>
               <select
                 value={countInBars}
                 onChange={(event) => setCountInBars(Number(event.target.value))}
                 className="field py-1.5 text-xs font-bold"
               >
-                <option value={0}>Off</option>
-                <option value={1}>1 bar</option>
-                <option value={2}>2 bars</option>
+                <option value={0}>{t("metro.countOff")}</option>
+                <option value={1}>{t("metro.countBars").replace("{n}", "1")}</option>
+                <option value={2}>{t("metro.countBarsPlural").replace("{n}", "2")}</option>
               </select>
             </label>
           </div>
@@ -385,9 +387,9 @@ export function MetronomeCard() {
           </div>
 
           {/* Tempo Slider & Volume */}
-          <div className="grid w-full gap-3 sm:grid-cols-2">
-            <label className="field-group">
-              <span className="field-label">Tempo Slider ({bpm} BPM)</span>
+            <div className="grid w-full gap-3 sm:grid-cols-2">
+              <label className="field-group">
+                <span className="field-label">{t("metro.tempoSlider").replace("{bpm}", String(bpm))}</span>
               <input
                 type="range"
                 min="40"
@@ -397,8 +399,8 @@ export function MetronomeCard() {
                 className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-[var(--color-mint)]"
               />
             </label>
-            <label className="field-group">
-              <span className="field-label">Click volume ({Math.round(clickVolume * 100)}%)</span>
+              <label className="field-group">
+                <span className="field-label">{t("metro.clickVolume").replace("{pct}", String(Math.round(clickVolume * 100)))}</span>
               <input
                 type="range"
                 min="0.1"
@@ -435,7 +437,7 @@ export function MetronomeCard() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-black">
                   <FastForward className="h-3.5 w-3.5 text-[var(--color-brass)]" />
-                  <span>Speed Trainer (Auto-Ramp)</span>
+                  <span>{t("metro.speedTrainer")}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -456,18 +458,18 @@ export function MetronomeCard() {
                     <option value={2}>2 BPM</option>
                     <option value={5}>5 BPM</option>
                   </select>
-                  <span className="text-[var(--color-sand-2)]">every</span>
+                  <span className="text-[var(--color-sand-2)]">{t("metro.every")}</span>
                   <select
                     value={trainerEveryBars}
                     onChange={(e) => setTrainerEveryBars(Number(e.target.value))}
                     className="rounded border border-white/10 bg-zinc-900 px-1.5 py-0.5 font-bold"
                   >
-                    <option value={1}>1 bar</option>
-                    <option value={2}>2 bars</option>
-                    <option value={4}>4 bars</option>
-                    <option value={8}>8 bars</option>
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={4}>4</option>
+                    <option value={8}>8</option>
                   </select>
-                  <span className="text-[var(--color-sand-2)]">up to</span>
+                  <span className="text-[var(--color-sand-2)]">{t("metro.upTo")}</span>
                   <input
                     type="number"
                     value={trainerTargetBpm}
@@ -480,7 +482,7 @@ export function MetronomeCard() {
                 </div>
               ) : (
                 <p className="text-[10px] text-[var(--color-sand-2)]">
-                  Gradually accelerates tempo automatically across bars.
+                  {t("metro.speedDesc")}
                 </p>
               )}
             </div>
@@ -489,7 +491,7 @@ export function MetronomeCard() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-black">
                   <VolumeX className="h-3.5 w-3.5 text-amber-400" />
-                  <span>Gap / Mute Training</span>
+                  <span>{t("metro.gapTraining")}</span>
                 </div>
                 <input
                   type="checkbox"
@@ -500,30 +502,30 @@ export function MetronomeCard() {
               </div>
               {gapTraining ? (
                 <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px]">
-                  <span className="text-[var(--color-sand-2)]">Play</span>
+                  <span className="text-[var(--color-sand-2)]">{t("metro.playBars")}</span>
                   <select
                     value={gapPlayBars}
                     onChange={(e) => setGapPlayBars(Number(e.target.value))}
                     className="rounded border border-white/10 bg-zinc-900 px-1.5 py-0.5 font-bold"
                   >
-                    <option value={1}>1 bar</option>
-                    <option value={2}>2 bars</option>
-                    <option value={3}>3 bars</option>
-                    <option value={4}>4 bars</option>
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={3}>3</option>
+                    <option value={4}>4</option>
                   </select>
-                  <span className="text-[var(--color-sand-2)]">Mute</span>
+                  <span className="text-[var(--color-sand-2)]">{t("metro.muteBars")}</span>
                   <select
                     value={gapMuteBars}
                     onChange={(e) => setGapMuteBars(Number(e.target.value))}
                     className="rounded border border-white/10 bg-zinc-900 px-1.5 py-0.5 font-bold"
                   >
-                    <option value={1}>1 bar</option>
-                    <option value={2}>2 bars</option>
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
                   </select>
                 </div>
               ) : (
                 <p className="text-[10px] text-[var(--color-sand-2)]">
-                  Mutes click for practice bars to test your internal tempo.
+                  {t("metro.gapDesc")}
                 </p>
               )}
             </div>
@@ -536,7 +538,7 @@ export function MetronomeCard() {
               onClick={handleTapTempo}
               className="glass-pill px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-mint)]"
             >
-              Tap tempo {tappedBpm ? `· ${tappedBpm} BPM` : ""}
+              {t("metro.tapTempo")} {tappedBpm ? `· ${tappedBpm} BPM` : ""}
             </button>
             <button
               type="button"

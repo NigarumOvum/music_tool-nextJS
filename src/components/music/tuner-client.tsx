@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Guitar, Hand, Mic, MicOff, Volume2 } from "lucide-react";
+import { Gauge, Guitar, Mic, MicOff, Volume2 } from "lucide-react";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
+import { useI18n } from "@/components/language-provider";
 import { SoundIndicator } from "@/components/ui/sound-indicator";
 import { useAudio } from "@/components/music/audio-provider";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
@@ -23,15 +24,16 @@ import {
 type InstrumentMode = "guitar" | "bass";
 type BassStringCount = 4 | 5 | 6;
 
-function tuningStatus(cents: number) {
+function tuningStatus(cents: number, t: (key: "tuner.inTune" | "tuner.close" | "tuner.sharp" | "tuner.flat") => string) {
   const abs = Math.abs(cents);
-  if (abs <= 5) return { label: "In tune", tone: "text-[var(--color-mint)]", bg: "bg-[var(--color-success-surface)]" };
-  if (abs <= 15) return { label: "Close", tone: "text-yellow-400", bg: "bg-yellow-500/10" };
-  return { label: cents > 0 ? "Sharp" : "Flat", tone: "text-red-400", bg: "bg-red-500/10" };
+  if (abs <= 5) return { label: t("tuner.inTune"), tone: "text-[var(--color-mint)]" };
+  if (abs <= 15) return { label: t("tuner.close"), tone: "text-yellow-400" };
+  return { label: cents > 0 ? t("tuner.sharp") : t("tuner.flat"), tone: "text-red-400" };
 }
 
 export function TunerCard() {
   const { getAudioContext } = useAudio();
+  const { t } = useI18n();
   const userId = useCurrentUserId();
 
   const [instrumentMode, setInstrumentMode] = usePersistentState<InstrumentMode>("helpers_instrument", "guitar", { userId });
@@ -171,7 +173,7 @@ export function TunerCard() {
     const cents = isDetected && detectedPitch
       ? centsFromTarget(detectedPitch.frequency, tuningString.frequency * 2 ** (closestMatch.octaveShift || 0))
       : null;
-    const status = cents !== null ? tuningStatus(cents) : null;
+    const status = cents !== null ? tuningStatus(cents, t) : null;
 
     return (
       <button
@@ -200,7 +202,7 @@ export function TunerCard() {
           {status && cents !== null ? (
             <span className={status.tone}>{status.label} {cents > 0 ? "+" : ""}{cents}¢</span>
           ) : (
-            <span>Tap to hear</span>
+            <span>{t("tuner.tapToHear")}</span>
           )}
         </div>
       </button>
@@ -210,10 +212,10 @@ export function TunerCard() {
   return (
     <CollapsibleCard
       defaultOpen={true}
-      title="Intelligent Tuner & Pluck Reference"
+      title={t("tuner.title")}
       subtitle={`${instrumentMode.toUpperCase()} · ${activeTuning.name} (${activeTuning.strings.length} strings)`}
       eyebrow="Pitch Precision"
-      icon={<Hand className="h-5 w-5 text-[var(--color-copper)]" />}
+      icon={<Gauge className="h-5 w-5 text-[var(--color-copper)]" />}
       headerActions={
         <button
           type="button"
@@ -223,7 +225,7 @@ export function TunerCard() {
           }`}
         >
           {isListening ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
-          {isListening ? "Stop Mic" : "Start Mic"}
+          {isListening ? t("tuner.stopMic") : t("tuner.startMic")}
         </button>
       }
     >
@@ -245,7 +247,7 @@ export function TunerCard() {
 
           {instrumentMode === "bass" ? (
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">Strings:</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">{t("tuner.strings")}</span>
               <button
                 type="button"
                 onClick={() => { setShowExtendedBass(false); setBassStringCount(4); }}
@@ -273,7 +275,7 @@ export function TunerCard() {
 
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="field-group">
-            <span className="field-label">Tuning preset</span>
+            <span className="field-label">{t("tuner.tuningPreset")}</span>
             <select value={tuningId} onChange={(event) => setTuningId(event.target.value)} className="field py-1.5 text-xs font-bold">
               {tuningOptions.map((preset: TuningPreset) => (
                 <option key={preset.id} value={preset.id}>{preset.name}</option>
@@ -281,7 +283,7 @@ export function TunerCard() {
             </select>
           </label>
           <label className="field-group">
-            <span className="field-label">Reference sound</span>
+            <span className="field-label">{t("tuner.refSound")}</span>
             <select
               value={pluckVoice}
               onChange={(event) => setPluckVoice(event.target.value as PluckInstrument)}
@@ -289,13 +291,13 @@ export function TunerCard() {
             >
               {instrumentMode === "guitar" ? (
                 <>
-                  <option value="guitar-steel">Steel string pluck</option>
-                  <option value="guitar-nylon">Nylon string pluck</option>
+                  <option value="guitar-steel">{t("tuner.steel")}</option>
+                  <option value="guitar-nylon">{t("tuner.nylon")}</option>
                 </>
               ) : (
                 <>
-                  <option value="bass">Fingered bass</option>
-                  <option value="bass-pick">Pick bass</option>
+                  <option value="bass">{t("tuner.fingered")}</option>
+                  <option value="bass-pick">{t("tuner.pick")}</option>
                 </>
               )}
             </select>
@@ -306,7 +308,7 @@ export function TunerCard() {
           <canvas ref={canvasRef} className="h-full w-full" width={400} height={80} />
           {!isListening ? (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Microphone Inactive</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{t("tuner.micInactive")}</span>
             </div>
           ) : null}
         </div>
@@ -322,9 +324,9 @@ export function TunerCard() {
               </div>
               {closestMatch ? (
                 <div className="text-right">
-                  <div className="text-sm font-black">String {closestMatch.string.label}</div>
-                  <div className={`text-xs font-bold uppercase ${tuningStatus(closestMatch.cents).tone}`}>
-                    {tuningStatus(closestMatch.cents).label} · {closestMatch.cents > 0 ? "+" : ""}{closestMatch.cents} cents
+                  <div className="text-sm font-black">{t("tuner.string")} {closestMatch.string.label}</div>
+                  <div className={`text-xs font-bold uppercase ${tuningStatus(closestMatch.cents, t).tone}`}>
+                    {tuningStatus(closestMatch.cents, t).label} · {closestMatch.cents > 0 ? "+" : ""}{closestMatch.cents} cents
                   </div>
                 </div>
               ) : null}
@@ -333,20 +335,20 @@ export function TunerCard() {
               <div className="tuner-gauge-needle" style={{ left: `${gaugePosition}%` }} />
             </div>
             <div className="mt-1 flex justify-between text-[10px] font-bold uppercase tracking-widest text-[var(--color-sand-2)]">
-              <span>Flat</span>
-              <span>In tune</span>
-              <span>Sharp</span>
+              <span>{t("tuner.flat")}</span>
+              <span>{t("tuner.gaugeMid")}</span>
+              <span>{t("tuner.sharp")}</span>
             </div>
           </div>
         ) : isListening ? (
           <div className="text-center text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-            Listening for string pitch...
+            {t("tuner.listening")}
           </div>
         ) : null}
 
         <div>
           <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">
-            {activeTuning.name} · {activeTuning.strings.length} strings (tap to hear reference)
+            {t("tuner.tapToHearTitle").replace("{name}", activeTuning.name).replace("{strings}", String(activeTuning.strings.length))}
           </div>
           <div className={`grid gap-2 ${instrumentMode === "bass" ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
             {activeTuning.strings.map((tuningString) => renderStringRow(tuningString))}

@@ -285,10 +285,6 @@ function ProductionStudioDashboard() {
           searchInput.focus();
         }
       }
-      if (e.key === "s" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setIsSidebarOpen(!isSidebarOpen);
-      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -1087,19 +1083,6 @@ function ProductionStudioDashboard() {
 
             <button
               type="button"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              title="Toggle song info sidebar"
-              className={`flex h-7 w-7 items-center justify-center rounded-lg border transition ${
-                isSidebarOpen
-                  ? "border-[var(--color-copper)] bg-[var(--color-copper)]/10 text-[var(--color-copper)]"
-                  : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
-              }`}
-            >
-              <Layers className="h-3.5 w-3.5" />
-            </button>
-
-            <button
-              type="button"
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
               className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
                 showAdvancedFilters
@@ -1351,20 +1334,6 @@ function ProductionStudioDashboard() {
                         {previewingSong === song.id && isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => handleOpenStudio(song.id, "lyrics")}
-                        title={`Open ${song.title} in studio`}
-                        className="flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-3 py-1.5 text-[11px] font-bold text-black shadow-sm transition hover:brightness-110 active:scale-95"
-                        style={{
-                          background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
-                          color: projectButtonStyle.textColor
-                        }}
-                      >
-                        <Disc3 className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Open</span>
-                      </button>
-
                       <div className="relative quick-actions-dropdown">
                         <button
                           type="button"
@@ -1613,17 +1582,6 @@ function ProductionStudioDashboard() {
                 <div className="flex items-center gap-2">
                   {song.musical_key && <span className="glass-pill px-2 py-0.5 text-[9px] font-bold text-[var(--color-copper)]">{song.musical_key}</span>}
                   {song.bpm && <span className="glass-pill px-2 py-0.5 text-[9px] font-bold text-[var(--color-brass)]">{song.bpm}</span>}
-                  <button
-                    type="button"
-                    onClick={() => handleOpenStudio(song.id, "lyrics")}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] text-black shadow-sm hover:brightness-110"
-                    style={{
-                      background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
-                      color: projectButtonStyle.textColor
-                    }}
-                  >
-                    <Disc3 className="h-3.5 w-3.5" />
-                  </button>
                 </div>
               </motion.div>
             );

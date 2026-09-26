@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { ChordHowToPlay } from "@/components/music/chord-how-to-play";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
+import { useI18n } from "@/components/language-provider";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
@@ -92,6 +93,7 @@ function analyzeCadence(progression: Chord[], keyRoot: string): { label: string;
 
 export function ProgressionClient() {
   const { getAudioContext } = useAudio();
+  const { t, locale } = useI18n();
   const userId = useCurrentUserId();
   const [progression, setProgression] = usePersistentState<Chord[]>("progression_chords", [], { userId });
   const [root, setRoot] = usePersistentState("progression_root", "C", { userId });
@@ -118,6 +120,18 @@ export function ProgressionClient() {
     aug: [0, 4, 8],
     dim7: [0, 3, 6, 9],
   };
+
+  const pluralSuffix = (() => {
+    if (locale === "de") return progression.length === 1 ? "" : "e";
+    if (locale === "ru") {
+      const n = progression.length % 100;
+      const d = n % 10;
+      if (d === 1 && n !== 11) return "";
+      if (d >= 2 && d <= 4 && (n < 10 || n >= 20)) return "а";
+      return "ов";
+    }
+    return progression.length === 1 ? "" : "s";
+  })();
 
   const previewActiveNotes = useMemo(
     () => intervalsToPitchClasses(root, chordIntervals[quality] ?? [0, 4, 7]),
@@ -217,8 +231,8 @@ export function ProgressionClient() {
       {/* 1. Progression Timeline & Audio Player (Important: Open by default) */}
       <CollapsibleCard
         defaultOpen={true}
-        title="Progression Timeline"
-        subtitle={`${progression.length} chord${progression.length === 1 ? "" : "s"} in sequence · Key of ${keyRoot}`}
+        title={t("prog.timeline")}
+        subtitle={t("prog.timelineSub").replace("{count}", String(progression.length)).replace("{plural}", pluralSuffix).replace("{key}", keyRoot)}
         eyebrow="Harmonic Structure"
         icon={<Music className="h-5 w-5 text-[var(--color-copper)]" />}
         badge={

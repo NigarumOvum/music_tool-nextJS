@@ -1,4 +1,6 @@
 import type { Locale } from "@/lib/i18n/locales";
+import { MUSIC_A, musicAEn, type MusicAKey } from "@/lib/i18n/dict-music-a";
+import { MUSIC_B, musicBEn, type MusicBKey } from "@/lib/i18n/dict-music-b";
 
 const en = {
   "nav.production": "Production Studio",
@@ -65,11 +67,11 @@ const en = {
   "membership.oneTime": "one-time",
 } as const;
 
-export type DictKey = keyof typeof en;
+export type DictKey = keyof typeof en | MusicAKey | MusicBKey;
 
 type Dictionary = Record<DictKey, string>;
 
-const es: Dictionary = {
+const es = {
   "nav.production": "Estudio de producción",
   "nav.prompts": "Biblioteca de prompts",
   "nav.manageAccount": "Gestionar cuenta",
@@ -134,7 +136,7 @@ const es: Dictionary = {
   "membership.oneTime": "pago único",
 };
 
-const de: Dictionary = {
+const de = {
   "nav.production": "Produktionsstudio",
   "nav.prompts": "Prompt-Bibliothek",
   "nav.manageAccount": "Konto verwalten",
@@ -199,7 +201,7 @@ const de: Dictionary = {
   "membership.oneTime": "einmalig",
 };
 
-const fr: Dictionary = {
+const fr = {
   "nav.production": "Studio de production",
   "nav.prompts": "Bibliothèque de prompts",
   "nav.manageAccount": "Gérer le compte",
@@ -264,7 +266,7 @@ const fr: Dictionary = {
   "membership.oneTime": "paiement unique",
 };
 
-const ru: Dictionary = {
+const ru = {
   "nav.production": "Студия продакшна",
   "nav.prompts": "Библиотека промптов",
   "nav.manageAccount": "Управление аккаунтом",
@@ -329,7 +331,13 @@ const ru: Dictionary = {
   "membership.oneTime": "разовый платёж",
 };
 
-export const DICTIONARIES: Record<Locale, Dictionary> = { en, es, de, fr, ru };
+export const DICTIONARIES: Record<Locale, Dictionary> = {
+  en: { ...en, ...musicAEn, ...musicBEn },
+  es: { ...es, ...MUSIC_A.es, ...MUSIC_B.es },
+  de: { ...de, ...MUSIC_A.de, ...MUSIC_B.de },
+  fr: { ...fr, ...MUSIC_A.fr, ...MUSIC_B.fr },
+  ru: { ...ru, ...MUSIC_A.ru, ...MUSIC_B.ru },
+};
 
 export function translate(locale: Locale, key: DictKey): string {
   return DICTIONARIES[locale][key] ?? DICTIONARIES.en[key] ?? key;

@@ -5,6 +5,7 @@ import { Drum, Guitar, Music2, Piano } from "lucide-react";
 
 import { InfoTooltip } from "@/components/info-tooltip";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
+import { useI18n } from "@/components/language-provider";
 import { AVAILABLE_INSTRUMENTS } from "@/lib/music/instruments";
 import type { KeyboardVoice } from "@/lib/music/keyboard-synth";
 import { CHROMATIC } from "@/lib/music/notes";
@@ -70,8 +71,9 @@ export function ScaleTypeButtons({
   value: string;
   onChange: (scaleType: string) => void;
 }) {
+  const { t } = useI18n();
   if (types.length === 0) {
-    return <p className="text-xs text-[var(--color-sand-2)]">No scale types match your search.</p>;
+    return <p className="text-xs text-[var(--color-sand-2)]">{t("theory.noScaleTypes")}</p>;
   }
   return (
     <div className="flex flex-wrap gap-1.5" role="group" aria-label="Select scale type">
@@ -91,6 +93,7 @@ export function ScaleTypeButtons({
 }
 
 function GuitarFretboard({ notes, root }: { notes: string[]; root: string }) {
+  const { t } = useI18n();
   const strings = ["E", "A", "D", "G", "B", "E"];
   const frets = 12;
 
@@ -98,7 +101,7 @@ function GuitarFretboard({ notes, root }: { notes: string[]; root: string }) {
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Guitar className="h-4 w-4 text-[var(--color-brass)]" />
-        <h3 className="text-lg font-black">Guitar Fretboard</h3>
+        <h3 className="text-lg font-black">{t("theory.guitarFretboard")}</h3>
         <InfoTooltip
           content="Shows scale positions across all 6 strings and 12 frets. Copper cells show root notes, mint cells show other scale notes. Use this to find scale patterns on guitar."
           position="right"
@@ -138,6 +141,7 @@ function GuitarFretboard({ notes, root }: { notes: string[]; root: string }) {
 }
 
 function BassFretboard({ notes, root }: { notes: string[]; root: string }) {
+  const { t } = useI18n();
   const strings = ["E", "A", "D", "G"];
   const frets = 12;
 
@@ -145,7 +149,7 @@ function BassFretboard({ notes, root }: { notes: string[]; root: string }) {
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Music2 className="h-4 w-4 text-[var(--color-brass)]" />
-        <h3 className="text-lg font-black">Bass Fretboard</h3>
+        <h3 className="text-lg font-black">{t("theory.bassFretboard")}</h3>
         <InfoTooltip
           content="Shows scale positions across 4 bass strings and 12 frets. Similar to guitar but optimized for bass guitar patterns."
           position="right"
@@ -185,6 +189,7 @@ function BassFretboard({ notes, root }: { notes: string[]; root: string }) {
 }
 
 function DrumPattern({ notes }: { notes: string[] }) {
+  const { t } = useI18n();
   const drumKit = ["Kick", "Snare", "Hi-hat", "Open HH", "Crash", "Ride", "Tom L", "Tom M", "Tom H"];
   const [pattern, setPattern] = useState(drumKit.map(() => Array.from({ length: 16 }, () => false)));
 
@@ -202,7 +207,7 @@ function DrumPattern({ notes }: { notes: string[] }) {
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Drum className="h-4 w-4 text-[var(--color-brass)]" />
-        <h3 className="text-lg font-black">Drum Pattern</h3>
+        <h3 className="text-lg font-black">{t("theory.drumPattern")}</h3>
         <InfoTooltip
           content="16-step drum pattern editor. Click cells to add/remove hits. Use this to create rhythmic patterns that complement your chosen scale."
           position="right"
@@ -249,6 +254,7 @@ export function ScaleInstrumentVisuals({
   onPlayNote: (note: string) => void;
   voice: KeyboardVoice;
 }) {
+  const { t } = useI18n();
   const [instrument, setInstrument] = useState<ScaleInstrumentId>("piano");
 
   return (
@@ -283,7 +289,7 @@ export function ScaleInstrumentVisuals({
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Piano className="h-4 w-4 text-[var(--color-brass)]" />
-            <h3 className="text-lg font-black">Piano Keyboard</h3>
+            <h3 className="text-lg font-black">{t("theory.pianoKeyboard")}</h3>
             <InfoTooltip
               content="Visual representation of the scale on a piano keyboard. Copper notes are the root, mint notes are other scale degrees. Click keys to hear individual notes."
               position="right"
@@ -314,10 +320,11 @@ export function ScaleTheory({
   notes: string[];
   root: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-4">
       <div>
-        <h4 className="mb-2 text-sm font-bold uppercase tracking-wider">Intervals</h4>
+        <h4 className="mb-2 text-sm font-bold uppercase tracking-wider">{t("theory.intervals")}</h4>
         <div className="grid gap-2 md:grid-cols-2">
           {intervals.map((interval) => (
             <div key={interval} className="flex items-center gap-2 text-sm">
@@ -328,7 +335,7 @@ export function ScaleTheory({
         </div>
       </div>
       <div>
-        <h4 className="mb-2 text-sm font-bold uppercase tracking-wider">Notes</h4>
+        <h4 className="mb-2 text-sm font-bold uppercase tracking-wider">{t("theory.notes")}</h4>
         <div className="flex flex-wrap gap-2">
           {notes.map((note) => (
             <span key={note} className={`glass-pill px-2 py-1 text-sm font-bold ${note === root ? "text-[var(--color-copper)]" : ""}`}>

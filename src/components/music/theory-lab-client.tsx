@@ -8,6 +8,7 @@ import { InfoTooltip } from "@/components/info-tooltip";
 import { ChordHowToPlay } from "@/components/music/chord-how-to-play";
 import { MetronomeCard } from "@/components/music/metronome-card";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
+import { useI18n } from "@/components/language-provider";
 import { SoundIndicator } from "@/components/ui/sound-indicator";
 import { ScaleInstrumentVisuals, ScaleTheory, NoteButtons, ScaleTypeButtons } from "@/components/music/scale-visuals";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
@@ -142,6 +143,7 @@ function romanNumeral(degree: number, quality: string) {
 
 export function TheoryLabClient() {
   const { getAudioContext } = useAudio();
+  const { t } = useI18n();
   const userId = useCurrentUserId();
   const [scaleRoot, setScaleRoot] = usePersistentState("theory_scale_root", "C", { userId });
   const [chordRoot, setChordRoot] = usePersistentState("theory_chord_root", "C", { userId });
@@ -188,8 +190,8 @@ export function TheoryLabClient() {
       {/* 1. Master Keyboard & Visualizer (Important: Open by default) */}
       <CollapsibleCard
         defaultOpen={true}
-        title="Interactive Master Keyboard"
-        subtitle={`Highlighting ${highlightMode.toUpperCase()} mode · ${KEYBOARD_VOICES.find((item) => item.id === keyboardVoice)?.label}`}
+        title={t("theory.masterKeyboard")}
+        subtitle={`${highlightMode === "scale" ? t("theory.scaleMode") : highlightMode === "chord" ? t("theory.chordMode") : "—"} · ${KEYBOARD_VOICES.find((item) => item.id === keyboardVoice)?.label}`}
         eyebrow="Synth & Fretboard Lab"
         icon={<Piano className="h-5 w-5 text-[var(--color-copper)]" />}
         headerActions={
@@ -203,7 +205,7 @@ export function TheoryLabClient() {
                   : "border-white/10 opacity-60 hover:opacity-100"
               }`}
             >
-              Scale mode
+              {t("theory.scaleMode")}
             </button>
             <button
               type="button"
@@ -214,7 +216,7 @@ export function TheoryLabClient() {
                   : "border-white/10 opacity-60 hover:opacity-100"
               }`}
             >
-              Chord mode
+              {t("theory.chordMode")}
             </button>
             <InfoTooltip
               content="Toggle between scale and chord highlighting modes on the keyboard. Scale mode shows all notes in the selected scale, chord mode shows the current chord notes."
@@ -241,8 +243,8 @@ export function TheoryLabClient() {
       {/* 2. Scale Explorer & Diatonic Triads (Closed by default) */}
       <CollapsibleCard
         defaultOpen={false}
-        title={`Scale Explorer · ${scaleRoot} ${scaleType}`}
-        subtitle={`${scaleNotes.length} notes in modal structure with diatonic chords`}
+        title={`${t("theory.scaleExplorer")} · ${scaleRoot} ${scaleType}`}
+        subtitle={t("theory.scaleExplorerSub").replace("{count}", String(scaleNotes.length))}
         eyebrow="Modal Analysis"
         icon={<Music className="h-5 w-5 text-[var(--color-brass)]" />}
         headerActions={
@@ -250,10 +252,10 @@ export function TheoryLabClient() {
             <button
               type="button"
               onClick={() => { setHighlightMode("scale"); playNotes(scaleNotes); }}
-              title="Play scale"
+              title={t("theory.playScale")}
               className="glass-pill btn-sound px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:bg-[var(--color-brass)] hover:text-black"
             >
-              <Play className="mr-1 inline h-3 w-3 fill-current" /> Play Scale
+              <Play className="mr-1 inline h-3 w-3 fill-current" /> {t("theory.playScale")}
             </button>
             <InfoTooltip
               content="Explore different scales and see their diatonic triads. Understanding scales helps with melody writing and chord progressions."
@@ -266,7 +268,7 @@ export function TheoryLabClient() {
         <div className="space-y-5">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="field-label">Root note</span>
+              <span className="field-label">{t("theory.rootNote")}</span>
               <InfoTooltip
                 content="Select the root note (starting note) for the scale."
                 position="top"
@@ -277,7 +279,7 @@ export function TheoryLabClient() {
           </div>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="field-label">Scale type</span>
+              <span className="field-label">{t("theory.scaleType")}</span>
               <InfoTooltip
                 content="Choose from 13 different scale types. Each has a unique interval pattern that creates its characteristic sound."
                 position="top"
@@ -286,7 +288,7 @@ export function TheoryLabClient() {
             </div>
             <input
               className="field w-full sm:max-w-[240px]"
-              placeholder="Search scales..."
+              placeholder={t("theory.searchScales")}
               value={scaleSearch}
               onChange={(e) => setScaleSearch(e.target.value)}
             />
@@ -321,14 +323,14 @@ export function TheoryLabClient() {
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-4">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="eyebrow text-[0.62rem]">Diatonic Chords</span>
+                <span className="eyebrow text-[0.62rem]">{t("theory.diatonicChords")}</span>
                 <InfoTooltip
                   content="These are the 7 triads built from each scale degree. They're the foundation of chord progressions in that key. Click any triad to hear it and load it into the chord explorer."
                   position="top"
                   size="md"
                 />
               </div>
-              <span className="text-[10px] text-[var(--color-sand-2)]">Click triad to load & hear</span>
+              <span className="text-[10px] text-[var(--color-sand-2)]">{t("theory.clickTriad")}</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {diatonicTriads(scaleNotes).map((triad, degree) => {
@@ -363,7 +365,7 @@ export function TheoryLabClient() {
 
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-4">
             <div className="mb-3 flex items-center gap-2">
-              <span className="eyebrow text-[0.62rem]">Scale Theory</span>
+              <span className="eyebrow text-[0.62rem]">{t("theory.scaleTheory")}</span>
               <InfoTooltip
                 content="Learn about the theory behind scales including interval patterns and note relationships. Understanding theory helps you compose and improvise more effectively."
                 position="top"
@@ -383,8 +385,8 @@ export function TheoryLabClient() {
       {/* 3. Chord Constructor & Inversions (Less critical: Closed by default) */}
       <CollapsibleCard
         defaultOpen={false}
-        title="Chord Constructor & Inversions"
-        subtitle={`${chordRoot} ${chordType} · ${inversion === 0 ? "Root position" : `Inversion ${inversion}`}`}
+        title={t("theory.constructor")}
+        subtitle={`${chordRoot} ${chordType} · ${inversion === 0 ? t("theory.rootPosition") : t("theory.inversionN").replace("{n}", String(inversion))}`}
         eyebrow="Harmony Builder"
         icon={<Layers className="h-5 w-5 text-[var(--color-berry)]" />}
         headerActions={
@@ -392,10 +394,10 @@ export function TheoryLabClient() {
             <button
               type="button"
               onClick={() => { setHighlightMode("chord"); playKeyboardNotes(getAudioContext(), chordFrequencies, keyboardVoice, 90); }}
-              title="Arpeggiate chord"
+              title={t("theory.arpeggiate")}
               className="glass-pill btn-sound px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:bg-[var(--color-berry)] hover:text-black"
             >
-              <Play className="mr-1 inline h-3 w-3 fill-current" /> Arpeggiate
+              <Play className="mr-1 inline h-3 w-3 fill-current" /> {t("theory.arpeggiate")}
             </button>
             <InfoTooltip
               content="Build and explore different chord types with inversions. Inversions change which note is in the bass, creating different voicings of the same chord."
@@ -408,7 +410,7 @@ export function TheoryLabClient() {
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="field-label">Chord root note</span>
+              <span className="field-label">{t("theory.chordRootNote")}</span>
               <InfoTooltip
                 content="Select the root note (bass note) for the chord."
                 position="top"
@@ -468,7 +470,7 @@ export function TheoryLabClient() {
                 }`}
               >
                 <span className="text-[8px] font-black uppercase opacity-40">
-                  {i === 0 ? "Bass" : i === 1 ? "2nd" : i === 2 ? "3rd" : `${i + 1}th`}
+                  {i === 0 ? t("theory.bass") : `${i + 1}`}
                 </span>
                 <span className="text-sm font-black">{n}</span>
                 <span className="flex items-center gap-1 text-[8px] font-bold uppercase text-[var(--color-berry)]/70">

@@ -5,10 +5,10 @@ import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
-  FileText,
+  Mic2,
   Music2,
-  Sliders,
-  FileCode2,
+  AudioWaveform,
+  Guitar,
   Maximize2,
   Minimize2,
   ChevronRight,
@@ -39,9 +39,9 @@ const tabPanels: Record<string, ReturnType<typeof dynamic>> = {
 } as const;
 
 const STUDIO_TABS: Array<{ id: string; label: string; icon: typeof Music2; description: string }> = [
-  { id: "lyrics", label: "Lyrics & Rhymes", icon: FileText, description: "Lyrics editor, rhyming & syllables" },
-  { id: "audio", label: "Audio DAW", icon: Sliders, description: "Multitrack synth, sequencer & audio recorder" },
-  { id: "notation", label: "Notation & Tabs", icon: FileCode2, description: "Fretboard tabs, partitures & playback" },
+  { id: "notation", label: "Notation & Tabs", icon: Guitar, description: "Fretboard tabs, partitures & playback" },
+  { id: "audio", label: "Audio DAW", icon: AudioWaveform, description: "Multitrack synth, sequencer & audio recorder" },
+  { id: "lyrics", label: "Lyrics & Rhymes", icon: Mic2, description: "Lyrics editor, rhyming & syllables" },
 ];
 
 type ProductionStudioModalProps = {

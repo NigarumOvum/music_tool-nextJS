@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { Suspense, useMemo, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { Gauge, ListMusic, Timer, type LucideIcon } from "lucide-react";
 
 import { Spinner } from "@heroui/react";
 
@@ -27,6 +28,12 @@ const tabPanels: Record<MusicToolkitTabId, ReturnType<typeof dynamic>> = {
 type MusicToolkitTab = {
   id: MusicToolkitTabId;
   label: string;
+};
+
+const TAB_ICONS: Record<MusicToolkitTabId, LucideIcon> = {
+  harmony: Timer,
+  progressions: ListMusic,
+  tuner: Gauge,
 };
 
 type MusicToolkitClientProps = {
@@ -85,7 +92,9 @@ function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps)
       className="space-y-4"
     >
       <div className="flex flex-wrap gap-2">
-        {allowedTabs.map((tab) => (
+        {allowedTabs.map((tab) => {
+          const TabIcon = TAB_ICONS[tab.id];
+          return (
           <button
             key={tab.id}
             type="button"
@@ -94,7 +103,7 @@ function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps)
               e.preventDefault();
               handleTabClick(tab.id);
             }}
-            className={`glass-pill px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+            className={`glass-pill inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
               activeTab === tab.id
                 ? "glass-pill-active text-[var(--color-foreground)]"
                 : secondaryTab === tab.id
@@ -103,10 +112,12 @@ function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps)
             }`}
             title={secondaryTab === tab.id ? "Remove from split view" : "Right-click to add to split view"}
           >
+            {TabIcon ? <TabIcon className="h-3.5 w-3.5" /> : null}
             {t(`tabs.${tab.id}` as DictKey) || tab.label}
             {secondaryTab === tab.id && <span className="ml-1 text-[10px]">(2nd)</span>}
           </button>
-        ))}
+          );
+        })}
       </div>
 
       <motion.div

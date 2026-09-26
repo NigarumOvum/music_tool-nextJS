@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Drum, Guitar, Mic2, Music2, Piano } from "lucide-react";
 
+import { useI18n } from "@/components/language-provider";
 import { AVAILABLE_INSTRUMENTS } from "@/lib/music/instruments";
 import { CHROMATIC } from "@/lib/music/notes";
 
@@ -99,6 +100,7 @@ export function ChordHowToPlay({
   root: string;
   notes: string[];
 }) {
+  const { t } = useI18n();
   const playable = useMemo(
     () =>
       AVAILABLE_INSTRUMENTS.filter((item) =>
@@ -114,8 +116,8 @@ export function ChordHowToPlay({
   return (
     <div className="rounded-2xl border border-[var(--color-border)] bg-black/15 p-4">
       <div className="mb-1 flex items-center justify-between">
-        <span className="eyebrow text-[0.62rem]">How to play · {chordLabel}</span>
-        <span className="text-[10px] text-[var(--color-sand-2)]">Same list everywhere</span>
+        <span className="eyebrow text-[0.62rem]">{t("theory.howToPlay")} · {chordLabel}</span>
+        <span className="text-[10px] text-[var(--color-sand-2)]">{t("theory.sameList")}</span>
       </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {playable.map((instrument) => {
@@ -131,9 +133,9 @@ export function ChordHowToPlay({
               </div>
               {instrument.id === "piano" && (
                 <p className="text-xs text-[var(--color-sand-1)]">
-                  Keys <span className="font-black text-white">{notes.join(" – ")}</span> in one
-                  octave. Bass note <span className="font-black text-[var(--color-berry)]">{notes[0] ?? root}</span> in
-                  the left hand.
+                  {t("theory.pianoHow")
+                    .replace("{notes}", notes.join(" – "))
+                    .replace("{bass}", notes[0] ?? root)}
                 </p>
               )}
               {instrument.id === "guitar" && (
@@ -146,22 +148,18 @@ export function ChordHowToPlay({
                 <div className="space-y-2">
                   <FretDiagram openStrings={BASS_OPEN} frets={bassFrets} />
                   <p className="text-[11px] text-[var(--color-sand-2)]">
-                    Root <span className="font-black text-white">{root}</span> on the E string, add
-                    the fifth for movement.
+                    {t("theory.bassHow").replace("{root}", root)}
                   </p>
                 </div>
               )}
               {instrument.id === "drums" && (
                 <p className="text-xs text-[var(--color-sand-1)]">
-                  Kick on beat 1 with the <span className="font-black text-white">{root}</span>{" "}
-                  accent, hats on 8ths, snare backbeat — chord changes land on bar lines.
+                  {t("theory.drumsHow").replace("{root}", root)}
                 </p>
               )}
               {instrument.id === "vocals" && (
                 <p className="text-xs text-[var(--color-sand-1)]">
-                  Sing low → high:{" "}
-                  <span className="font-black text-white">{notes.join(" · ")}</span> to lock the
-                  voicing by ear.
+                  {t("theory.vocalsHow").replace("{notes}", notes.join(" · "))}
                 </p>
               )}
             </div>

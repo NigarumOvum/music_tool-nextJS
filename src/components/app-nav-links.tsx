@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NotebookPen, PanelTop, type LucideIcon } from "lucide-react";
+import { Disc3, ScrollText, type LucideIcon } from "lucide-react";
 
 import { useI18n } from "@/components/language-provider";
 
 export type AppNavIconId = "production" | "prompt-library";
 
 const NAV_ICONS: Record<AppNavIconId, LucideIcon> = {
-  production: PanelTop,
-  "prompt-library": NotebookPen,
+  production: Disc3,
+  "prompt-library": ScrollText,
 };
 
 type NavItem = {
@@ -43,14 +43,15 @@ export function AppNavLinks({ items }: AppNavLinksProps) {
           <Link
             key={item.href}
             href={item.href}
-            className={`glass-pill inline-flex items-center justify-center rounded-full p-2 transition ${
+            className={`glass-pill inline-flex items-center gap-2 rounded-full px-3.5 py-2 transition ${
               active
                 ? "glass-pill-active text-[var(--color-foreground)]"
                 : "text-[var(--color-foreground)] hover:-translate-y-0.5 hover:border-[var(--color-info-border)]"
             }`}
             title={label}
           >
-            <Icon className="h-4 w-4" />
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-[0.14em]">{label}</span>
           </Link>
         );
       })}
