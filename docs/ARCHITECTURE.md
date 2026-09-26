@@ -73,6 +73,8 @@ Pro $9.99 mo / Lifetime $149), `membership_subscriptions`
   password (`/api/auth/change-password`).
 - **Songs**: catalog (owned + project-shared) → detail → sections/layers/
   partitures → modal tabs (lyrics / DAW / notation) → band assignment.
+  Song library sidebars show each song's band/project badge in the band
+  color (or "Solo"); the navbar brand uses the PWA app icon.
 - **DAW**: MIDI import → layers (gain/pan/mute/solo) → tempo-ratio playback →
   note edit/quantize → JSON manifest export.
 - **Tabs**: fretboard grid ⇄ ASCII (`gridToAscii`/`parseAsciiTab`) ⇄ song

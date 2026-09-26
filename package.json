@@ -17,6 +17,7 @@
     "@ducanh2912/next-pwa": "^10.2.9",
     "@heroui/react": "^2.8.8",
     "@libsql/client": "^0.15.15",
+    "@vercel/analytics": "^2.0.1",
     "boneyard-js": "^1.9.0",
     "framer-motion": "^12.31.0",
     "lucide-react": "^0.562.0",

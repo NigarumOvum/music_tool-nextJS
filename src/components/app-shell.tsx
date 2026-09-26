@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { AppNavLinks, type AppNavIconId } from "@/components/app-nav-links";
@@ -12,7 +13,6 @@ import { PWAInstallButton } from "@/components/pwa/pwa-install-button";
 import { ensureUserCanAccessPage, requireCurrentUser } from "@/lib/auth";
 import type { ManagedPageKey } from "@/lib/access";
 import { canAccessProductionStudio } from "@/lib/hub-access";
-import { Music2 } from "lucide-react";
 
 type NavItemConfig = {
   href: string;
@@ -68,9 +68,14 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center justify-between gap-3 xl:min-w-[220px] xl:justify-start">
               <Link href="/" className="flex min-w-0 items-center gap-3">
-                <div className="glass-pill flex h-11 w-11 items-center justify-center text-[var(--color-copper)]">
-                  <Music2 className="h-5 w-5" />
-                </div>
+                <Image
+                  src="/icons/icon-192x192.png"
+                  alt="BandsChamber Studio logo"
+                  width={44}
+                  height={44}
+                  priority
+                  className="h-11 w-11 shrink-0 rounded-xl shadow-xs"
+                />
                 <div className="min-w-0">
                   <div className="eyebrow">Studio Hub</div>
                   <div className="truncate text-lg font-black tracking-tight text-[var(--color-foreground)]">BandsChamber Studio</div>

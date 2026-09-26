@@ -39,6 +39,7 @@ import {
   deleteSong,
   deleteSongPart,
   fetchPartitures,
+  fetchProjects,
   fetchSongDetail,
   fetchSongs,
   saveSongPart,
@@ -53,7 +54,7 @@ import {
   partitureKey,
   type PartitureInstrumentId,
 } from "@/lib/music/partitures";
-import type { MusicSongDetail, MusicSongSummary, MusicTaskTemplateRecord } from "@/lib/music/types";
+import type { MusicProjectRecord, MusicSongDetail, MusicSongSummary, MusicTaskTemplateRecord } from "@/lib/music/types";
 import { opaqueModalProps } from "@/lib/ui/modal-styles";
 
 type EditablePartiture = {
@@ -214,6 +215,7 @@ export function SongStudioClient() {
   const { selectedSongId: hubSongId, setSelectedSongId: setHubSongId, refreshSongs } = useProductionSong();
 
   const [songs, setSongs] = useState<MusicSongSummary[]>([]);
+  const [projects, setProjects] = useState<MusicProjectRecord[]>([]);
   const [selectedSongId, setSelectedSongId] = useState("");
   const [selectedSong, setSelectedSong] = useState<MusicSongDetail | null>(null);
   const [savedSnapshot, setSavedSnapshot] = useState("");
@@ -242,11 +244,21 @@ export function SongStudioClient() {
     return JSON.stringify(selectedSong) !== savedSnapshot;
   }, [savedSnapshot, selectedSong]);
 
+  async function loadProjects() {
+    try {
+      const payload = await fetchProjects();
+      setProjects(payload.projects);
+    } catch {
+      setProjects([]);
+    }
+  }
+
   async function loadLibrary(nextSelectedId?: string, showSpinner = true) {
     if (showSpinner) setLoading(true);
     try {
       const payload = await fetchSongs(search);
       setSongs(payload.songs);
+      await loadProjects();
       const preferredId = nextSelectedId || selectedSongId || hubSongId || payload.songs[0]?.id || "";
       if (preferredId) {
         await selectSong(preferredId, false);
@@ -339,6 +351,12 @@ export function SongStudioClient() {
         const payload = await fetchSongs();
         if (cancelled) return;
         setSongs(payload.songs);
+        try {
+          const projectsPayload = await fetchProjects();
+          if (!cancelled) setProjects(projectsPayload.projects);
+        } catch {
+          if (!cancelled) setProjects([]);
+        }
         const preferredId = hubSongId || payload.songs[0]?.id || "";
         if (preferredId) {
           const detail = await fetchSongDetail(preferredId);
@@ -607,6 +625,7 @@ export function SongStudioClient() {
     <div className="page-grid animate-fade-up">
       <StudioSidebar
         songs={songs}
+        projects={projects}
         selectedSongId={selectedSongId}
         search={search}
         onSearchChange={setSearch}

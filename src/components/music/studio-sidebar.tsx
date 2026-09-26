@@ -1,11 +1,14 @@
 "use client";
 
+import { useMemo } from "react";
 import { ChevronLeft, ChevronRight, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Button, Chip } from "@heroui/react";
-import type { MusicSongSummary } from "@/lib/music/types";
+import type { MusicProjectRecord, MusicSongSummary } from "@/lib/music/types";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 
 const SIDEBAR_COLLAPSED_KEY = "studio_sidebar_collapsed";
+
+export type SidebarProject = Pick<MusicProjectRecord, "slug" | "name" | "color">;
 
 type StudioSidebarProps = {
   songs: MusicSongSummary[];
@@ -17,6 +20,7 @@ type StudioSidebarProps = {
   onNew: () => void;
   onSelectSong: (id: string) => void;
   onDeleteSong: (song: MusicSongSummary) => void;
+  projects?: SidebarProject[];
   // Optional catalog mode props (for Lyrics & Rhymes)
   catalogMode?: boolean;
   genre?: string;
@@ -35,6 +39,7 @@ export function StudioSidebar({
   onNew,
   onSelectSong,
   onDeleteSong,
+  projects = [],
   catalogMode = false,
   genre = "",
   onGenreChange,
@@ -43,6 +48,15 @@ export function StudioSidebar({
 }: StudioSidebarProps) {
   const userId = useCurrentUserId();
   const [collapsed, setCollapsed] = usePersistentState<boolean>(SIDEBAR_COLLAPSED_KEY, false, { userId });
+
+  const projectBySlug = useMemo(
+    () => new Map(projects.map((project) => [project.slug, project])),
+    [projects],
+  );
+
+  function songProject(song: MusicSongSummary): SidebarProject | undefined {
+    return song.project_slug ? projectBySlug.get(song.project_slug) : undefined;
+  }
 
   const filteredSongs = songs.filter((song) => {
     const query = search.trim().toLowerCase();
@@ -187,8 +201,19 @@ export function StudioSidebar({
                     ? "border-[var(--color-copper)] bg-[var(--color-copper)]/10"
                     : "glass-card-soft hover:-translate-y-0.5"
                 }`}
+                style={{ borderLeft: `4px solid ${songProject(song)?.color || "var(--color-border)"}` }}
               >
                 <div className="font-bold text-[var(--color-foreground)]">{song.title}</div>
+                <div className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest">
+                  <span
+                    aria-hidden="true"
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: songProject(song)?.color || "var(--color-sand-2)" }}
+                  />
+                  <span style={{ color: songProject(song)?.color || undefined }}>
+                    {songProject(song)?.name ?? "Solo"}
+                  </span>
+                </div>
                 <div className="mt-1 text-[10px] font-bold uppercase tracking-widest text-[var(--color-sand-2)]">
                   {song.genre || "N/A"}
                 </div>
@@ -207,6 +232,24 @@ export function StudioSidebar({
                 >
                   <div className="truncate text-sm font-black text-[var(--color-sand-1)]">{song.title}</div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {songProject(song) ? (
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        style={{ color: songProject(song)?.color || undefined }}
+                        startContent={
+                          <span
+                            aria-hidden="true"
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: songProject(song)?.color || undefined }}
+                          />
+                        }
+                      >
+                        {songProject(song)?.name}
+                      </Chip>
+                    ) : (
+                      <Chip size="sm" variant="flat">Solo</Chip>
+                    )}
                     {song.genre ? <Chip size="sm" variant="flat">{song.genre}</Chip> : null}
                     {song.bpm ? <Chip size="sm" variant="flat">{song.bpm} BPM</Chip> : null}
                   </div>

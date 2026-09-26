@@ -26,12 +26,13 @@ import { StudioSidebar } from "@/components/music/studio-sidebar";
 import {
   createSong,
   deleteSong,
+  fetchProjects,
   fetchSongDetail,
   fetchSongs,
   saveSongPart,
   updateSong,
 } from "@/lib/music/client";
-import type { MusicSongDetail, MusicSongSummary } from "@/lib/music/types";
+import type { MusicProjectRecord, MusicSongDetail, MusicSongSummary } from "@/lib/music/types";
 import { opaqueModalProps } from "@/lib/ui/modal-styles";
 
 function lyricsStats(text: string) {
@@ -45,6 +46,7 @@ function lyricsStats(text: string) {
 export function LyricsLibraryClient() {
   const { selectedSongId: hubSongId, setSelectedSongId: setHubSongId } = useProductionSong();
   const [songs, setSongs] = useState<MusicSongSummary[]>([]);
+  const [projects, setProjects] = useState<MusicProjectRecord[]>([]);
   const [selectedSong, setSelectedSong] = useState<MusicSongDetail | null>(null);
   const [selectedSongId, setSelectedSongId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -104,10 +106,20 @@ export function LyricsLibraryClient() {
     }
   }
 
+  async function loadProjects() {
+    try {
+      const payload = await fetchProjects();
+      setProjects(payload.projects);
+    } catch {
+      setProjects([]);
+    }
+  }
+
   async function loadLibrary() {
     try {
       const payload = await fetchSongs();
       setSongs(payload.songs);
+      await loadProjects();
     } catch (error) {
       toast.error((error as Error).message);
     }
@@ -129,10 +141,18 @@ export function LyricsLibraryClient() {
   }
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
       try {
         const payload = await fetchSongs();
+        if (cancelled) return;
         setSongs(payload.songs);
+        try {
+          const projectsPayload = await fetchProjects();
+          if (!cancelled) setProjects(projectsPayload.projects);
+        } catch {
+          if (!cancelled) setProjects([]);
+        }
         const initialId = hubSongId || payload.songs[0]?.id;
         if (initialId) {
           await loadSong(initialId, false);
@@ -144,6 +164,9 @@ export function LyricsLibraryClient() {
         setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -289,6 +312,7 @@ export function LyricsLibraryClient() {
       toast.success("Song duplicated");
       const listPayload = await fetchSongs();
       setSongs(listPayload.songs);
+      await loadProjects();
       setHubSongId(payload.song.song.id);
       await loadSong(payload.song.song.id, false);
     } catch (error) {
@@ -355,6 +379,7 @@ export function LyricsLibraryClient() {
     <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
       <StudioSidebar
         songs={songs}
+        projects={projects}
         selectedSongId={selectedSongId}
         search={search}
         onSearchChange={setSearch}
