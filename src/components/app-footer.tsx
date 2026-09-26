@@ -23,13 +23,12 @@ export function AppFooter() {
       links: [
         { label: t("footer.membership"), href: "/membership" },
         { label: t("footer.manageAccount"), href: "/account" },
-        { label: t("footer.lyrics"), href: "/lyrics-library" },
       ],
     },
   ];
 
   return (
-    <footer className="panel glass-shine rounded-[1.25rem] p-5 sm:p-6 animate-fade-up">
+    <footer className="panel glass-shine mt-4 rounded-[1.25rem] p-5 sm:p-6 animate-fade-up">
       <div className="grid gap-6 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-2">
           <div className="flex items-center gap-3">

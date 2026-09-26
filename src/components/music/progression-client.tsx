@@ -213,7 +213,7 @@ export function ProgressionClient() {
   };
 
   return (
-    <SplitViewFullScreen className="space-y-6">
+    <SplitViewFullScreen className="space-y-4" showControls={false}>
       {/* 1. Progression Timeline & Audio Player (Important: Open by default) */}
       <CollapsibleCard
         defaultOpen={true}

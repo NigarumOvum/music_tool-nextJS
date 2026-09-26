@@ -181,7 +181,7 @@ export function TheoryLabClient() {
   };
 
   return (
-    <SplitViewFullScreen className="space-y-6">
+    <SplitViewFullScreen className="space-y-4" showControls={false}>
       {/* 0. Timing Precision (metronome, tap tempo, speed & gap trainers) */}
       <MetronomeCard />
 
@@ -238,9 +238,9 @@ export function TheoryLabClient() {
         />
       </CollapsibleCard>
 
-      {/* 2. Scale Explorer & Diatonic Triads (Important: Open by default) */}
+      {/* 2. Scale Explorer & Diatonic Triads (Closed by default) */}
       <CollapsibleCard
-        defaultOpen={true}
+        defaultOpen={false}
         title={`Scale Explorer · ${scaleRoot} ${scaleType}`}
         subtitle={`${scaleNotes.length} notes in modal structure with diatonic chords`}
         eyebrow="Modal Analysis"

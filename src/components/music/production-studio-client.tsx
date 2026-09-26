@@ -1012,7 +1012,7 @@ function ProductionStudioDashboard() {
       </CollapsibleCard>
 
       {/* 2. Songs Catalog & Search / Action Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-wrap items-center gap-2">
           <div className="relative min-w-[200px] flex-1 sm:min-w-[240px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-sand-2)]" />
@@ -1114,35 +1114,24 @@ function ProductionStudioDashboard() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={selectedGenre}
-            onChange={(e) => setSelectedGenre(e.target.value)}
-            className="field w-auto text-xs py-2"
-          >
-            <option value="all">All Genres</option>
-            {GENRE_PRESETS.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
+        <button
+          type="button"
+          onClick={() => {
+            setNewSongProjectSlug(selectedProjectSlug !== "all" && selectedProjectSlug !== "solo" ? selectedProjectSlug : "");
+            setIsNewSongModalOpen(true);
+          }}
+          className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-5 py-2.5 text-xs font-bold text-black shadow-md transition hover:brightness-110 active:scale-95"
+          style={{
+            background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
+            color: projectButtonStyle.textColor
+          }}
+        >
+          <Plus className="h-4 w-4" />
+          <span>New Song</span>
+          <span className="hidden sm:inline text-[10px] opacity-75">⌘N</span>
+        </button>
 
-          <select
-            value={selectedKey}
-            onChange={(e) => setSelectedKey(e.target.value)}
-            className="field w-auto text-xs py-2"
-          >
-            <option value="all">All Keys</option>
-            {KEY_PRESETS.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Advanced Filters */}
+        {/* Advanced Filters (full-width row below) */}
         <AnimatePresence>
           {showAdvancedFilters && (
             <motion.div
@@ -1150,10 +1139,36 @@ function ProductionStudioDashboard() {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.2 }}
-              className="overflow-hidden"
+              className="w-full overflow-hidden sm:basis-full"
             >
               <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex w-full flex-wrap items-center gap-2">
+                  <select
+                    value={selectedGenre}
+                    onChange={(e) => setSelectedGenre(e.target.value)}
+                    className="field w-auto text-xs py-2"
+                  >
+                    <option value="all">All Genres</option>
+                    {GENRE_PRESETS.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={selectedKey}
+                    onChange={(e) => setSelectedKey(e.target.value)}
+                    className="field w-auto text-xs py-2"
+                  >
+                    <option value="all">All Keys</option>
+                    {KEY_PRESETS.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
+                    ))}
+                  </select>
+
                   <select
                     value={selectedEmotion}
                     onChange={(e) => setSelectedEmotion(e.target.value)}
@@ -1240,23 +1255,6 @@ function ProductionStudioDashboard() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        <button
-          type="button"
-          onClick={() => {
-            setNewSongProjectSlug(selectedProjectSlug !== "all" && selectedProjectSlug !== "solo" ? selectedProjectSlug : "");
-            setIsNewSongModalOpen(true);
-          }}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-5 py-2.5 text-xs font-bold text-black shadow-md transition hover:brightness-110 active:scale-95"
-          style={{
-            background: `linear-gradient(to right, ${projectButtonStyle.from}, ${projectButtonStyle.to})`,
-            color: projectButtonStyle.textColor
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          <span>New Song</span>
-          <span className="hidden sm:inline text-[10px] opacity-75">⌘N</span>
-        </button>
       </div>
 
       {/* 3. Songs Grid / Kanban */}
