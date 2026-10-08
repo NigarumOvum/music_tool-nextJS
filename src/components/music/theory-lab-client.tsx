@@ -8,6 +8,7 @@ import { InfoTooltip } from "@/components/info-tooltip";
 import { ChordHowToPlay } from "@/components/music/chord-how-to-play";
 import { MetronomeCard } from "@/components/music/metronome-card";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
+import { InteractiveFretboard } from "@/components/music/interactive-fretboard";
 import { useI18n } from "@/components/language-provider";
 import { SoundIndicator } from "@/components/ui/sound-indicator";
 import { ScaleInstrumentVisuals, ScaleTheory, NoteButtons, ScaleTypeButtons } from "@/components/music/scale-visuals";
@@ -16,6 +17,7 @@ import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
 import { KEYBOARD_VOICES, playKeyboardNote, playKeyboardNotes, preloadVoice, type KeyboardVoice } from "@/lib/music/keyboard-synth";
 import { CHROMATIC, noteFrequency } from "@/lib/music/notes";
+import { GUITAR_TUNINGS } from "@/lib/music/tunings";
 
 const SCALES: Record<string, number[]> = {
   Major: [0, 2, 4, 5, 7, 9, 11],
@@ -244,6 +246,23 @@ export function TheoryLabClient() {
             playFrequency(frequency);
           }}
         />
+
+        <div className="mt-4 pt-4 border-t border-white/8">
+          <InteractiveFretboard
+            mode="guitar"
+            tuning={GUITAR_TUNINGS[0]}
+            showControls={true}
+            scaleOverlay={scaleType === "Major" ? "major" : scaleType === "Minor" ? "minor" : scaleType === "Pentatonic Major" ? "pentatonic" : scaleType === "Blues" ? "blues" : "none"}
+            onScaleChange={(scale) => {
+              if (scale === "major") setScaleType("Major");
+              else if (scale === "minor") setScaleType("Minor");
+              else if (scale === "pentatonic") setScaleType("Pentatonic Major");
+              else if (scale === "blues") setScaleType("Blues");
+            }}
+            rootNote={scaleRoot}
+            className="scale-90 origin-top"
+          />
+        </div>
       </CollapsibleCard>
 
       {/* 2. Scale Explorer & Diatonic Triads (Closed by default) */}

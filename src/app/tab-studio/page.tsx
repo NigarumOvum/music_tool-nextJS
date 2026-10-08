@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function TabStudioPage() {
-  redirect("/production-studio?tab=notation");
+  redirect("/production-studio?tab=notation-audio");
 }

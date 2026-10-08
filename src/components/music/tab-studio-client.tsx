@@ -23,13 +23,14 @@ import {
   Square,
   Timer,
   Trash2,
-  Upload,
   Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAudio } from "@/components/music/audio-provider";
 import { useProductionSong } from "@/components/music/production-song-context";
+import { FileUploadButton } from "@/components/music/file-upload-button";
+import { InteractiveFretboard } from "@/components/music/interactive-fretboard";
 import { createPartiture, deletePartiture, downloadBlob, fetchPartitures } from "@/lib/music/client";
 import { readStoredRaw, removeStored, useCurrentUserId, userKey, writeStored } from "@/lib/persist";
 import type { MusicPartitureRecord } from "@/lib/music/types";
@@ -202,7 +203,6 @@ function getChordShape(chord: string, bass: boolean) {
 export function TabStudioClient() {
   const { getAudioContext } = useAudio();
   const { selectedSongId } = useProductionSong();
-  const inputRef = useRef<HTMLInputElement | null>(null);
   const playingRef = useRef(false);
   const schedulerRef = useRef<number | null>(null);
 
@@ -219,6 +219,9 @@ export function TabStudioClient() {
   const [pastedAscii, setPastedAscii] = useState("");
   const [showPasteImport, setShowPasteImport] = useState(false);
   const [draftAvailable, setDraftAvailable] = useState(false);
+  const [showFretboard, setShowFretboard] = useState(true);
+  const [scaleOverlay, setScaleOverlay] = useState<"none" | "major" | "minor" | "pentatonic" | "blues">("none");
+  const [rootNote, setRootNote] = useState("C");
   const userId = useCurrentUserId();
   const draftKey = userId && selectedSongId
     ? userKey(userId, `tab_studio_draft:${selectedSongId}`)
@@ -893,21 +896,11 @@ export function TabStudioClient() {
             <Copy className="mr-1 inline h-3 w-3" />
             Dup
           </button>
-          <input
-            ref={inputRef}
-            type="file"
-            className="hidden"
-            accept=".mid,.midi,.txt,.tab"
-            onChange={(event) => void handleImport(event.target.files)}
+          <FileUploadButton
+            type="tab"
+            onFilesSelected={(files) => void handleImport(files)}
+            variant="primary"
           />
-          <button
-            onClick={() => inputRef.current?.click()}
-            className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-mint)]"
-            type="button"
-          >
-            <Upload className="mr-1 inline h-3.5 w-3.5 text-[var(--color-mint)]" />
-            Import MIDI/Tab
-          </button>
           <button
             onClick={() => void pasteFromClipboard()}
             className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-brass)]"
@@ -1100,8 +1093,33 @@ export function TabStudioClient() {
           </div>
         </div>
 
-        {/* Sidebar: ASCII preview + compact song partitures in one panel */}
+        {/* Sidebar: Interactive Fretboard + ASCII preview + compact song partitures */}
         <aside className="space-y-4">
+          <div className="panel glass-shine rounded-[1.75rem] p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="eyebrow">Interactive Fretboard</div>
+              <button
+                onClick={() => setShowFretboard((prev) => !prev)}
+                className="glass-pill px-2 py-1 text-[10px] font-black uppercase tracking-widest"
+                type="button"
+              >
+                {showFretboard ? "Hide" : "Show"}
+              </button>
+            </div>
+            {showFretboard && (
+              <InteractiveFretboard
+                mode={instrument === "Bass" ? "bass" : "guitar"}
+                tuning={activeTuning}
+                onTuningChange={(tuning) => setTuningId(tuning.id)}
+                showControls={false}
+                scaleOverlay={scaleOverlay}
+                onScaleChange={(scale) => setScaleOverlay(scale)}
+                rootNote={rootNote}
+                className="scale-90 origin-top"
+              />
+            )}
+          </div>
+
           <div className="panel glass-shine rounded-[1.75rem] p-4">
             <div className="flex items-center justify-between">
               <div className="eyebrow">ASCII Preview</div>

@@ -3,8 +3,7 @@ import type { AuthUser } from "@/lib/auth";
 import { ensureUserCanAccessPage } from "@/lib/auth";
 
 export const PRODUCTION_STUDIO_TABS = [
-  { id: "notation", label: "Notation", pageKey: "tab-studio" },
-  { id: "audio", label: "Audio", pageKey: "daw" },
+  { id: "notation-audio", label: "Notation & Audio", pageKey: "tab-studio" },
   { id: "lyrics", label: "Lyrics", pageKey: "lyrics-library" },
 ] as const;
 
@@ -75,7 +74,7 @@ export function resolveProductionStudioTab(
     return first;
   }
 
-  return "lyrics";
+  return "notation-audio";
 }
 
 export function resolveMusicToolkitTab(

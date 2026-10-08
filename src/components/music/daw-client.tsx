@@ -12,13 +12,13 @@ import {
   RotateCcw,
   Save,
   Trash2,
-  Upload,
   Volume2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAudio } from "@/components/music/audio-provider";
 import { useProductionSong } from "@/components/music/production-song-context";
+import { FileUploadButton, MultiFileUploadGroup } from "@/components/music/file-upload-button";
 import { readStoredRaw, useCurrentUserId, userKey, writeStored } from "@/lib/persist";
 import { createPartiture } from "@/lib/music/client";
 import {
@@ -309,8 +309,6 @@ function PianoRoll({
 export function DawClient() {
   const { getAudioContext } = useAudio();
   const { selectedSongId } = useProductionSong();
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const manifestRef = useRef<HTMLInputElement | null>(null);
   const stopPlaybackRef = useRef<(() => void) | null>(null);
   const playbackStartedAtRef = useRef(0);
   const playbackOffsetRef = useRef(0);
@@ -746,8 +744,6 @@ export function DawClient() {
         toast.success("Session manifest imported (audio files must be re-imported)");
       } catch (error) {
         toast.error(`Import failed: ${(error as Error).message}`);
-      } finally {
-        if (manifestRef.current) manifestRef.current.value = "";
       }
     };
     reader.readAsText(file);
@@ -868,16 +864,11 @@ export function DawClient() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <input ref={inputRef} type="file" multiple accept=".mid,.midi,.wav,.mp3,.ogg,.json,audio/*" className="hidden" onChange={(event) => void importFiles(event.target.files)} />
-          <input ref={manifestRef} type="file" accept=".json,application/json" className="hidden" onChange={(event) => importManifest(event.target.files)} />
-          <button type="button" onClick={() => inputRef.current?.click()} className="glass-pill flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest">
-            <Upload className="h-3.5 w-3.5" />
-            Import MIDI / Audio
-          </button>
-          <button type="button" onClick={() => manifestRef.current?.click()} className="glass-pill flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest">
-            <Download className="h-3.5 w-3.5" />
-            Import Session
-          </button>
+          <MultiFileUploadGroup
+            onMidiFiles={(files) => void importFiles(files)}
+            onAudioFiles={(files) => void importFiles(files)}
+            onSessionFiles={(files) => void importManifest(files)}
+          />
           <button type="button" onClick={exportManifest} className="glass-pill flex items-center gap-2 px-3 py-2 text-[10px] font-black uppercase tracking-widest">
             <Download className="h-3.5 w-3.5" />
             Export Session

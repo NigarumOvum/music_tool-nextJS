@@ -8,6 +8,7 @@ import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useI18n } from "@/components/language-provider";
 import { SoundIndicator } from "@/components/ui/sound-indicator";
 import { useAudio } from "@/components/music/audio-provider";
+import { InteractiveFretboard } from "@/components/music/interactive-fretboard";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { detectPitchAutocorrelation, type PitchDetection } from "@/lib/music/pitch";
 import { playReferencePluck, preloadPluck, type PluckInstrument } from "@/lib/music/instrument-synth";
@@ -360,6 +361,15 @@ export function TunerCard() {
             {activeTuning.strings.map((tuningString) => renderStringRow(tuningString))}
           </div>
         </div>
+
+        <InteractiveFretboard
+          mode={instrumentMode}
+          tuning={activeTuning}
+          onTuningChange={(tuning) => setTuningId(tuning.id)}
+          showControls={false}
+          playOnHover={true}
+          className="scale-95 origin-top"
+        />
       </div>
     </CollapsibleCard>
   );
@@ -367,7 +377,7 @@ export function TunerCard() {
 
 export function TunerClient() {
   return (
-    <SplitViewFullScreen className="animate-fade-up gap-6" showControls={false}>
+    <SplitViewFullScreen className="animate-fade-up gap-6" showControls={false} allowSplitView={true}>
       <TunerCard />
     </SplitViewFullScreen>
   );

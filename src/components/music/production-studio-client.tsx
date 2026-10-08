@@ -203,7 +203,7 @@ function ProductionStudioDashboard() {
 
   // Modals state
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
-  const [studioInitialTab, setStudioInitialTab] = useState<string>("lyrics");
+  const [studioInitialTab, setStudioInitialTab] = useState<string>("notation-audio");
   const [isBandModalOpen, setIsBandModalOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<MusicProjectRecord | null>(null);
   const [isNewSongModalOpen, setIsNewSongModalOpen] = useState(false);

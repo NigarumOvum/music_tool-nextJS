@@ -40,13 +40,16 @@
 - FR-014 Metronome plays accented clicks per time signature (2/4–12/8),
   subdivision, voice, volume, and count-in; BPM/tap-tempo persist per user.
 - FR-015 Tuner captures mic audio, shows detected pitch + cents offset, and
-  plays reference plucks across guitar/bass presets.
+  plays reference plucks across guitar/bass presets. Includes interactive
+  fretboard grid with click-to-play and customizable tunings.
 - FR-016 Theory Lab renders ≥13 scales and ≥17 chord types with inversions
   and diatonic triads, and audibly plays scales/chords in the selected voice.
+  Includes interactive fretboard grid with scale visualization overlays.
 - FR-017 Piano responds to mouse, QWERTY rows (Z–M / Q–U, arrows shift
   octave), and WebMIDI note-on/off where supported.
 - FR-018 Chord How-to-Play shows per-instrument voicing for the active chord
-  from the shared 13-instrument catalog.
+  from the shared 13-instrument catalog. Includes interactive fretboard
+  grid with chord/scale overlay modes.
 - FR-019 Progressions builder supports add/remove, preset load, transpose,
   Roman-numeral + function analysis, playback, and export.
 
@@ -62,12 +65,14 @@
   lines/words/syllables/est-duration, and restores per-user drafts.
 - FR-024 Song Studio persists all metadata fields plus per-instrument
   partitures (auto slot, 5 formats) via API.
-- FR-025 DAW imports MIDI (notes + BPM), maps tracks to layers, plays with
-  gain/pan/mute/solo and tempo-ratio, edits/quantizes notes, and exports a
-  JSON session manifest.
+- FR-025 Notation & Audio Studio integrates tab notation and DAW in a unified
+  interface with split-view, view-mode toggles (split/tab/DAW), and
+  sync direction (MIDI-to-tab, tab-to-MIDI). Imports MIDI with comprehensive
+  file upload buttons for MIDI, audio, and session files.
 - FR-026 Tab Studio grid edits generate valid ASCII tab; ASCII paste parses
   back; tuning switches preserve string mapping; playback steps with
-  loop + playhead jumps.
+  loop + playhead jumps. Includes interactive fretboard grid with
+  click-to-play, scale overlays, and customizable tunings.
 - FR-027 Studio modal opens any allowed tab for the selected song with
   split-view, pinned tabs, fullscreen, and exit-save confirmation.
 - FR-028 Song comments create/delete per user in localStorage namespaced per

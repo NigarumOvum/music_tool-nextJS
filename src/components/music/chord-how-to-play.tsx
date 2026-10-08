@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Drum, Guitar, Mic2, Music2, Piano } from "lucide-react";
 
 import { useI18n } from "@/components/language-provider";
+import { InteractiveFretboard } from "@/components/music/interactive-fretboard";
 import { AVAILABLE_INSTRUMENTS } from "@/lib/music/instruments";
 import { CHROMATIC } from "@/lib/music/notes";
+import { GUITAR_TUNINGS, BASS_TUNINGS } from "@/lib/music/tunings";
 
 const INSTRUMENT_ICONS: Record<string, typeof Guitar> = {
   piano: Piano,
@@ -101,6 +103,9 @@ export function ChordHowToPlay({
   notes: string[];
 }) {
   const { t } = useI18n();
+  const [showInteractiveFretboard, setShowInteractiveFretboard] = useState(false);
+  const [fretboardMode, setFretboardMode] = useState<"guitar" | "bass">("guitar");
+
   const playable = useMemo(
     () =>
       AVAILABLE_INSTRUMENTS.filter((item) =>
@@ -165,6 +170,42 @@ export function ChordHowToPlay({
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-4 border-t border-white/8 pt-4">
+        <button
+          type="button"
+          onClick={() => setShowInteractiveFretboard(!showInteractiveFretboard)}
+          className="glass-pill w-full px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-mint)]"
+        >
+          {showInteractiveFretboard ? "Hide" : "Show"} Interactive Fretboard
+        </button>
+
+        {showInteractiveFretboard && (
+          <div className="mt-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-[var(--color-sand-2)]">
+                Mode
+              </label>
+              <select
+                value={fretboardMode}
+                onChange={(e) => setFretboardMode(e.target.value as "guitar" | "bass")}
+                className="glass-pill border-white/10 bg-black/40 px-3 py-1.5 text-xs font-bold text-[var(--color-mint)] outline-none"
+              >
+                <option value="guitar">Guitar</option>
+                <option value="bass">Bass</option>
+              </select>
+            </div>
+            <InteractiveFretboard
+              mode={fretboardMode}
+              tuning={fretboardMode === "guitar" ? GUITAR_TUNINGS[0] : BASS_TUNINGS[0]}
+              showControls={true}
+              scaleOverlay="major"
+              rootNote={root}
+              className="scale-90 origin-top"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -28,19 +28,16 @@ import type { MusicSongSummary, MusicProjectRecord } from "@/lib/music/types";
 
 const tabLoaders = {
   lyrics: () => import("@/components/music/lyrics-library-client").then((module) => module.LyricsLibraryClient),
-  audio: () => import("@/components/music/daw-client").then((module) => module.DawClient),
-  notation: () => import("@/components/music/tab-studio-client").then((module) => module.TabStudioClient),
+  "notation-audio": () => import("@/components/music/notation-audio-studio").then((module) => module.NotationAudioStudio),
 } as const;
 
 const tabPanels: Record<string, ReturnType<typeof dynamic>> = {
   lyrics: dynamic(() => tabLoaders.lyrics().then((Component) => ({ default: Component })), { ssr: false }),
-  audio: dynamic(() => tabLoaders.audio().then((Component) => ({ default: Component })), { ssr: false }),
-  notation: dynamic(() => tabLoaders.notation().then((Component) => ({ default: Component })), { ssr: false }),
+  "notation-audio": dynamic(() => tabLoaders["notation-audio"]().then((Component) => ({ default: Component })), { ssr: false }),
 } as const;
 
 const STUDIO_TABS: Array<{ id: string; label: string; icon: typeof Music2; description: string }> = [
-  { id: "notation", label: "Notation & Tabs", icon: Guitar, description: "Fretboard tabs, partitures & playback" },
-  { id: "audio", label: "Audio DAW", icon: AudioWaveform, description: "Multitrack synth, sequencer & audio recorder" },
+  { id: "notation-audio", label: "Notation & Audio", icon: Layers, description: "Integrated tab notation & audio DAW with sync" },
   { id: "lyrics", label: "Lyrics & Rhymes", icon: Mic2, description: "Lyrics editor, rhyming & syllables" },
 ];
 
