@@ -1,39 +1,40 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense, useMemo, useState, useCallback } from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Gauge, ListMusic, Timer, type LucideIcon } from "lucide-react";
+import { Maximize2, Minimize2 } from "lucide-react";
 
 import { Spinner } from "@heroui/react";
 
-import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useI18n } from "@/components/language-provider";
-import type { DictKey } from "@/lib/i18n/dictionaries";
 import type { MusicToolkitTabId } from "@/lib/hub-access";
 
+// ── Lazy-load tab panels (no tuner — it lives inside harmony) ──────────────
 const tabLoaders = {
-  harmony: () => import("@/components/music/theory-lab-client").then((module) => module.TheoryLabClient),
-  progressions: () => import("@/components/music/progression-client").then((module) => module.ProgressionClient),
-  tuner: () => import("@/components/music/tuner-client").then((module) => module.TunerClient),
+  harmony: () =>
+    import("@/components/music/theory-lab-client").then((m) => m.TheoryLabClient),
+  progressions: () =>
+    import("@/components/music/progression-client").then((m) => m.ProgressionClient),
 } as const;
 
-const tabPanels: Record<MusicToolkitTabId, ReturnType<typeof dynamic>> = {
-  harmony: dynamic(() => tabLoaders.harmony().then((Component) => ({ default: Component })), { ssr: false }),
-  progressions: dynamic(() => tabLoaders.progressions().then((Component) => ({ default: Component })), { ssr: false }),
-  tuner: dynamic(() => tabLoaders.tuner().then((Component) => ({ default: Component })), { ssr: false }),
+type LoadableTabId = keyof typeof tabLoaders;
+
+const tabPanels: Record<LoadableTabId, ReturnType<typeof dynamic>> = {
+  harmony: dynamic(
+    () => tabLoaders.harmony().then((Component) => ({ default: Component })),
+    { ssr: false },
+  ),
+  progressions: dynamic(
+    () => tabLoaders.progressions().then((Component) => ({ default: Component })),
+    { ssr: false },
+  ),
 };
 
 type MusicToolkitTab = {
   id: MusicToolkitTabId;
   label: string;
-};
-
-const TAB_ICONS: Record<MusicToolkitTabId, LucideIcon> = {
-  harmony: Timer,
-  progressions: ListMusic,
-  tuner: Gauge,
 };
 
 type MusicToolkitClientProps = {
@@ -49,88 +50,68 @@ function TabSpinner() {
   );
 }
 
+// ── Fullscreen button — rendered inline with the page title ────────────────
+// Uses local state hoisted to MusicToolkitInner via props.
+export function FullscreenButton({
+  isFullscreen,
+  onToggle,
+}: {
+  isFullscreen: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={isFullscreen ? "Exit Fullscreen (⌘F)" : "Fullscreen (⌘F)"}
+      className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)]"
+    >
+      {isFullscreen ? (
+        <Minimize2 className="h-4 w-4" />
+      ) : (
+        <Maximize2 className="h-4 w-4" />
+      )}
+    </button>
+  );
+}
+
+// ── Inner component ────────────────────────────────────────────────────────
 function MusicToolkitInner({ allowedTabs, initialTab }: MusicToolkitClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { t } = useI18n();
-  const tabParam = searchParams.get("tab") || undefined;
-  const [secondaryTab, setSecondaryTab] = useState<MusicToolkitTabId | null>(null);
+  const { t: _t } = useI18n(); // kept for potential future use
 
-  const activeTab = useMemo(() => {
+  const tabParam = searchParams.get("tab") ?? undefined;
+
+  const activeTab = (() => {
     if (tabParam && allowedTabs.some((tab) => tab.id === tabParam)) {
       return tabParam as MusicToolkitTabId;
     }
-
     if (allowedTabs.some((tab) => tab.id === initialTab)) {
       return initialTab;
     }
+    return allowedTabs[0]?.id ?? initialTab;
+  })();
 
-    return allowedTabs[0]?.id || initialTab;
-  }, [allowedTabs, initialTab, tabParam]);
+  // Only render tabs that have a panel loader (excludes tuner)
+  const loadableTab: LoadableTabId =
+    activeTab in tabPanels ? (activeTab as LoadableTabId) : "harmony";
 
-  const ActivePanel = tabPanels[activeTab];
-  const SecondaryPanel = secondaryTab ? tabPanels[secondaryTab] : null;
+  const ActivePanel = tabPanels[loadableTab];
 
-  function selectTab(tabId: MusicToolkitTabId) {
-    router.replace(`/?tab=${tabId}`, { scroll: false });
-  }
-
-  const handleTabClick = useCallback((tabId: MusicToolkitTabId) => {
-    if (secondaryTab === null) {
-      setSecondaryTab(tabId);
-    } else if (secondaryTab === tabId) {
-      setSecondaryTab(null);
-    } else {
-      setSecondaryTab(tabId);
-    }
-  }, [secondaryTab]);
+  // Navigation is now done via the navbar toolkit links; no tab bar here.
 
   return (
-    <SplitViewFullScreen
-      secondaryContent={SecondaryPanel ? <SecondaryPanel /> : undefined}
-      allowSplitView={allowedTabs.length > 1}
-      className="space-y-4"
+    <motion.div
+      key={activeTab}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.24 }}
     >
-      <div className="flex flex-wrap gap-2">
-        {allowedTabs.map((tab) => {
-          const TabIcon = TAB_ICONS[tab.id];
-          return (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => selectTab(tab.id)}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              handleTabClick(tab.id);
-            }}
-            className={`glass-pill inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
-              activeTab === tab.id
-                ? "glass-pill-active text-[var(--color-foreground)]"
-                : secondaryTab === tab.id
-                  ? "bg-[var(--color-copper)]/10 text-[var(--color-copper)] border border-[var(--color-copper)]/30"
-                  : "text-[var(--color-sand-2)] hover:-translate-y-0.5"
-            }`}
-            title={secondaryTab === tab.id ? "Remove from split view" : "Right-click to add to split view"}
-          >
-            {TabIcon ? <TabIcon className="h-3.5 w-3.5" /> : null}
-            {t(`tabs.${tab.id}` as DictKey) || tab.label}
-            {secondaryTab === tab.id && <span className="ml-1 text-[10px]">(2nd)</span>}
-          </button>
-          );
-        })}
-      </div>
-
-      <motion.div
-        key={activeTab}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24 }}
-      >
-        <Suspense fallback={<TabSpinner />}>
-          {ActivePanel ? <ActivePanel /> : null}
-        </Suspense>
-      </motion.div>
-    </SplitViewFullScreen>
+      <Suspense fallback={<TabSpinner />}>
+        {ActivePanel ? <ActivePanel /> : null}
+      </Suspense>
+    </motion.div>
   );
 }
 

@@ -48,10 +48,10 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
 
   return (
     <label
-      className={`glass-pill inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)] ${compact ? "" : ""}`}
+      className="glass-pill relative inline-flex h-8 cursor-pointer items-center gap-1 rounded-full pl-2 pr-1 transition hover:-translate-y-0.5"
       title={t("nav.language")}
     >
-      <Globe className="h-3.5 w-3.5" />
+      <Globe className="h-3.5 w-3.5 shrink-0 text-[var(--color-sand-2)]" />
       <select
         value={locale}
         onChange={(event) => {
@@ -59,11 +59,11 @@ export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
           if (isLocale(next)) setLocale(next);
         }}
         aria-label={t("nav.language")}
-        className="cursor-pointer bg-transparent text-xs font-semibold uppercase tracking-[0.14em] outline-none"
+        className="w-[2.4rem] cursor-pointer bg-transparent text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-sand-2)] outline-none"
       >
         {LOCALES.map((code) => (
           <option key={code} value={code} className="bg-[var(--color-surface)]">
-            {compact ? code.toUpperCase() : LOCALE_LABELS[code]}
+            {compact ? code.toUpperCase() : code.toUpperCase()}
           </option>
         ))}
       </select>

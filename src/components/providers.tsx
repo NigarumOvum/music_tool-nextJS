@@ -8,6 +8,7 @@ import { Toaster } from "sonner";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import { LanguageProvider } from "@/components/language-provider";
 import { AudioProvider } from "@/components/music/audio-provider";
+import { FullscreenProvider } from "@/components/fullscreen-context";
 import { PWAOfflineIndicator } from "@/components/pwa/pwa-offline-indicator";
 
 function ProviderContent({ children }: { children: ReactNode }) {
@@ -17,7 +18,9 @@ function ProviderContent({ children }: { children: ReactNode }) {
     <HeroUIProvider>
       <LanguageProvider>
         <AudioProvider>
-          {children}
+          <FullscreenProvider>
+            {children}
+          </FullscreenProvider>
         </AudioProvider>
       </LanguageProvider>
       <PWAOfflineIndicator />

@@ -9,6 +9,7 @@ import { ChordHowToPlay } from "@/components/music/chord-how-to-play";
 import { MetronomeCard } from "@/components/music/metronome-card";
 import { PianoKeyboard } from "@/components/music/piano-keyboard";
 import { InteractiveFretboard } from "@/components/music/interactive-fretboard";
+import { TunerCard } from "@/components/music/tuner-client";
 import { useI18n } from "@/components/language-provider";
 import { SoundIndicator } from "@/components/ui/sound-indicator";
 import { ScaleInstrumentVisuals, ScaleTheory, NoteButtons, ScaleTypeButtons } from "@/components/music/scale-visuals";
@@ -192,7 +193,10 @@ export function TheoryLabClient() {
 
   return (
     <SplitViewFullScreen className="space-y-4" showControls={false}>
-      {/* 0. Timing Precision (metronome, tap tempo, speed & gap trainers) */}
+      {/* 0. Tuner & Pitch Reference (merged from Tuner tab) */}
+      <TunerCard />
+
+      {/* 1. Timing Precision (metronome, tap tempo, speed & gap trainers) */}
       <MetronomeCard />
 
       {/* 1. Unified Theory Lab: Master Keyboard + Scale Explorer + Fretboard */}

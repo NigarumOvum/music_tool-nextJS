@@ -55,8 +55,11 @@ Pro $9.99 mo / Lifetime $149), `membership_subscriptions`
 - 9 manageable page keys in `src/lib/access.ts`, grouped into Production
   Studio / Music Toolkit / Prompt Library hubs (`HUB_ACCESS_GROUPS`).
 - Toolkit tabs map to pageKeys: harmony→`theory-lab`, progressions→`progressions`,
-  tuner→`musician-helpers`; Studio tabs: notation→`tab-studio`, audio→`daw`,
-  lyrics→`lyrics-library` (+ song editor).
+  tuner→`musician-helpers` (tuner is embedded inside the Harmony tab; `?tab=tuner`
+  redirects to harmony). /?tab=harmony and /?tab=progressions are surfaced as
+  compact navbar links — no tab bar is rendered inside the page. The top
+  navbar is sticky at `top-0` with compact icon-only controls (language,
+  account, theme). Fullscreen toggle lives next to the page title (h1 row).
 - Harmony Chord Constructor embeds How-to-Play with per-instrument Play chord
   (follows the selected inversion). Progressions (`/?tab=progressions`) is
   timeline + preset library only — no Chord Voicing Preview.
