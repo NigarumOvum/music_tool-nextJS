@@ -57,6 +57,9 @@ Pro $9.99 mo / Lifetime $149), `membership_subscriptions`
 - Toolkit tabs map to pageKeys: harmony→`theory-lab`, progressions→`progressions`,
   tuner→`musician-helpers`; Studio tabs: notation→`tab-studio`, audio→`daw`,
   lyrics→`lyrics-library` (+ song editor).
+- Harmony Chord Constructor embeds How-to-Play with per-instrument Play chord
+  (follows the selected inversion). Progressions (`/?tab=progressions`) is
+  timeline + preset library only — no Chord Voicing Preview.
 - Server: `requireCurrentUser()` → `/login`; `AppShell({pageKey})` → denied
   redirect; API: `requireApiUser` (401) / `requireAdminApiUser` (403).
 - Known scoping quirk (see REQUIREMENTS NFR/security notes): any song with a

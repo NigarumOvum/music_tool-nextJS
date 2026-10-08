@@ -4,7 +4,9 @@
 
 - **Toolkit**: fresh login with zero grants sees Harmony + free banner;
   metronome/tuner/theory/progressions/piano (+QWERTY/MIDI) all sound and
-  persist prefs across reload. (FR-012, FR-014–FR-019)
+  persist prefs across reload. Chord Constructor How-to-Play Play chord
+  sounds per instrument and follows inversion; Progressions has no Chord
+  Voicing Preview section. (FR-012, FR-014–FR-019, FR-041)
 - **Studio**: create song → edit lyrics/metadata/sections/layers/partitures
   → filters find it → modal tabs open → DAW import/play/export → grid↔ASCII
   round-trip → band assign → collaborator sees the shared song.
@@ -27,7 +29,7 @@
 
 **MVP = all currently implemented features, monetization free-first.**
 
-MVP is done when every FR-001–FR-040 passes with:
+MVP is done when every FR-001–FR-041 passes with:
 
 1. PayPal **sandbox or unconfigured** (paid buttons degrade gracefully to
    "not configured"); live payments are Phase 2.

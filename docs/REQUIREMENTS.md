@@ -47,11 +47,17 @@
   Includes interactive fretboard grid with scale visualization overlays.
 - FR-017 Piano responds to mouse, QWERTY rows (Z–M / Q–U, arrows shift
   octave), and WebMIDI note-on/off where supported.
-- FR-018 Chord How-to-Play shows per-instrument voicing for the active chord
-  from the shared 13-instrument catalog. Includes interactive fretboard
-  grid with chord/scale overlay modes.
+- FR-018 Chord How-to-Play (inside Chord Constructor & Inversions) shows
+  per-instrument voicing for the active chord and inversion, with a Play
+  chord control on each instrument card (piano, guitar, ukulele, bass,
+  drums, vocals) using that instrument’s voice. Includes interactive
+  fretboard grid with chord/scale overlay modes.
 - FR-019 Progressions builder supports add/remove, preset load, transpose,
-  Roman-numeral + function analysis, playback, and export.
+  Roman-numeral + function analysis, playback, and export. It does **not**
+  include a Chord Voicing Preview section (that lives on Harmony).
+- FR-041 Harmony Chord Constructor Play-chord uses the selected inversion’s
+  bass (lowest stacked tone) so first/second inversion playback matches
+  the constructor, not only root position.
 
 ### Production studio
 - FR-020 Song catalog lists owned + project-shared songs with counts,

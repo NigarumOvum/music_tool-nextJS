@@ -2,18 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Download, Layers, Music, PlayCircle, Plus, RotateCcw, Trash2, Zap, Sliders } from "lucide-react";
+import { Download, Layers, Music, PlayCircle, Plus, RotateCcw, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
-import { ChordHowToPlay } from "@/components/music/chord-how-to-play";
-import { PianoKeyboard } from "@/components/music/piano-keyboard";
 import { useI18n } from "@/components/language-provider";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
 import { playKeyboardNote, preloadVoice, type KeyboardVoice } from "@/lib/music/keyboard-synth";
-import { CHROMATIC, intervalsToPitchClasses, noteFrequency } from "@/lib/music/notes";
+import { CHROMATIC, noteFrequency } from "@/lib/music/notes";
 import {
   PROGRESSION_CATEGORIES,
   PROGRESSION_PRESETS,
@@ -132,11 +130,6 @@ export function ProgressionClient() {
     }
     return progression.length === 1 ? "" : "s";
   })();
-
-  const previewActiveNotes = useMemo(
-    () => intervalsToPitchClasses(root, chordIntervals[quality] ?? [0, 4, 7]),
-    [root, quality],
-  );
 
   useEffect(() => {
     playingRef.current = isPlaying;
@@ -445,77 +438,6 @@ export function ProgressionClient() {
               </p>
             </button>
           ))}
-        </div>
-      </CollapsibleCard>
-
-      {/* 3. Keyboard Preview & Suggestions (Less critical: Closed by default) */}
-      <CollapsibleCard
-        defaultOpen={false}
-        title={`Chord Voicing Preview · ${root}${quality === "Maj" ? "" : quality}`}
-        subtitle="Keyboard visualizer and cadence recommendations"
-        eyebrow="Interactive Voicing"
-        icon={<Sliders className="h-5 w-5 text-[var(--color-mint)]" />}
-        headerActions={
-          <button
-            type="button"
-            onClick={() => playChord({ id: "preview", root, quality })}
-            title="Play chord"
-            className="glass-pill btn-sound px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
-          >
-            Play Chord
-          </button>
-        }
-      >
-        <div className="space-y-4">
-          <PianoKeyboard
-            activeNotes={previewActiveNotes}
-            startOctave={keyboardOctave}
-            voice={keyboardVoice}
-            onVoiceChange={setKeyboardVoice}
-            showInstrumentSelector
-            onNotePlay={(note, frequency) => {
-              setRoot(note);
-              const midi = 69 + 12 * Math.log2(frequency / 440);
-              setKeyboardOctave(Math.max(1, Math.min(6, Math.floor(midi / 12) - 1)));
-              playKeyboardNote(getAudioContext(), frequency, keyboardVoice);
-            }}
-          />
-
-          <ChordHowToPlay
-            chordLabel={`${root}${quality === "Maj" ? "" : quality}`}
-            root={root}
-            notes={previewActiveNotes}
-          />
-
-          <div className="grid gap-4 md:grid-cols-2 pt-2">
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-4">
-              <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-mint)]">
-                <Zap className="h-4 w-4" />
-                <span>Smart Suggestions</span>
-              </div>
-              <p className="mt-1 text-xs text-[var(--color-sand-2)]">
-                Try resolving to a{" "}
-                <button type="button" onClick={() => setRoot(NOTES[(NOTES.indexOf(root) + 7) % 12])} className="text-[var(--color-brass)] font-bold underline">
-                  dominant (V)
-                </button>{" "}
-                or{" "}
-                <button type="button" onClick={() => setRoot(NOTES[(NOTES.indexOf(root) + 5) % 12])} className="text-[var(--color-brass)] font-bold underline">
-                  subdominant (IV)
-                </button>
-                .
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-4">
-              <div className="flex items-center gap-2 text-xs font-bold text-[var(--color-copper)]">
-                <Music className="h-4 w-4" />
-                <span>Auto-Transposition</span>
-              </div>
-              <p className="mt-1 text-xs text-[var(--color-sand-2)]">
-                Presets automatically transpose to your selected master key ({keyRoot}).
-              </p>
-            </div>
-          </div>
         </div>
       </CollapsibleCard>
     </SplitViewFullScreen>
