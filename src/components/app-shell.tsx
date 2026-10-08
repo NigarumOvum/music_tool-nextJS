@@ -108,12 +108,11 @@ export async function AppShell({
           {/* Divider */}
           <div className="hidden h-5 w-px shrink-0 bg-[var(--color-border)] sm:block" />
 
-          {/* App nav links (Production Studio, Prompt Library) */}
+          {/* Nav links: toolkit first (harmony, progressions), then app (Production Studio, Prompt Library) */}
           <nav className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <div className="flex items-center gap-1.5 px-0.5">
-              <AppNavLinks items={navLinks} />
-              {/* Toolkit section links (harmony, progressions) injected from page */}
               {toolkitLinks}
+              <AppNavLinks items={navLinks} />
             </div>
           </nav>
 
