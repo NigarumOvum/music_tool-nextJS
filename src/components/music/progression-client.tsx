@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Download, Layers, Music, PlayCircle, Plus, RotateCcw, Trash2, Zap } from "lucide-react";
+import { Download, Layers, Music, Piano, PlayCircle, Plus, RotateCcw, Repeat, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
@@ -10,7 +10,7 @@ import { useI18n } from "@/components/language-provider";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useAudio } from "@/components/music/audio-provider";
-import { playKeyboardNote, preloadVoice, type KeyboardVoice } from "@/lib/music/keyboard-synth";
+import { playKeyboardNote, preloadVoice, KEYBOARD_VOICES, type KeyboardVoice } from "@/lib/music/keyboard-synth";
 import { CHROMATIC, noteFrequency } from "@/lib/music/notes";
 import {
   PROGRESSION_CATEGORIES,
@@ -263,6 +263,79 @@ export function ProgressionClient() {
         }
       >
         <div className="space-y-4">
+          {/* ── Playback settings strip ── */}
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/8 bg-black/20 px-3 py-2">
+            {/* Voice selector */}
+            <label className="inline-flex items-center gap-1.5">
+              <Piano className="h-3.5 w-3.5 shrink-0 text-[var(--color-brass)]" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-sand-2)]">Sound</span>
+              <select
+                value={keyboardVoice}
+                onChange={(e) => setKeyboardVoice(e.target.value as KeyboardVoice)}
+                className="field py-1 text-xs font-bold"
+              >
+                {KEYBOARD_VOICES.map((v) => (
+                  <option key={v.id} value={v.id}>{v.label}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="h-4 w-px bg-[var(--color-border)]" />
+
+            {/* Octave */}
+            <label className="inline-flex items-center gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-sand-2)]">Oct</span>
+              <select
+                value={keyboardOctave}
+                onChange={(e) => setKeyboardOctave(Number(e.target.value))}
+                className="field py-1 text-xs font-bold"
+              >
+                {[1, 2, 3, 4, 5].map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            </label>
+
+            <div className="h-4 w-px bg-[var(--color-border)]" />
+
+            {/* BPM */}
+            <label className="inline-flex items-center gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-sand-2)]">BPM</span>
+              <button
+                type="button"
+                onClick={() => setBpm((b) => Math.max(40, b - 5))}
+                className="glass-pill flex h-6 w-6 items-center justify-center text-[10px] font-black text-[var(--color-sand-2)] hover:text-white"
+              >−</button>
+              <span className="min-w-[2.4rem] text-center text-sm font-black tabular-nums">{bpm}</span>
+              <button
+                type="button"
+                onClick={() => setBpm((b) => Math.min(240, b + 5))}
+                className="glass-pill flex h-6 w-6 items-center justify-center text-[10px] font-black text-[var(--color-sand-2)] hover:text-white"
+              >+</button>
+              <input
+                type="range"
+                min={40}
+                max={240}
+                value={bpm}
+                onChange={(e) => setBpm(Number(e.target.value))}
+                className="hidden h-1.5 w-20 cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-[var(--color-copper)] sm:block"
+              />
+            </label>
+
+            <div className="h-4 w-px bg-[var(--color-border)]" />
+
+            {/* Loop toggle */}
+            <button
+              type="button"
+              onClick={() => setLoopPlayback(!loopPlayback)}
+              title={loopPlayback ? "Loop on" : "Loop off"}
+              className={`glass-pill inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition ${loopPlayback ? "bg-[var(--color-copper)]/20 text-[var(--color-copper)] border-[var(--color-copper)]/40" : "text-[var(--color-sand-2)]"}`}
+            >
+              <Repeat className="h-3 w-3" />
+              Loop
+            </button>
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-[var(--color-sand-2)]">Transpose:</span>

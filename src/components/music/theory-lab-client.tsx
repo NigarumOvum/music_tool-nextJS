@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Book, Layers, Music, Play, RotateCcw, Search, Sparkles, Piano, Guitar } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { Book, Layers, Music, Play, RotateCcw, Sparkles, Piano, Guitar } from "lucide-react";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { InfoTooltip } from "@/components/info-tooltip";
@@ -156,7 +156,6 @@ export function TheoryLabClient() {
   const [highlightMode, setHighlightMode] = usePersistentState<"scale" | "chord" | "none">("theory_highlight", "scale", { userId });
   const [keyboardVoice, setKeyboardVoice] = usePersistentState<KeyboardVoice>("theory_voice", "piano", { userId });
   const [keyboardOctave, setKeyboardOctave] = usePersistentState("theory_octave", 4, { userId });
-  const [scaleSearch, setScaleSearch] = useState("");
 
   const playFrequency = (frequency: number) => {
     playKeyboardNote(getAudioContext(), frequency, keyboardVoice);
@@ -174,10 +173,7 @@ export function TheoryLabClient() {
 
   const scaleNotes = getNotes(scaleRoot, SCALES[scaleType]);
   const scaleIntervals = SCALES[scaleType];
-  const filteredScaleTypes = useMemo(
-    () => Object.keys(SCALES).filter((s) => s.toLowerCase().includes(scaleSearch.toLowerCase())),
-    [scaleSearch],
-  );
+  const allScaleTypes = Object.keys(SCALES);
   const chordNotes = invertNotes(getNotes(chordRoot, CHORDS[chordType]), inversion).map((entry) => entry.label);
   const activeNotes = highlightMode === "scale" ? scaleNotes : highlightMode === "chord" ? chordNotes : [];
 
@@ -199,12 +195,12 @@ export function TheoryLabClient() {
       {/* 1. Timing Precision (metronome, tap tempo, speed & gap trainers) */}
       <MetronomeCard />
 
-      {/* 1. Unified Theory Lab: Master Keyboard + Scale Explorer + Fretboard */}
+      {/* 2. Scale & Keyboard Lab — piano + fretboard + scale explorer */}
       <CollapsibleCard
         defaultOpen={true}
-        title="Master Keyboard"
+        title="Scale & Keyboard Lab"
         subtitle={`${highlightMode === "scale" ? "Scale Mode" : highlightMode === "chord" ? "Chord Mode" : "—"} · ${scaleRoot} ${scaleType} · ${KEYBOARD_VOICES.find((item) => item.id === keyboardVoice)?.label}`}
-        eyebrow="Theory & Fretboard Lab"
+        eyebrow="Theory & Fretboard"
         icon={<Piano className="h-5 w-5 text-[var(--color-copper)]" />}
         headerActions={
           <div className="flex flex-wrap items-center gap-2">
@@ -247,13 +243,7 @@ export function TheoryLabClient() {
             </div>
             <div className="flex items-center gap-2">
               <span className="field-label">Scale Type</span>
-              <input
-                className="field w-32 sm:max-w-[140px]"
-                placeholder="Search scales..."
-                value={scaleSearch}
-                onChange={(e) => setScaleSearch(e.target.value)}
-              />
-              <ScaleTypeButtons types={filteredScaleTypes} value={scaleType} onChange={setScaleType} />
+              <ScaleTypeButtons types={allScaleTypes} value={scaleType} onChange={setScaleType} />
             </div>
             <button
               type="button"

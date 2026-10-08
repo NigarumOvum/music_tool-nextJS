@@ -535,3 +535,207 @@ export function findClosestString(frequency: number, strings: TuningString[]) {
 
   return best;
 }
+
+// ── Additional instrument types ────────────────────────────────────────────
+export type OtherInstrumentId =
+  | "ukulele"
+  | "violin"
+  | "viola"
+  | "cello"
+  | "mandolin"
+  | "banjo";
+
+export type TunerInstrumentId = "guitar" | "bass" | OtherInstrumentId;
+
+export const OTHER_INSTRUMENT_TUNINGS: Record<OtherInstrumentId, TuningPreset[]> = {
+  ukulele: [
+    {
+      id: "ukulele-standard",
+      name: "Standard (GCEA)",
+      instrument: "guitar",
+      strings: [
+        stringRow("G", "G4"),
+        stringRow("C", "C4"),
+        stringRow("E", "E4"),
+        stringRow("A", "A4"),
+      ],
+    },
+    {
+      id: "ukulele-low-g",
+      name: "Low G (gCEA)",
+      instrument: "guitar",
+      strings: [
+        stringRow("G", "G3"),
+        stringRow("C", "C4"),
+        stringRow("E", "E4"),
+        stringRow("A", "A4"),
+      ],
+    },
+    {
+      id: "ukulele-baritone",
+      name: "Baritone (DGBE)",
+      instrument: "guitar",
+      strings: [
+        stringRow("D", "D3"),
+        stringRow("G", "G3"),
+        stringRow("B", "B3"),
+        stringRow("E", "E4"),
+      ],
+    },
+    {
+      id: "ukulele-tenor",
+      name: "Tenor (GCEA)",
+      instrument: "guitar",
+      strings: [
+        stringRow("G", "G3"),
+        stringRow("C", "C3"),
+        stringRow("E", "E4"),
+        stringRow("A", "A4"),
+      ],
+    },
+  ],
+  violin: [
+    {
+      id: "violin-standard",
+      name: "Standard (GDAE)",
+      instrument: "guitar",
+      strings: [
+        stringRow("G", "G3"),
+        stringRow("D", "D4"),
+        stringRow("A", "A4"),
+        stringRow("E", "E5"),
+      ],
+    },
+    {
+      id: "violin-scordatura",
+      name: "Scordatura (ADAE)",
+      instrument: "guitar",
+      strings: [
+        stringRow("A", "A3"),
+        stringRow("D", "D4"),
+        stringRow("A", "A4"),
+        stringRow("E", "E5"),
+      ],
+    },
+  ],
+  viola: [
+    {
+      id: "viola-standard",
+      name: "Standard (CGDA)",
+      instrument: "guitar",
+      strings: [
+        stringRow("C", "C3"),
+        stringRow("G", "G3"),
+        stringRow("D", "D4"),
+        stringRow("A", "A4"),
+      ],
+    },
+  ],
+  cello: [
+    {
+      id: "cello-standard",
+      name: "Standard (CGDA)",
+      instrument: "bass",
+      strings: [
+        stringRow("C", "C2"),
+        stringRow("G", "G2"),
+        stringRow("D", "D3"),
+        stringRow("A", "A3"),
+      ],
+    },
+    {
+      id: "cello-5string",
+      name: "5-string (FCGDA)",
+      instrument: "bass",
+      strings: [
+        stringRow("F", "F1"),
+        stringRow("C", "C2"),
+        stringRow("G", "G2"),
+        stringRow("D", "D3"),
+        stringRow("A", "A3"),
+      ],
+    },
+  ],
+  mandolin: [
+    {
+      id: "mandolin-standard",
+      name: "Standard (GDAE×2)",
+      instrument: "guitar",
+      strings: [
+        stringRow("G", "G3"),
+        stringRow("g", "G3"),
+        stringRow("D", "D4"),
+        stringRow("d", "D4"),
+        stringRow("A", "A4"),
+        stringRow("a", "A4"),
+        stringRow("E", "E5"),
+        stringRow("e", "E5"),
+      ],
+    },
+    {
+      id: "mandolin-gdae",
+      name: "Single course (GDAE)",
+      instrument: "guitar",
+      strings: [
+        stringRow("G", "G3"),
+        stringRow("D", "D4"),
+        stringRow("A", "A4"),
+        stringRow("E", "E5"),
+      ],
+    },
+  ],
+  banjo: [
+    {
+      id: "banjo-5string",
+      name: "5-string Open G (gDGBD)",
+      instrument: "guitar",
+      strings: [
+        stringRow("g", "G4"),
+        stringRow("D", "D3"),
+        stringRow("G", "G3"),
+        stringRow("B", "B3"),
+        stringRow("D", "D4"),
+      ],
+    },
+    {
+      id: "banjo-4string",
+      name: "4-string Chicago (DGBE)",
+      instrument: "guitar",
+      strings: [
+        stringRow("D", "D3"),
+        stringRow("G", "G3"),
+        stringRow("B", "B3"),
+        stringRow("E", "E4"),
+      ],
+    },
+    {
+      id: "banjo-4string-irish",
+      name: "4-string Irish (GDAE)",
+      instrument: "guitar",
+      strings: [
+        stringRow("G", "G3"),
+        stringRow("D", "D4"),
+        stringRow("A", "A4"),
+        stringRow("E", "E5"),
+      ],
+    },
+    {
+      id: "banjo-open-d",
+      name: "Open D (f#DF#AD)",
+      instrument: "guitar",
+      strings: [
+        stringRow("f#", "F#4"),
+        stringRow("D", "D3"),
+        stringRow("F#", "F#3"),
+        stringRow("A", "A3"),
+        stringRow("D", "D4"),
+      ],
+    },
+  ],
+};
+
+export function tuningsForInstrument(id: TunerInstrumentId, stringCount?: number): TuningPreset[] {
+  if (id === "guitar") return guitarTuningsForStringCount((stringCount as GuitarStringCount) ?? 6);
+  if (id === "bass") return bassTuningsForStringCount((stringCount as BassStringCount) ?? 4);
+  return OTHER_INSTRUMENT_TUNINGS[id as OtherInstrumentId] ?? [];
+}
