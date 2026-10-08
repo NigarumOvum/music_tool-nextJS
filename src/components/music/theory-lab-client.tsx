@@ -522,11 +522,14 @@ export function TheoryLabClient() {
               playFrequency(frequency);
             }}
           />
+
+          <ChordHowToPlay
+            chordLabel={`${chordRoot} ${chordType} · ${inversion === 0 ? t("theory.rootPosition") : t("theory.inversionN").replace("{n}", String(inversion))}`}
+            root={chordRoot}
+            notes={chordNotes}
+          />
         </div>
       </CollapsibleCard>
-
-      {/* 3. Chord How-to-Play */}
-      <ChordHowToPlay chordLabel={chordType} root={chordRoot} notes={chordNotes} />
     </SplitViewFullScreen>
   );
 }
