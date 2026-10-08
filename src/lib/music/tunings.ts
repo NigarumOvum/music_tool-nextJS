@@ -28,7 +28,8 @@ function stringRow(label: string, note: string): TuningString {
   return { label, note, frequency: freqFromNote(note) };
 }
 
-export const GUITAR_TUNINGS: TuningPreset[] = [
+// ── 6-string guitar tunings ────────────────────────────────────────────────
+const GUITAR_6_TUNINGS: TuningPreset[] = [
   {
     id: "guitar-standard",
     name: "Standard (EADGBE)",
@@ -69,8 +70,21 @@ export const GUITAR_TUNINGS: TuningPreset[] = [
     ],
   },
   {
+    id: "guitar-drop-b",
+    name: "Drop B",
+    instrument: "guitar",
+    strings: [
+      stringRow("B", "B1"),
+      stringRow("F#", "F#2"),
+      stringRow("B", "B2"),
+      stringRow("E", "E3"),
+      stringRow("G#", "G#3"),
+      stringRow("C#", "C#4"),
+    ],
+  },
+  {
     id: "guitar-half-step-down",
-    name: "Half step down",
+    name: "Half step down (Eb)",
     instrument: "guitar",
     strings: [
       stringRow("Eb", "D#2"),
@@ -83,7 +97,7 @@ export const GUITAR_TUNINGS: TuningPreset[] = [
   },
   {
     id: "guitar-full-step-down",
-    name: "Whole step down",
+    name: "Whole step down (D)",
     instrument: "guitar",
     strings: [
       stringRow("D", "D2"),
@@ -161,7 +175,7 @@ export const GUITAR_TUNINGS: TuningPreset[] = [
   },
   {
     id: "guitar-csny",
-    name: "Nashville / Csny",
+    name: "Nashville high-strung",
     instrument: "guitar",
     strings: [
       stringRow("E", "E3"),
@@ -174,24 +188,158 @@ export const GUITAR_TUNINGS: TuningPreset[] = [
   },
 ];
 
-export const BASS_TUNINGS: TuningPreset[] = [
+// ── 7-string guitar tunings ────────────────────────────────────────────────
+const GUITAR_7_TUNINGS: TuningPreset[] = [
   {
-    id: "bass-standard-4",
-    name: "Standard 4-string (EADG)",
-    instrument: "bass",
+    id: "guitar-7-standard",
+    name: "Standard 7-str (BEADGBE)",
+    instrument: "guitar",
     strings: [
-      stringRow("E", "E1"),
-      stringRow("A", "A1"),
-      stringRow("D", "D2"),
-      stringRow("G", "G2"),
+      stringRow("B", "B1"),
+      stringRow("E", "E2"),
+      stringRow("A", "A2"),
+      stringRow("D", "D3"),
+      stringRow("G", "G3"),
+      stringRow("B", "B3"),
+      stringRow("e", "E4"),
     ],
   },
   {
-    id: "bass-standard-5",
-    name: "Standard 5-string (BEADG)",
+    id: "guitar-7-drop-a",
+    name: "Drop A (AEADGBE)",
+    instrument: "guitar",
+    strings: [
+      stringRow("A", "A1"),
+      stringRow("E", "E2"),
+      stringRow("A", "A2"),
+      stringRow("D", "D3"),
+      stringRow("G", "G3"),
+      stringRow("B", "B3"),
+      stringRow("e", "E4"),
+    ],
+  },
+  {
+    id: "guitar-7-half-down",
+    name: "Half step down 7-str",
+    instrument: "guitar",
+    strings: [
+      stringRow("Bb", "A#1"),
+      stringRow("Eb", "D#2"),
+      stringRow("Ab", "G#2"),
+      stringRow("Db", "C#3"),
+      stringRow("Gb", "F#3"),
+      stringRow("Bb", "A#3"),
+      stringRow("eb", "D#4"),
+    ],
+  },
+];
+
+// ── 8-string guitar tunings ────────────────────────────────────────────────
+const GUITAR_8_TUNINGS: TuningPreset[] = [
+  {
+    id: "guitar-8-standard",
+    name: "Standard 8-str (F#BEADGBE)",
+    instrument: "guitar",
+    strings: [
+      stringRow("F#", "F#1"),
+      stringRow("B", "B1"),
+      stringRow("E", "E2"),
+      stringRow("A", "A2"),
+      stringRow("D", "D3"),
+      stringRow("G", "G3"),
+      stringRow("B", "B3"),
+      stringRow("e", "E4"),
+    ],
+  },
+  {
+    id: "guitar-8-drop-e",
+    name: "Drop E 8-str (EBEADGBE)",
+    instrument: "guitar",
+    strings: [
+      stringRow("E", "E1"),
+      stringRow("B", "B1"),
+      stringRow("E", "E2"),
+      stringRow("A", "A2"),
+      stringRow("D", "D3"),
+      stringRow("G", "G3"),
+      stringRow("B", "B3"),
+      stringRow("e", "E4"),
+    ],
+  },
+  {
+    id: "guitar-8-half-down",
+    name: "Half step down 8-str",
+    instrument: "guitar",
+    strings: [
+      stringRow("F", "F1"),
+      stringRow("Bb", "A#1"),
+      stringRow("Eb", "D#2"),
+      stringRow("Ab", "G#2"),
+      stringRow("Db", "C#3"),
+      stringRow("Gb", "F#3"),
+      stringRow("Bb", "A#3"),
+      stringRow("eb", "D#4"),
+    ],
+  },
+];
+
+// ── 12-string guitar tunings ───────────────────────────────────────────────
+const GUITAR_12_TUNINGS: TuningPreset[] = [
+  {
+    id: "guitar-12-standard",
+    name: "Standard 12-str (EADGBE×2)",
+    instrument: "guitar",
+    strings: [
+      stringRow("E", "E2"),
+      stringRow("e", "E3"),
+      stringRow("A", "A2"),
+      stringRow("a", "A3"),
+      stringRow("D", "D3"),
+      stringRow("d", "D4"),
+      stringRow("G", "G3"),
+      stringRow("g", "G4"),
+      stringRow("B", "B3"),
+      stringRow("b", "B3"),
+      stringRow("e1", "E4"),
+      stringRow("e2", "E4"),
+    ],
+  },
+  {
+    id: "guitar-12-drop-d",
+    name: "Drop D 12-str",
+    instrument: "guitar",
+    strings: [
+      stringRow("D", "D2"),
+      stringRow("d", "D3"),
+      stringRow("A", "A2"),
+      stringRow("a", "A3"),
+      stringRow("D", "D3"),
+      stringRow("d2", "D4"),
+      stringRow("G", "G3"),
+      stringRow("g", "G4"),
+      stringRow("B", "B3"),
+      stringRow("b", "B3"),
+      stringRow("e1", "E4"),
+      stringRow("e2", "E4"),
+    ],
+  },
+];
+
+// ── Full guitar catalog ────────────────────────────────────────────────────
+export const GUITAR_TUNINGS: TuningPreset[] = [
+  ...GUITAR_6_TUNINGS,
+  ...GUITAR_7_TUNINGS,
+  ...GUITAR_8_TUNINGS,
+  ...GUITAR_12_TUNINGS,
+];
+
+// ── Bass tunings by string count ───────────────────────────────────────────
+const BASS_4_TUNINGS: TuningPreset[] = [
+  {
+    id: "bass-standard-4",
+    name: "Standard 4-str (EADG)",
     instrument: "bass",
     strings: [
-      stringRow("B", "B0"),
       stringRow("E", "E1"),
       stringRow("A", "A1"),
       stringRow("D", "D2"),
@@ -200,7 +348,7 @@ export const BASS_TUNINGS: TuningPreset[] = [
   },
   {
     id: "bass-drop-d",
-    name: "Drop D bass",
+    name: "Drop D",
     instrument: "bass",
     strings: [
       stringRow("D", "D1"),
@@ -211,7 +359,7 @@ export const BASS_TUNINGS: TuningPreset[] = [
   },
   {
     id: "bass-half-step-down",
-    name: "Half step down",
+    name: "Half step down (Eb)",
     instrument: "bass",
     strings: [
       stringRow("Eb", "D#1"),
@@ -222,7 +370,7 @@ export const BASS_TUNINGS: TuningPreset[] = [
   },
   {
     id: "bass-full-step-down",
-    name: "Whole step down",
+    name: "Whole step down (D)",
     instrument: "bass",
     strings: [
       stringRow("D", "D1"),
@@ -231,9 +379,24 @@ export const BASS_TUNINGS: TuningPreset[] = [
       stringRow("F", "F2"),
     ],
   },
+];
+
+const BASS_5_TUNINGS: TuningPreset[] = [
+  {
+    id: "bass-standard-5",
+    name: "Standard 5-str (BEADG)",
+    instrument: "bass",
+    strings: [
+      stringRow("B", "B0"),
+      stringRow("E", "E1"),
+      stringRow("A", "A1"),
+      stringRow("D", "D2"),
+      stringRow("G", "G2"),
+    ],
+  },
   {
     id: "bass-5-high-c",
-    name: "5-string high C (EADGC)",
+    name: "5-str high C (EADGC)",
     instrument: "bass",
     strings: [
       stringRow("E", "E1"),
@@ -244,8 +407,23 @@ export const BASS_TUNINGS: TuningPreset[] = [
     ],
   },
   {
+    id: "bass-5-drop-a",
+    name: "Drop A 5-str",
+    instrument: "bass",
+    strings: [
+      stringRow("A", "A0"),
+      stringRow("E", "E1"),
+      stringRow("A", "A1"),
+      stringRow("D", "D2"),
+      stringRow("G", "G2"),
+    ],
+  },
+];
+
+const BASS_6_TUNINGS: TuningPreset[] = [
+  {
     id: "bass-6-standard",
-    name: "6-string (BEADGC)",
+    name: "Standard 6-str (BEADGC)",
     instrument: "bass",
     strings: [
       stringRow("B", "B0"),
@@ -256,15 +434,85 @@ export const BASS_TUNINGS: TuningPreset[] = [
       stringRow("C", "C3"),
     ],
   },
+  {
+    id: "bass-6-drop-a",
+    name: "Drop A 6-str (AEADGC)",
+    instrument: "bass",
+    strings: [
+      stringRow("A", "A0"),
+      stringRow("E", "E1"),
+      stringRow("A", "A1"),
+      stringRow("D", "D2"),
+      stringRow("G", "G2"),
+      stringRow("C", "C3"),
+    ],
+  },
 ];
+
+const BASS_7_TUNINGS: TuningPreset[] = [
+  {
+    id: "bass-7-standard",
+    name: "Standard 7-str (F#BEADGC)",
+    instrument: "bass",
+    strings: [
+      stringRow("F#", "F#0"),
+      stringRow("B", "B0"),
+      stringRow("E", "E1"),
+      stringRow("A", "A1"),
+      stringRow("D", "D2"),
+      stringRow("G", "G2"),
+      stringRow("C", "C3"),
+    ],
+  },
+  {
+    id: "bass-7-drop-e",
+    name: "Drop E 7-str",
+    instrument: "bass",
+    strings: [
+      stringRow("E", "E0"),
+      stringRow("B", "B0"),
+      stringRow("E", "E1"),
+      stringRow("A", "A1"),
+      stringRow("D", "D2"),
+      stringRow("G", "G2"),
+      stringRow("C", "C3"),
+    ],
+  },
+];
+
+// ── Full bass catalog ──────────────────────────────────────────────────────
+export const BASS_TUNINGS: TuningPreset[] = [
+  ...BASS_4_TUNINGS,
+  ...BASS_5_TUNINGS,
+  ...BASS_6_TUNINGS,
+  ...BASS_7_TUNINGS,
+];
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+export type GuitarStringCount = 6 | 7 | 8 | 12;
+export type BassStringCount = 4 | 5 | 6 | 7;
+
+export function guitarTuningsForStringCount(count: GuitarStringCount): TuningPreset[] {
+  switch (count) {
+    case 7: return GUITAR_7_TUNINGS;
+    case 8: return GUITAR_8_TUNINGS;
+    case 12: return GUITAR_12_TUNINGS;
+    default: return GUITAR_6_TUNINGS;
+  }
+}
+
+export function bassTuningsForStringCount(count: BassStringCount): TuningPreset[] {
+  switch (count) {
+    case 5: return BASS_5_TUNINGS;
+    case 6: return BASS_6_TUNINGS;
+    case 7: return BASS_7_TUNINGS;
+    default: return BASS_4_TUNINGS;
+  }
+}
 
 export function centsFromTarget(frequency: number, targetFrequency: number) {
   if (frequency <= 0 || targetFrequency <= 0) return 0;
   return Math.round(1200 * Math.log2(frequency / targetFrequency));
-}
-
-export function bassTuningsForStringCount(count: 4 | 5 | 6) {
-  return BASS_TUNINGS.filter((preset) => preset.strings.length === count);
 }
 
 export function findClosestString(frequency: number, strings: TuningString[]) {

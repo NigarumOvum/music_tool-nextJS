@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, FastForward, Play, Square, VolumeX } from "lucide-react";
+import { Activity, FastForward, Pause, Play, VolumeX } from "lucide-react";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { useAudio } from "@/components/music/audio-provider";
@@ -236,22 +236,26 @@ export function MetronomeCard() {
         <button
           type="button"
           onClick={() => setIsPlaying(!isPlaying)}
-          className={`glass-pill px-3.5 py-1 text-[10px] font-black uppercase tracking-widest transition-all ${
-            isPlaying ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "bg-[var(--color-mint)] text-black shadow-lg shadow-emerald-500/20"
+          className={`glass-pill flex h-8 w-8 items-center justify-center rounded-full transition-all ${
+            isPlaying
+              ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
+              : "bg-[var(--color-mint)] text-black shadow-lg shadow-emerald-500/20"
           }`}
+          aria-label={isPlaying ? t("metro.stop") : t("metro.start")}
+          title={isPlaying ? `${t("metro.stop")} (Space)` : `${t("metro.start")} (Space)`}
         >
-          {isPlaying ? t("metro.stop") : t("metro.start")}
+          {isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="ml-0.5 h-3.5 w-3.5 fill-current" />}
         </button>
       }
     >
-      <div className="space-y-5">
-        <div className="flex flex-col items-center gap-4 py-2">
-          {/* Big BPM Display & Controls */}
-          <div className="flex items-center gap-4">
+      <div className="space-y-3">
+        <div className="flex flex-col items-center gap-3 py-1">
+          {/* BPM Display + Controls + Tap Tempo in one row */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <button
               type="button"
               onClick={() => setBpm((b) => Math.max(40, b - 5))}
-              className="glass-pill flex h-9 w-9 items-center justify-center text-sm font-black text-[var(--color-sand-2)] hover:text-white"
+              className="glass-pill flex h-8 w-8 items-center justify-center text-xs font-black text-[var(--color-sand-2)] hover:text-white"
               title="-5 BPM"
             >
               -5
@@ -259,19 +263,19 @@ export function MetronomeCard() {
             <button
               type="button"
               onClick={() => setBpm((b) => Math.max(40, b - 1))}
-              className="glass-pill flex h-9 w-9 items-center justify-center text-base font-black text-[var(--color-sand-2)] hover:text-white"
+              className="glass-pill flex h-8 w-8 items-center justify-center text-sm font-black text-[var(--color-sand-2)] hover:text-white"
               title="-1 BPM"
             >
               -1
             </button>
-            <div className="flex items-baseline gap-2 text-6xl font-black tabular-nums tracking-tighter text-[var(--color-foreground)]">
+            <div className="flex items-baseline gap-1.5 text-5xl font-black tabular-nums tracking-tighter text-[var(--color-foreground)]">
               {bpm}
-              <span className="text-sm font-bold text-[var(--color-sand-2)]">BPM</span>
+              <span className="text-xs font-bold text-[var(--color-sand-2)]">BPM</span>
             </div>
             <button
               type="button"
               onClick={() => setBpm((b) => Math.min(260, b + 1))}
-              className="glass-pill flex h-9 w-9 items-center justify-center text-base font-black text-[var(--color-sand-2)] hover:text-white"
+              className="glass-pill flex h-8 w-8 items-center justify-center text-sm font-black text-[var(--color-sand-2)] hover:text-white"
               title="+1 BPM"
             >
               +1
@@ -279,21 +283,51 @@ export function MetronomeCard() {
             <button
               type="button"
               onClick={() => setBpm((b) => Math.min(260, b + 5))}
-              className="glass-pill flex h-9 w-9 items-center justify-center text-sm font-black text-[var(--color-sand-2)] hover:text-white"
+              className="glass-pill flex h-8 w-8 items-center justify-center text-xs font-black text-[var(--color-sand-2)] hover:text-white"
               title="+5 BPM"
             >
               +5
             </button>
+
+            {/* Divider */}
+            <div className="h-6 w-px bg-[var(--color-border)]" />
+
+            {/* Tap Tempo inline */}
+            <button
+              type="button"
+              onClick={handleTapTempo}
+              className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-mint)]"
+            >
+              Tap {tappedBpm ? `· ${tappedBpm}` : ""}
+            </button>
+
+            {/* Play / Pause button */}
+            <button
+              type="button"
+              onClick={() => setIsPlaying(!isPlaying)}
+              className={`flex h-12 w-12 items-center justify-center rounded-full transition-all ${
+                isPlaying
+                  ? "border border-red-500/30 bg-red-500/10 text-red-500 shadow-[0_0_16px_rgba(239,68,68,0.25)]"
+                  : "bg-[var(--color-mint)] text-black shadow-lg shadow-emerald-500/20 hover:scale-105"
+              }`}
+              aria-label={isPlaying ? t("metro.stop") : t("metro.start")}
+            >
+              {isPlaying ? (
+                <Pause className="h-5 w-5 fill-current" />
+              ) : (
+                <Play className="ml-0.5 h-5 w-5 fill-current" />
+              )}
+            </button>
           </div>
 
           {/* Sound Timbre Selector */}
-          <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-full border border-white/8 bg-black/30 p-1">
+          <div className="flex flex-wrap items-center justify-center gap-1 rounded-full border border-white/8 bg-black/30 p-1">
             {(["digital", "woodblock", "cowbell", "mechanical", "rimshot"] as const).map((sound) => (
               <button
                 key={sound}
                 type="button"
                 onClick={() => setSoundType(sound)}
-                className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider transition ${
+                className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider transition ${
                   soundType === sound
                     ? "bg-[var(--color-mint)] text-black shadow-sm"
                     : "text-[var(--color-sand-2)] hover:text-white"
@@ -305,18 +339,16 @@ export function MetronomeCard() {
           </div>
 
           {/* Meter, Subdivision & Count-in */}
-          <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             <label className="field-group">
               <span className="field-label">{t("metro.signature")}</span>
               <select
                 value={timeSignature}
                 onChange={(event) => setTimeSignature(event.target.value as (typeof TIME_SIGNATURES)[number])}
-                className="field py-1.5 text-xs font-bold"
+                className="field py-1 text-xs font-bold"
               >
                 {TIME_SIGNATURES.map((sig) => (
-                  <option key={sig} value={sig}>
-                    {sig}
-                  </option>
+                  <option key={sig} value={sig}>{sig}</option>
                 ))}
               </select>
             </label>
@@ -325,7 +357,7 @@ export function MetronomeCard() {
               <select
                 value={subdivision}
                 onChange={(event) => setSubdivision(Number(event.target.value) as 1 | 2 | 3 | 4 | 6)}
-                className="field py-1.5 text-xs font-bold"
+                className="field py-1 text-xs font-bold"
               >
                 <option value={1}>{t("metro.quarter")} (1x)</option>
                 <option value={2}>{t("metro.eighths")} (2x)</option>
@@ -339,7 +371,7 @@ export function MetronomeCard() {
               <select
                 value={countInBars}
                 onChange={(event) => setCountInBars(Number(event.target.value))}
-                className="field py-1.5 text-xs font-bold"
+                className="field py-1 text-xs font-bold"
               >
                 <option value={0}>{t("metro.countOff")}</option>
                 <option value={1}>{t("metro.countBars").replace("{n}", "1")}</option>
@@ -349,7 +381,7 @@ export function MetronomeCard() {
           </div>
 
           {/* Beat Indicator Matrix */}
-          <div className="flex flex-wrap items-center justify-center gap-2 py-1">
+          <div className="flex flex-wrap items-center justify-center gap-1.5 py-0.5">
             {Array.from({ length: getBeatsPerBar(timeSignature) }, (_, i) => {
               const isCurrent = isPlaying && beatCount === i;
               const isAccent = isAccentBeat(i, timeSignature);
@@ -358,38 +390,32 @@ export function MetronomeCard() {
                   key={i}
                   type="button"
                   onClick={() => setIsPlaying(!isPlaying)}
-                  className={`flex flex-col items-center gap-1 transition-all ${
-                    isCurrent
-                      ? isAccent
-                        ? "scale-125"
-                        : "scale-110"
-                      : "opacity-70 hover:opacity-100"
+                  className={`flex flex-col items-center gap-0.5 transition-all ${
+                    isCurrent ? (isAccent ? "scale-125" : "scale-110") : "opacity-60 hover:opacity-100"
                   }`}
                   aria-label={`Beat ${i + 1}`}
                 >
                   <div
-                    className={`h-3 rounded-full transition-all ${
+                    className={`h-2.5 rounded-full transition-all ${
                       isCurrent
                         ? isAccent
-                          ? "w-8 bg-white shadow-[0_0_14px_white]"
-                          : "w-6 bg-[var(--color-mint)] shadow-[0_0_10px_var(--color-mint)]"
+                          ? "w-7 bg-white shadow-[0_0_12px_white]"
+                          : "w-5 bg-[var(--color-mint)] shadow-[0_0_8px_var(--color-mint)]"
                         : isAccent
-                        ? "w-3 bg-[var(--color-brass)]/60"
-                        : "w-2.5 bg-zinc-700"
+                          ? "w-2.5 bg-[var(--color-brass)]/60"
+                          : "w-2 bg-zinc-700"
                     }`}
                   />
-                  <span className="text-[9px] font-mono font-black text-[var(--color-sand-2)]">
-                    {i + 1}
-                  </span>
+                  <span className="text-[8px] font-mono font-black text-[var(--color-sand-2)]">{i + 1}</span>
                 </button>
               );
             })}
           </div>
 
           {/* Tempo Slider & Volume */}
-            <div className="grid w-full gap-3 sm:grid-cols-2">
-              <label className="field-group">
-                <span className="field-label">{t("metro.tempoSlider").replace("{bpm}", String(bpm))}</span>
+          <div className="grid w-full gap-2 sm:grid-cols-2">
+            <label className="field-group">
+              <span className="field-label">{t("metro.tempoSlider").replace("{bpm}", String(bpm))}</span>
               <input
                 type="range"
                 min="40"
@@ -399,8 +425,8 @@ export function MetronomeCard() {
                 className="h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-[var(--color-mint)]"
               />
             </label>
-              <label className="field-group">
-                <span className="field-label">{t("metro.clickVolume").replace("{pct}", String(Math.round(clickVolume * 100)))}</span>
+            <label className="field-group">
+              <span className="field-label">{t("metro.clickVolume").replace("{pct}", String(Math.round(clickVolume * 100)))}</span>
               <input
                 type="range"
                 min="0.1"
@@ -413,14 +439,14 @@ export function MetronomeCard() {
             </label>
           </div>
 
-          {/* Quick Presets */}
-          <div className="flex flex-wrap justify-center gap-1.5">
+          {/* Quick BPM Presets */}
+          <div className="flex flex-wrap justify-center gap-1">
             {[40, 60, 80, 100, 120, 140, 160, 180, 200].map((preset) => (
               <button
                 key={preset}
                 type="button"
                 onClick={() => setBpm(preset)}
-                className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest transition ${
+                className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest transition ${
                   bpm === preset
                     ? "border-[var(--color-mint)] bg-[var(--color-mint)] text-black"
                     : "border-white/10 opacity-50 hover:opacity-100"
@@ -431,9 +457,9 @@ export function MetronomeCard() {
             ))}
           </div>
 
-          {/* Speed Trainer & Gap Practice Expandable Tools */}
-          <div className="grid w-full gap-3 rounded-[1.25rem] border border-white/8 bg-black/20 p-3 sm:grid-cols-2">
-            <div className="space-y-2">
+          {/* Speed Trainer & Gap Practice */}
+          <div className="grid w-full gap-2 rounded-[1.25rem] border border-white/8 bg-black/20 p-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-black">
                   <FastForward className="h-3.5 w-3.5 text-[var(--color-brass)]" />
@@ -447,7 +473,7 @@ export function MetronomeCard() {
                 />
               </div>
               {speedTrainer ? (
-                <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px]">
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[10px]">
                   <span className="text-[var(--color-sand-2)]">+</span>
                   <select
                     value={trainerInc}
@@ -481,13 +507,11 @@ export function MetronomeCard() {
                   <span className="text-[var(--color-sand-2)]">BPM</span>
                 </div>
               ) : (
-                <p className="text-[10px] text-[var(--color-sand-2)]">
-                  {t("metro.speedDesc")}
-                </p>
+                <p className="text-[10px] text-[var(--color-sand-2)]">{t("metro.speedDesc")}</p>
               )}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-black">
                   <VolumeX className="h-3.5 w-3.5 text-amber-400" />
@@ -501,7 +525,7 @@ export function MetronomeCard() {
                 />
               </div>
               {gapTraining ? (
-                <div className="flex flex-wrap items-center gap-2 pt-1 text-[10px]">
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[10px]">
                   <span className="text-[var(--color-sand-2)]">{t("metro.playBars")}</span>
                   <select
                     value={gapPlayBars}
@@ -524,33 +548,9 @@ export function MetronomeCard() {
                   </select>
                 </div>
               ) : (
-                <p className="text-[10px] text-[var(--color-sand-2)]">
-                  {t("metro.gapDesc")}
-                </p>
+                <p className="text-[10px] text-[var(--color-sand-2)]">{t("metro.gapDesc")}</p>
               )}
             </div>
-          </div>
-
-          {/* Tap Tempo & Big Play Button */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <button
-              type="button"
-              onClick={handleTapTempo}
-              className="glass-pill px-4 py-2 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-mint)]"
-            >
-              {t("metro.tapTempo")} {tappedBpm ? `· ${tappedBpm} BPM` : ""}
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsPlaying(!isPlaying)}
-              className={`flex h-16 w-16 items-center justify-center rounded-full transition-all ${
-                isPlaying
-                  ? "border border-red-500/30 bg-red-500/10 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.25)]"
-                  : "bg-[var(--color-mint)] text-black shadow-lg shadow-emerald-500/20 hover:scale-105"
-              }`}
-            >
-              {isPlaying ? <Square className="h-6 w-6 fill-current" /> : <Play className="ml-1 h-6 w-6 fill-current" />}
-            </button>
           </div>
         </div>
       </div>

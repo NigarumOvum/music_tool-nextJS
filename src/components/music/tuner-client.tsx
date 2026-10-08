@@ -13,23 +13,32 @@ import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { detectPitchAutocorrelation, type PitchDetection } from "@/lib/music/pitch";
 import { playReferencePluck, preloadPluck, type PluckInstrument } from "@/lib/music/instrument-synth";
 import {
-  BASS_TUNINGS,
-  GUITAR_TUNINGS,
+  guitarTuningsForStringCount,
   bassTuningsForStringCount,
   centsFromTarget,
   findClosestString,
+  type GuitarStringCount,
+  type BassStringCount,
   type TuningPreset,
   type TuningString,
 } from "@/lib/music/tunings";
 
 type InstrumentMode = "guitar" | "bass";
-type BassStringCount = 4 | 5 | 6;
 
-function tuningStatus(cents: number, t: (key: "tuner.inTune" | "tuner.close" | "tuner.sharp" | "tuner.flat") => string) {
+const GUITAR_STRING_OPTIONS: GuitarStringCount[] = [6, 7, 8, 12];
+const BASS_STRING_OPTIONS: BassStringCount[] = [4, 5, 6, 7];
+
+function tuningStatus(
+  cents: number,
+  t: (key: "tuner.inTune" | "tuner.close" | "tuner.sharp" | "tuner.flat") => string,
+) {
   const abs = Math.abs(cents);
   if (abs <= 5) return { label: t("tuner.inTune"), tone: "text-[var(--color-mint)]" };
   if (abs <= 15) return { label: t("tuner.close"), tone: "text-yellow-400" };
-  return { label: cents > 0 ? t("tuner.sharp") : t("tuner.flat"), tone: "text-red-400" };
+  return {
+    label: cents > 0 ? t("tuner.sharp") : t("tuner.flat"),
+    tone: "text-red-400",
+  };
 }
 
 export function TunerCard() {
@@ -37,15 +46,29 @@ export function TunerCard() {
   const { t } = useI18n();
   const userId = useCurrentUserId();
 
-  const [instrumentMode, setInstrumentMode] = usePersistentState<InstrumentMode>("helpers_instrument", "guitar", { userId });
-  const [bassStringCount, setBassStringCount] = usePersistentState<BassStringCount>("helpers_bass_strings", 4, { userId });
-  const [showExtendedBass, setShowExtendedBass] = usePersistentState("helpers_extended_bass", false, { userId });
-  const [tuningId, setTuningId] = usePersistentState("helpers_tuning", GUITAR_TUNINGS[0].id, { userId });
-  const [pluckVoice, setPluckVoice] = usePersistentState<PluckInstrument>("helpers_pluck", "guitar-steel", { userId });
+  // ── Persistent state ─────────────────────────────────────────────────────
+  const [instrumentMode, setInstrumentMode] = usePersistentState<InstrumentMode>(
+    "helpers_instrument", "guitar", { userId },
+  );
+  const [guitarStringCount, setGuitarStringCount] = usePersistentState<GuitarStringCount>(
+    "helpers_guitar_strings", 6, { userId },
+  );
+  const [bassStringCount, setBassStringCount] = usePersistentState<BassStringCount>(
+    "helpers_bass_strings", 4, { userId },
+  );
+  const [tuningId, setTuningId] = usePersistentState(
+    "helpers_tuning", "guitar-standard", { userId },
+  );
+  const [pluckVoice, setPluckVoice] = usePersistentState<PluckInstrument>(
+    "helpers_pluck", "guitar-steel", { userId },
+  );
+
+  // ── Ephemeral state ───────────────────────────────────────────────────────
   const [activeStringLabel, setActiveStringLabel] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [detectedPitch, setDetectedPitch] = useState<PitchDetection | null>(null);
 
+  // ── Refs ──────────────────────────────────────────────────────────────────
   const analyzerRef = useRef<AnalyserNode | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const requestRef = useRef<number | null>(null);
@@ -53,16 +76,45 @@ export function TunerCard() {
   const streamRef = useRef<MediaStream | null>(null);
   const timeDomainRef = useRef(new Float32Array(2048));
 
-  const tuningOptions = useMemo(() => {
-    if (instrumentMode === "guitar") return GUITAR_TUNINGS;
-    if (!showExtendedBass) return bassTuningsForStringCount(4);
-    return BASS_TUNINGS.filter((preset) => preset.strings.length === bassStringCount);
-  }, [instrumentMode, bassStringCount, showExtendedBass]);
+  // ── Derived tuning options — always filtered by current string count ──────
+  // This is the single source of truth for what appears in the dropdown.
+  // Any time stringCount changes, options change, and we reset tuningId to
+  // the first option — so we can never end up with a tuning whose string
+  // count doesn't match the selector.
+  const tuningOptions = useMemo<TuningPreset[]>(() => {
+    if (instrumentMode === "guitar") return guitarTuningsForStringCount(guitarStringCount);
+    return bassTuningsForStringCount(bassStringCount);
+  }, [instrumentMode, guitarStringCount, bassStringCount]);
 
+  // Active tuning: find by id within current options; fall back to first.
+  // Using a fallback (not null) prevents the string grid from ever showing
+  // a preset with the wrong number of strings.
   const activeTuning = useMemo(
-    () => tuningOptions.find((preset) => preset.id === tuningId) || tuningOptions[0],
+    () => tuningOptions.find((p) => p.id === tuningId) ?? tuningOptions[0],
     [tuningId, tuningOptions],
   );
+
+  // ── Reset tuningId whenever options change (instrument or string count) ───
+  // This is the core bug fix: if the current tuningId is no longer in the
+  // new option set, snap to the first available preset immediately.
+  useEffect(() => {
+    if (!tuningOptions.some((p) => p.id === tuningId)) {
+      setTuningId(tuningOptions[0]?.id ?? "guitar-standard");
+    }
+  }, [tuningOptions, tuningId, setTuningId]);
+
+  // ── Reset pluck voice when instrument changes ─────────────────────────────
+  useEffect(() => {
+    setPluckVoice(instrumentMode === "guitar" ? "guitar-steel" : "bass");
+    // Also reset string count to the most common default for that instrument
+    // so the grid always starts clean.
+    if (instrumentMode === "guitar") {
+      setGuitarStringCount(6);
+    } else {
+      setBassStringCount(4);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instrumentMode]);
 
   const closestMatch = useMemo(() => {
     if (!detectedPitch) return null;
@@ -75,37 +127,18 @@ export function TunerCard() {
     return 50 + clamped;
   }, [closestMatch]);
 
-  useEffect(() => {
-    if (instrumentMode === "guitar") {
-      setTuningId(GUITAR_TUNINGS[0].id);
-      setPluckVoice("guitar-steel");
-      return;
-    }
-    setBassStringCount(4);
-    setShowExtendedBass(false);
-    setTuningId(bassTuningsForStringCount(4)[0].id);
-    setPluckVoice("bass");
-  }, [instrumentMode, setBassStringCount, setPluckVoice, setShowExtendedBass, setTuningId]);
-
-  useEffect(() => {
-    if (instrumentMode !== "bass") return;
-    if (!tuningOptions.some((preset) => preset.id === tuningId)) {
-      setTuningId(tuningOptions[0]?.id ?? bassTuningsForStringCount(4)[0].id);
-    }
-  }, [instrumentMode, tuningId, tuningOptions, setTuningId]);
-
+  // ── Mic / pitch detection ─────────────────────────────────────────────────
   const toggleListening = async () => {
     if (isListening) {
       listeningRef.current = false;
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
-      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       analyzerRef.current = null;
       setDetectedPitch(null);
       setIsListening(false);
       return;
     }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const ctx = getAudioContext();
@@ -119,76 +152,82 @@ export function TunerCard() {
       setIsListening(true);
       draw();
     } catch {
-      // Mic denied
+      // mic denied
     }
   };
 
   const draw = () => {
     if (!analyzerRef.current || !canvasRef.current) return;
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
+    const ctx2d = canvas.getContext("2d");
+    if (!ctx2d) return;
     const analyzer = analyzerRef.current;
     const bufferLength = analyzer.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-    const audioContext = getAudioContext();
+    const audioCtx = getAudioContext();
 
     const renderFrame = () => {
       if (!listeningRef.current || !analyzerRef.current) return;
       requestRef.current = requestAnimationFrame(renderFrame);
       analyzer.getByteFrequencyData(dataArray);
       analyzer.getFloatTimeDomainData(timeDomainRef.current);
-      setDetectedPitch(detectPitchAutocorrelation(timeDomainRef.current, audioContext.sampleRate));
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      setDetectedPitch(
+        detectPitchAutocorrelation(timeDomainRef.current, audioCtx.sampleRate),
+      );
+      ctx2d.clearRect(0, 0, canvas.width, canvas.height);
       const barWidth = (canvas.width / bufferLength) * 2.5;
       let x = 0;
       for (let i = 0; i < bufferLength; i += 1) {
         const barHeight = (dataArray[i] / 255) * canvas.height;
-        ctx.fillStyle = `rgba(59, 130, 246, ${dataArray[i] / 255})`;
-        ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+        ctx2d.fillStyle = `rgba(59, 130, 246, ${dataArray[i] / 255})`;
+        ctx2d.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
         x += barWidth + 1;
       }
     };
-
     renderFrame();
   };
 
-  useEffect(() => () => {
-    listeningRef.current = false;
-    if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-  }, []);
+  useEffect(
+    () => () => {
+      listeningRef.current = false;
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    },
+    [],
+  );
 
-  // Preload real pluck samples in the background; reference stays live regardless.
   useEffect(() => {
     void preloadPluck(getAudioContext(), pluckVoice).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pluckVoice]);
 
-  function playStringReference(tuningString: TuningString) {
+  // ── String row helpers ────────────────────────────────────────────────────
+  function playStringReference(s: TuningString) {
     const ctx = getAudioContext();
-    playReferencePluck(ctx, tuningString.frequency, pluckVoice);
-    setActiveStringLabel(tuningString.label);
+    playReferencePluck(ctx, s.frequency, pluckVoice);
+    setActiveStringLabel(s.label);
     window.setTimeout(() => setActiveStringLabel(null), 900);
   }
 
-  function renderStringRow(tuningString: TuningString) {
-    const isActiveRef = activeStringLabel === tuningString.label;
-    const isDetected = closestMatch?.string.label === tuningString.label;
-    const cents = isDetected && detectedPitch
-      ? centsFromTarget(detectedPitch.frequency, tuningString.frequency * 2 ** (closestMatch.octaveShift || 0))
-      : null;
+  function renderStringRow(s: TuningString) {
+    const isActiveRef = activeStringLabel === s.label;
+    const isDetected = closestMatch?.string.label === s.label;
+    const cents =
+      isDetected && detectedPitch
+        ? centsFromTarget(
+            detectedPitch.frequency,
+            s.frequency * 2 ** (closestMatch.octaveShift || 0),
+          )
+        : null;
     const status = cents !== null ? tuningStatus(cents, t) : null;
 
     return (
       <button
-        key={tuningString.label}
+        key={s.label}
         type="button"
-        onClick={() => playStringReference(tuningString)}
-        title={`Play ${tuningString.note} reference`}
-        className={`btn-sound rounded-[1rem] border px-3 py-3 text-left transition ${
+        onClick={() => playStringReference(s)}
+        title={`Play ${s.note} reference`}
+        className={`btn-sound rounded-[1rem] border px-3 py-2.5 text-left transition ${
           isDetected
             ? "border-[var(--color-copper)] bg-[var(--color-info-surface)]"
             : isActiveRef
@@ -198,16 +237,21 @@ export function TunerCard() {
       >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Volume2 className={`h-3.5 w-3.5 ${isActiveRef ? "animate-pulse text-[var(--color-mint)]" : "text-[var(--color-sand-2)]"}`} />
-            <span className="text-sm font-black">{tuningString.label}</span>
+            <Volume2
+              className={`h-3.5 w-3.5 ${isActiveRef ? "animate-pulse text-[var(--color-mint)]" : "text-[var(--color-sand-2)]"}`}
+            />
+            <span className="text-sm font-black">{s.label}</span>
             <SoundIndicator className="h-3 w-3" />
           </div>
-          <span className="font-mono text-xs text-[var(--color-brass)]">{tuningString.note}</span>
+          <span className="font-mono text-xs text-[var(--color-brass)]">{s.note}</span>
         </div>
-        <div className="mt-1 flex items-center justify-between text-[10px] uppercase tracking-wider text-[var(--color-sand-2)]">
-          <span>{tuningString.frequency.toFixed(1)} Hz</span>
+        <div className="mt-0.5 flex items-center justify-between text-[10px] uppercase tracking-wider text-[var(--color-sand-2)]">
+          <span>{s.frequency.toFixed(1)} Hz</span>
           {status && cents !== null ? (
-            <span className={status.tone}>{status.label} {cents > 0 ? "+" : ""}{cents}¢</span>
+            <span className={status.tone}>
+              {status.label} {cents > 0 ? "+" : ""}
+              {cents}¢
+            </span>
           ) : (
             <span>{t("tuner.tapToHear")}</span>
           )}
@@ -216,11 +260,52 @@ export function TunerCard() {
     );
   }
 
+  // ── String count selector ──────────────────────────────────────────────────
+  function renderStringCountSelector() {
+    const options = instrumentMode === "guitar" ? GUITAR_STRING_OPTIONS : BASS_STRING_OPTIONS;
+    const current = instrumentMode === "guitar" ? guitarStringCount : bassStringCount;
+
+    const handleChange = (n: number) => {
+      if (instrumentMode === "guitar") {
+        setGuitarStringCount(n as GuitarStringCount);
+      } else {
+        setBassStringCount(n as BassStringCount);
+      }
+      // tuningId reset is handled by the useEffect above
+    };
+
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">
+          {t("tuner.strings")}
+        </span>
+        {options.map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => handleChange(n)}
+            className={`tab-editor-pill py-1 text-[10px] ${current === n ? "tab-editor-pill-active" : ""}`}
+          >
+            {n}-str
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  const stringGridCols =
+    activeTuning.strings.length <= 4
+      ? "sm:grid-cols-2"
+      : activeTuning.strings.length <= 8
+        ? "sm:grid-cols-2 lg:grid-cols-3"
+        : "sm:grid-cols-3 lg:grid-cols-4";
+
   return (
     <CollapsibleCard
       defaultOpen={true}
       title={t("tuner.title")}
-      subtitle={`${instrumentMode.toUpperCase()} · ${activeTuning.name} (${activeTuning.strings.length} strings)`}
+      subtitle={`${instrumentMode.toUpperCase()} · ${activeTuning.strings.length}-str · ${activeTuning.name}`}
       eyebrow="Pitch Precision"
       icon={<Gauge className="h-5 w-5 text-[var(--color-copper)]" />}
       headerActions={
@@ -237,14 +322,16 @@ export function TunerCard() {
       }
     >
       <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-2">
+        {/* ── Instrument + string count row ── */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Instrument selector */}
+          <div className="flex gap-2">
             {(["guitar", "bass"] as const).map((mode) => (
               <button
                 key={mode}
                 type="button"
                 onClick={() => setInstrumentMode(mode)}
-                className={`tab-editor-pill inline-flex items-center gap-2 capitalize ${instrumentMode === mode ? "tab-editor-pill-active" : ""}`}
+                className={`tab-editor-pill inline-flex items-center gap-1.5 capitalize ${instrumentMode === mode ? "tab-editor-pill-active" : ""}`}
               >
                 <Guitar className="h-3.5 w-3.5" />
                 {mode}
@@ -252,40 +339,25 @@ export function TunerCard() {
             ))}
           </div>
 
-          {instrumentMode === "bass" ? (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">{t("tuner.strings")}</span>
-              <button
-                type="button"
-                onClick={() => { setShowExtendedBass(false); setBassStringCount(4); }}
-                className={`tab-editor-pill py-1 text-[10px] ${!showExtendedBass ? "tab-editor-pill-active" : ""}`}
-              >
-                4-str
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowExtendedBass(true); setBassStringCount(5); }}
-                className={`tab-editor-pill py-1 text-[10px] ${showExtendedBass && bassStringCount === 5 ? "tab-editor-pill-active" : ""}`}
-              >
-                5-str
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowExtendedBass(true); setBassStringCount(6); }}
-                className={`tab-editor-pill py-1 text-[10px] ${showExtendedBass && bassStringCount === 6 ? "tab-editor-pill-active" : ""}`}
-              >
-                6-str
-              </button>
-            </div>
-          ) : null}
+          <div className="h-4 w-px bg-[var(--color-border)]" />
+
+          {/* String count */}
+          {renderStringCountSelector()}
         </div>
 
+        {/* ── Tuning preset + reference sound ── */}
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="field-group">
             <span className="field-label">{t("tuner.tuningPreset")}</span>
-            <select value={tuningId} onChange={(event) => setTuningId(event.target.value)} className="field py-1.5 text-xs font-bold">
-              {tuningOptions.map((preset: TuningPreset) => (
-                <option key={preset.id} value={preset.id}>{preset.name}</option>
+            <select
+              value={activeTuning.id}
+              onChange={(e) => setTuningId(e.target.value)}
+              className="field py-1.5 text-xs font-bold"
+            >
+              {tuningOptions.map((p: TuningPreset) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
             </select>
           </label>
@@ -293,7 +365,7 @@ export function TunerCard() {
             <span className="field-label">{t("tuner.refSound")}</span>
             <select
               value={pluckVoice}
-              onChange={(event) => setPluckVoice(event.target.value as PluckInstrument)}
+              onChange={(e) => setPluckVoice(e.target.value as PluckInstrument)}
               className="field py-1.5 text-xs font-bold"
             >
               {instrumentMode === "guitar" ? (
@@ -311,34 +383,46 @@ export function TunerCard() {
           </label>
         </div>
 
-        <div className="relative h-20 w-full overflow-hidden rounded-2xl border border-[var(--color-border)] bg-black/35">
-          <canvas ref={canvasRef} className="h-full w-full" width={400} height={80} />
-          {!isListening ? (
+        {/* ── Waveform canvas ── */}
+        <div className="relative h-16 w-full overflow-hidden rounded-2xl border border-[var(--color-border)] bg-black/35">
+          <canvas ref={canvasRef} className="h-full w-full" width={400} height={64} />
+          {!isListening && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{t("tuner.micInactive")}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                {t("tuner.micInactive")}
+              </span>
             </div>
-          ) : null}
+          )}
         </div>
 
+        {/* ── Live pitch readout ── */}
         {detectedPitch ? (
-          <div className="modal-inset-panel rounded-2xl p-4">
+          <div className="modal-inset-panel rounded-2xl p-3">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <div className="text-4xl font-black tracking-tight text-[var(--color-copper)]">{detectedPitch.note}</div>
-                <div className="mt-1 text-xs font-bold uppercase tracking-widest text-[var(--color-sand-2)]">
+                <div className="text-4xl font-black tracking-tight text-[var(--color-copper)]">
+                  {detectedPitch.note}
+                </div>
+                <div className="mt-0.5 text-xs font-bold uppercase tracking-widest text-[var(--color-sand-2)]">
                   {detectedPitch.frequency.toFixed(1)} Hz
                 </div>
               </div>
               {closestMatch ? (
                 <div className="text-right">
-                  <div className="text-sm font-black">{t("tuner.string")} {closestMatch.string.label}</div>
-                  <div className={`text-xs font-bold uppercase ${tuningStatus(closestMatch.cents, t).tone}`}>
-                    {tuningStatus(closestMatch.cents, t).label} · {closestMatch.cents > 0 ? "+" : ""}{closestMatch.cents} cents
+                  <div className="text-sm font-black">
+                    {t("tuner.string")} {closestMatch.string.label}
+                  </div>
+                  <div
+                    className={`text-xs font-bold uppercase ${tuningStatus(closestMatch.cents, t).tone}`}
+                  >
+                    {tuningStatus(closestMatch.cents, t).label} ·{" "}
+                    {closestMatch.cents > 0 ? "+" : ""}
+                    {closestMatch.cents} cents
                   </div>
                 </div>
               ) : null}
             </div>
-            <div className="tuner-gauge-track mt-4">
+            <div className="tuner-gauge-track mt-3">
               <div className="tuner-gauge-needle" style={{ left: `${gaugePosition}%` }} />
             </div>
             <div className="mt-1 flex justify-between text-[10px] font-bold uppercase tracking-widest text-[var(--color-sand-2)]">
@@ -353,15 +437,19 @@ export function TunerCard() {
           </div>
         ) : null}
 
+        {/* ── String reference grid ── */}
         <div>
           <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">
-            {t("tuner.tapToHearTitle").replace("{name}", activeTuning.name).replace("{strings}", String(activeTuning.strings.length))}
+            {t("tuner.tapToHearTitle")
+              .replace("{name}", activeTuning.name)
+              .replace("{strings}", String(activeTuning.strings.length))}
           </div>
-          <div className={`grid gap-2 ${instrumentMode === "bass" ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
-            {activeTuning.strings.map((tuningString) => renderStringRow(tuningString))}
+          <div className={`grid gap-2 ${stringGridCols}`}>
+            {activeTuning.strings.map((s) => renderStringRow(s))}
           </div>
         </div>
 
+        {/* ── Interactive fretboard ── */}
         <InteractiveFretboard
           mode={instrumentMode}
           tuning={activeTuning}
