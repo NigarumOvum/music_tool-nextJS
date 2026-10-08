@@ -27,6 +27,13 @@ const navItems: NavItemConfig[] = [
   { href: "/prompt-library", label: "Prompt Library", icon: "prompt-library", pageKey: "prompt-library" },
 ];
 
+export type ToolkitNavLink = {
+  href: string;
+  label: string;
+  /** i18n key used by AppNavLinks to translate the label */
+  icon: AppNavIconId;
+};
+
 type AppShellProps = {
   title: string;
   eyebrow: string;
@@ -34,9 +41,22 @@ type AppShellProps = {
   children: ReactNode;
   aside?: ReactNode;
   pageKey?: ManagedPageKey;
+  /** Extra nav links injected between the main nav links and the right controls (e.g. harmony, progressions) */
+  toolkitLinks?: ReactNode;
+  /** Slot rendered inline with the page title — used for the fullscreen toggle */
+  titleSlot?: ReactNode;
 };
 
-export async function AppShell({ title, eyebrow, description, children, aside, pageKey }: AppShellProps) {
+export async function AppShell({
+  title,
+  eyebrow,
+  description,
+  children,
+  aside,
+  pageKey,
+  toolkitLinks,
+  titleSlot,
+}: AppShellProps) {
   const user = await requireCurrentUser();
 
   if (pageKey && !(await ensureUserCanAccessPage(user, pageKey))) {
@@ -62,65 +82,77 @@ export async function AppShell({ title, eyebrow, description, children, aside, p
   const navLinks = visibleNavItems.map(({ href, label, icon }) => ({ href, label, icon }));
 
   return (
-    <div className="grain min-h-screen px-3 py-4 sm:px-5 lg:px-6">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
-        <header className="panel glass-shine sticky top-3 z-20 rounded-[1.25rem] p-3 sm:p-4 animate-fade-up">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex items-center justify-between gap-3 xl:min-w-[220px] xl:justify-start">
-              <Link href="/" className="flex min-w-0 items-center gap-3">
-                <Image
-                  src="/icons/icon-192x192.png"
-                  alt="BandsChamber Studio logo"
-                  width={44}
-                  height={44}
-                  priority
-                  className="h-11 w-11 shrink-0 rounded-xl shadow-xs"
-                />
-                <div className="min-w-0">
-                  <div className="eyebrow">Studio Hub</div>
-                  <div className="truncate text-lg font-black tracking-tight text-[var(--color-foreground)]">BandsChamber Studio</div>
-                </div>
-              </Link>
-              <div className="flex items-center gap-2 xl:hidden">
-                <PWAInstallButton />
-                <LanguageSwitcher compact />
-                <ThemeToggle />
+    <div className="grain min-h-screen flex flex-col">
+      {/* ── Sticky top navbar ─────────────────────────────────── */}
+      <header className="panel glass-shine sticky top-0 z-20 w-full animate-fade-up border-b border-[var(--color-border)]/50 px-3 sm:px-5 lg:px-6">
+        <div className="mx-auto flex h-12 w-full max-w-7xl items-center gap-3">
+
+          {/* Logo */}
+          <Link href="/" className="flex shrink-0 items-center gap-2.5 min-w-0">
+            <Image
+              src="/icons/icon-192x192.png"
+              alt="BandsChamber Studio logo"
+              width={32}
+              height={32}
+              priority
+              className="h-8 w-8 shrink-0 rounded-lg shadow-xs"
+            />
+            <div className="hidden min-w-0 sm:block">
+              <div className="eyebrow text-[0.55rem] leading-none">Studio Hub</div>
+              <div className="truncate text-sm font-black tracking-tight text-[var(--color-foreground)]">
+                BandsChamber Studio
               </div>
             </div>
+          </Link>
 
-            <nav className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex-1">
+          {/* Divider */}
+          <div className="hidden h-5 w-px shrink-0 bg-[var(--color-border)] sm:block" />
+
+          {/* App nav links (Production Studio, Prompt Library) */}
+          <nav className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-center gap-1.5 px-0.5">
               <AppNavLinks items={navLinks} />
-            </nav>
-
-            <div className="hidden items-center gap-2 xl:flex">
-              <PWAInstallButton />
-              <LanguageSwitcher />
-              <HeaderAccountLink name={user.name || user.email} />
-              <ThemeToggle />
+              {/* Toolkit section links (harmony, progressions) injected from page */}
+              {toolkitLinks}
             </div>
-          </div>
+          </nav>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 xl:hidden">
-              <HeaderAccountLink name={user.name || user.email} />
-              <LanguageSwitcher />
+          {/* Right controls — compact icon cluster */}
+          <div className="flex shrink-0 items-center gap-1">
+            <PWAInstallButton />
+            <LanguageSwitcher />
+            <HeaderAccountLink name={user.name || user.email} />
+            <ThemeToggle />
           </div>
-        </header>
+        </div>
+      </header>
 
-        <main className={aside ? "page-grid" : "space-y-4"}>
-          {aside ? <aside className="panel rounded-[1.25rem] p-3">{aside}</aside> : null}
-          <section className="space-y-4">
-            <div className="flex flex-col gap-1 px-2 sm:px-4">
-              <div className="flex items-baseline gap-3">
-                <span className="eyebrow text-[0.65rem] opacity-60 uppercase tracking-[0.2em]">{eyebrow}</span>
-                <h1 className="text-xl font-black tracking-tight text-[var(--color-foreground)]">{title}</h1>
+      {/* ── Page content ──────────────────────────────────────── */}
+      <div className="flex flex-1 flex-col px-3 py-4 sm:px-5 lg:px-6">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
+
+          <main className={aside ? "page-grid" : "space-y-4"}>
+            {aside ? <aside className="panel rounded-[1.25rem] p-3">{aside}</aside> : null}
+            <section className="space-y-4">
+              {/* Title row — eyebrow + h1 + optional fullscreen button */}
+              <div className="flex items-center justify-between gap-3 px-2 sm:px-4">
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-baseline gap-3">
+                    <span className="eyebrow text-[0.65rem] opacity-60 uppercase tracking-[0.2em]">{eyebrow}</span>
+                    <h1 className="text-xl font-black tracking-tight text-[var(--color-foreground)]">{title}</h1>
+                  </div>
+                  <p className="text-xs text-[var(--color-sand-2)] opacity-80">{description}</p>
+                </div>
+                {titleSlot ? (
+                  <div className="shrink-0">{titleSlot}</div>
+                ) : null}
               </div>
-              <p className="text-xs text-[var(--color-sand-2)] opacity-80">{description}</p>
-            </div>
-            {children}
-          </section>
-        </main>
+              {children}
+            </section>
+          </main>
 
-        <AppFooter />
+          <AppFooter />
+        </div>
       </div>
     </div>
   );

@@ -41,7 +41,13 @@
   subdivision, voice, volume, and count-in; BPM/tap-tempo persist per user.
 - FR-015 Tuner captures mic audio, shows detected pitch + cents offset, and
   plays reference plucks across guitar/bass presets. Includes interactive
-  fretboard grid with click-to-play and customizable tunings.
+  fretboard grid with click-to-play and customizable tunings. **The Tuner is
+  embedded at the top of the Harmony tab** (`/?tab=harmony`); `/?tab=tuner`
+  redirects to harmony.
+- FR-042 The toolkit navigation (harmony, progressions) is rendered as
+  compact navbar links in the top sticky bar — no tab bar inside the page.
+  The fullscreen toggle is rendered inline with the page title (h1 row).
+  The navbar controls (language, account, theme) are icon-only compact.
 - FR-016 Theory Lab renders ≥13 scales and ≥17 chord types with inversions
   and diatonic triads, and audibly plays scales/chords in the selected voice.
   Includes interactive fretboard grid with scale visualization overlays.

@@ -1,18 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { User } from "lucide-react";
 
 import { useI18n } from "@/components/language-provider";
 
 export function HeaderAccountLink({ name }: { name: string }) {
   const { t } = useI18n();
+  /** Show just an icon; tooltip reveals the user name. */
   return (
     <Link
       href="/account"
-      className="glass-pill inline-flex rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-surface-strong)] transition-colors"
-      title={t("nav.manageAccount")}
+      className="glass-pill inline-flex h-8 w-8 items-center justify-center rounded-full transition hover:-translate-y-0.5 hover:text-[var(--color-foreground)]"
+      title={`${t("nav.manageAccount")} · ${name}`}
+      aria-label={t("nav.manageAccount")}
     >
-      {name}
+      <User className="h-3.5 w-3.5 text-[var(--color-sand-2)]" />
     </Link>
   );
 }
