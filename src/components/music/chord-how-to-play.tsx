@@ -105,6 +105,7 @@ export function ChordHowToPlay({
   const { t } = useI18n();
   const [showInteractiveFretboard, setShowInteractiveFretboard] = useState(false);
   const [fretboardMode, setFretboardMode] = useState<"guitar" | "bass">("guitar");
+  const [fretboardRootNote, setFretboardRootNote] = useState(root);
 
   const playable = useMemo(
     () =>
@@ -201,7 +202,8 @@ export function ChordHowToPlay({
               tuning={fretboardMode === "guitar" ? GUITAR_TUNINGS[0] : BASS_TUNINGS[0]}
               showControls={true}
               scaleOverlay="major"
-              rootNote={root}
+              rootNote={fretboardRootNote}
+              onRootNoteChange={setFretboardRootNote}
               className="scale-90 origin-top"
             />
           </div>

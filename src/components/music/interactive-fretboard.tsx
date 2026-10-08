@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { Volume2, Zap, Layers } from "lucide-react";
 import { useAudio } from "@/components/music/audio-provider";
 import {
@@ -42,6 +42,7 @@ type InteractiveFretboardProps = {
   onNoteClick?: (string: number, fret: number, note: string) => void;
   playOnHover?: boolean;
   rootNote?: string;
+  onRootNoteChange?: (root: string) => void;
 };
 
 export function InteractiveFretboard({
@@ -55,14 +56,29 @@ export function InteractiveFretboard({
   onNoteClick,
   playOnHover = false,
   rootNote = "C",
+  onRootNoteChange,
 }: InteractiveFretboardProps) {
   const { getAudioContext } = useAudio();
   const [activeString, setActiveString] = useState<number | null>(null);
   const [activeFret, setActiveFret] = useState<number | null>(null);
   const [isHovering, setIsHovering] = useState(false);
+  const [localRootNote, setLocalRootNote] = useState(rootNote);
 
   const tunings = mode === "guitar" ? GUITAR_TUNINGS : BASS_TUNINGS;
   const currentTuning = externalTuning || tunings[0];
+
+  // Sync local root note with prop
+  useEffect(() => {
+    setLocalRootNote(rootNote);
+  }, [rootNote]);
+
+  // Sync tuning with external when it changes (for components that manage tuning externally)
+  useEffect(() => {
+    if (externalTuning && !showControls) {
+      // When showControls is false, we're fully controlled externally
+      // No action needed as we use externalTuning directly
+    }
+  }, [externalTuning, showControls]);
 
   const strings = useMemo(() => {
     return [...currentTuning.strings].reverse();
@@ -81,13 +97,13 @@ export function InteractiveFretboard({
 
   const isNoteInScale = useCallback((note: string): boolean => {
     if (scaleOverlay === "none") return false;
-    const rootIndex = CHROMATIC.indexOf(rootNote as (typeof CHROMATIC)[number]);
+    const rootIndex = CHROMATIC.indexOf(localRootNote as (typeof CHROMATIC)[number]);
     if (rootIndex === -1) return false;
     const noteIndex = CHROMATIC.indexOf(note as (typeof CHROMATIC)[number]);
     if (noteIndex === -1) return false;
     const interval = (noteIndex - rootIndex + 12) % 12;
     return SCALE_PATTERNS[scaleOverlay].includes(interval);
-  }, [scaleOverlay, rootNote]);
+  }, [scaleOverlay, localRootNote]);
 
   const handleNoteClick = useCallback((stringIdx: number, fret: number) => {
     const note = getNoteAtPosition(stringIdx, fret);
@@ -167,8 +183,11 @@ export function InteractiveFretboard({
               Root
             </label>
             <select
-              value={rootNote}
-              onChange={(e) => onScaleChange?.(scaleOverlay)}
+              value={localRootNote}
+              onChange={(e) => {
+                setLocalRootNote(e.target.value);
+                onRootNoteChange?.(e.target.value);
+              }}
               className="glass-pill border-white/10 bg-black/40 px-3 py-1.5 text-xs font-bold text-[var(--color-mint)] outline-none"
             >
               {CHROMATIC.map((note) => (
@@ -203,7 +222,7 @@ export function InteractiveFretboard({
           {scaleOverlay !== "none" && (
             <div className="flex items-center gap-1.5 text-xs font-black text-[var(--color-mint)]">
               <Layers className="h-4 w-4" />
-              <span>{SCALE_NAMES[scaleOverlay]} ({rootNote})</span>
+              <span>{SCALE_NAMES[scaleOverlay]} ({localRootNote})</span>
             </div>
           )}
         </div>

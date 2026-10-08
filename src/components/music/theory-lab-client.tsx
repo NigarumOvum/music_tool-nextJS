@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Book, Layers, Music, Play, RotateCcw, Search, Sparkles, Piano } from "lucide-react";
+import { Book, Layers, Music, Play, RotateCcw, Search, Sparkles, Piano, Guitar } from "lucide-react";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
 import { InfoTooltip } from "@/components/info-tooltip";
@@ -48,7 +48,7 @@ const CHORDS: Record<string, number[]> = {
   "Major 9": [0, 4, 7, 11, 14],
   "Dominant 9": [0, 4, 7, 10, 14],
   "Minor 9": [0, 3, 7, 10, 14],
-  "6": [0, 4, 7, 9],
+  6: [0, 4, 7, 9],
   "Minor 6": [0, 3, 7, 9],
   add9: [0, 4, 7, 14],
   sus2: [0, 2, 7],
@@ -195,12 +195,12 @@ export function TheoryLabClient() {
       {/* 0. Timing Precision (metronome, tap tempo, speed & gap trainers) */}
       <MetronomeCard />
 
-      {/* 1. Master Keyboard & Visualizer (Important: Open by default) */}
+      {/* 1. Unified Theory Lab: Master Keyboard + Scale Explorer + Fretboard */}
       <CollapsibleCard
         defaultOpen={true}
-        title={t("theory.masterKeyboard")}
-        subtitle={`${highlightMode === "scale" ? t("theory.scaleMode") : highlightMode === "chord" ? t("theory.chordMode") : "—"} · ${KEYBOARD_VOICES.find((item) => item.id === keyboardVoice)?.label}`}
-        eyebrow="Synth & Fretboard Lab"
+        title="Master Keyboard"
+        subtitle={`${highlightMode === "scale" ? "Scale Mode" : highlightMode === "chord" ? "Chord Mode" : "—"} · ${scaleRoot} ${scaleType} · ${KEYBOARD_VOICES.find((item) => item.id === keyboardVoice)?.label}`}
+        eyebrow="Theory & Fretboard Lab"
         icon={<Piano className="h-5 w-5 text-[var(--color-copper)]" />}
         headerActions={
           <div className="flex flex-wrap items-center gap-2">
@@ -213,7 +213,7 @@ export function TheoryLabClient() {
                   : "border-white/10 opacity-60 hover:opacity-100"
               }`}
             >
-              {t("theory.scaleMode")}
+              Scale Mode
             </button>
             <button
               type="button"
@@ -224,7 +224,7 @@ export function TheoryLabClient() {
                   : "border-white/10 opacity-60 hover:opacity-100"
               }`}
             >
-              {t("theory.chordMode")}
+              Chord Mode
             </button>
             <InfoTooltip
               content="Toggle between scale and chord highlighting modes on the keyboard. Scale mode shows all notes in the selected scale, chord mode shows the current chord notes."
@@ -234,93 +234,85 @@ export function TheoryLabClient() {
           </div>
         }
       >
-        <PianoKeyboard
-          activeNotes={activeNotes}
-          startOctave={keyboardOctave}
-          voice={keyboardVoice}
-          onVoiceChange={setKeyboardVoice}
-          showInstrumentSelector
-          onNotePlay={(note, frequency) => {
-            const midi = 69 + 12 * Math.log2(frequency / 440);
-            setKeyboardOctave(Math.max(1, Math.min(6, Math.floor(midi / 12) - 1)));
-            playFrequency(frequency);
-          }}
-        />
-
-        <div className="mt-4 pt-4 border-t border-white/8">
-          <InteractiveFretboard
-            mode="guitar"
-            tuning={GUITAR_TUNINGS[0]}
-            showControls={true}
-            scaleOverlay={scaleType === "Major" ? "major" : scaleType === "Minor" ? "minor" : scaleType === "Pentatonic Major" ? "pentatonic" : scaleType === "Blues" ? "blues" : "none"}
-            onScaleChange={(scale) => {
-              if (scale === "major") setScaleType("Major");
-              else if (scale === "minor") setScaleType("Minor");
-              else if (scale === "pentatonic") setScaleType("Pentatonic Major");
-              else if (scale === "blues") setScaleType("Blues");
-            }}
-            rootNote={scaleRoot}
-            className="scale-90 origin-top"
-          />
-        </div>
-      </CollapsibleCard>
-
-      {/* 2. Scale Explorer & Diatonic Triads (Closed by default) */}
-      <CollapsibleCard
-        defaultOpen={false}
-        title={`${t("theory.scaleExplorer")} · ${scaleRoot} ${scaleType}`}
-        subtitle={t("theory.scaleExplorerSub").replace("{count}", String(scaleNotes.length))}
-        eyebrow="Modal Analysis"
-        icon={<Music className="h-5 w-5 text-[var(--color-brass)]" />}
-        headerActions={
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="space-y-6">
+          {/* Scale Controls */}
+          <div className="flex flex-wrap items-center gap-4 p-4 rounded-2xl border border-white/10 bg-black/20">
+            <div className="flex items-center gap-2">
+              <span className="field-label">Root Note</span>
+              <NoteButtons value={scaleRoot} onChange={setScaleRoot} ariaLabel="Select scale root note" />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="field-label">Scale Type</span>
+              <input
+                className="field w-32 sm:max-w-[140px]"
+                placeholder="Search scales..."
+                value={scaleSearch}
+                onChange={(e) => setScaleSearch(e.target.value)}
+              />
+              <ScaleTypeButtons types={filteredScaleTypes} value={scaleType} onChange={setScaleType} />
+            </div>
             <button
               type="button"
               onClick={() => { setHighlightMode("scale"); playNotes(scaleNotes); }}
-              title={t("theory.playScale")}
+              title="Play Scale"
               className="glass-pill btn-sound px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:bg-[var(--color-brass)] hover:text-black"
             >
-              <Play className="mr-1 inline h-3 w-3 fill-current" /> {t("theory.playScale")}
+              <Play className="mr-1 inline h-3 w-3 fill-current" /> Play Scale
             </button>
-            <InfoTooltip
-              content="Explore different scales and see their diatonic triads. Understanding scales helps with melody writing and chord progressions."
-              position="left"
-              size="md"
-            />
-          </div>
-        }
-      >
-        <div className="space-y-5">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="field-label">{t("theory.rootNote")}</span>
-              <InfoTooltip
-                content="Select the root note (starting note) for the scale."
-                position="top"
-                size="sm"
-              />
-            </div>
-            <NoteButtons value={scaleRoot} onChange={setScaleRoot} ariaLabel="Select scale root note" />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="field-label">{t("theory.scaleType")}</span>
-              <InfoTooltip
-                content="Choose from 13 different scale types. Each has a unique interval pattern that creates its characteristic sound."
-                position="top"
-                size="sm"
-              />
-            </div>
-            <input
-              className="field w-full sm:max-w-[240px]"
-              placeholder={t("theory.searchScales")}
-              value={scaleSearch}
-              onChange={(e) => setScaleSearch(e.target.value)}
-            />
-            <ScaleTypeButtons types={filteredScaleTypes} value={scaleType} onChange={setScaleType} />
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          {/* Split View: Piano Keyboard + Fretboard */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Piano Keyboard */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-black text-[var(--color-copper)]">
+                  <Piano className="h-4 w-4" />
+                  <span>Piano Keyboard</span>
+                </div>
+              </div>
+              <PianoKeyboard
+                activeNotes={activeNotes}
+                startOctave={keyboardOctave}
+                voice={keyboardVoice}
+                onVoiceChange={setKeyboardVoice}
+                showInstrumentSelector
+                onNotePlay={(note, frequency) => {
+                  const midi = 69 + 12 * Math.log2(frequency / 440);
+                  setKeyboardOctave(Math.max(1, Math.min(6, Math.floor(midi / 12) - 1)));
+                  playFrequency(frequency);
+                }}
+              />
+            </div>
+
+            {/* Interactive Fretboard */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-black text-[var(--color-brass)]">
+                  <Guitar className="h-4 w-4" />
+                  <span>Interactive Fretboard</span>
+                </div>
+              </div>
+              <InteractiveFretboard
+                mode="guitar"
+                tuning={GUITAR_TUNINGS[0]}
+                showControls={true}
+                scaleOverlay={scaleType === "Major" ? "major" : scaleType === "Minor" ? "minor" : scaleType === "Pentatonic Major" ? "pentatonic" : scaleType === "Blues" ? "blues" : "none"}
+                onScaleChange={(scale) => {
+                  if (scale === "major") setScaleType("Major");
+                  else if (scale === "minor") setScaleType("Minor");
+                  else if (scale === "pentatonic") setScaleType("Pentatonic Major");
+                  else if (scale === "blues") setScaleType("Blues");
+                }}
+                rootNote={scaleRoot}
+                onRootNoteChange={setScaleRoot}
+                className="scale-90 origin-top"
+              />
+            </div>
+          </div>
+
+          {/* Scale Notes Display */}
+          <div className="flex flex-wrap gap-2 p-4 rounded-2xl border border-white/10 bg-black/20">
             {scaleNotes.map((n, i) => (
               <button
                 key={`${n}-${i}`}
@@ -338,6 +330,7 @@ export function TheoryLabClient() {
             ))}
           </div>
 
+          {/* Scale Instrument Visuals */}
           <ScaleInstrumentVisuals
             notes={scaleNotes}
             root={scaleRoot}
@@ -345,17 +338,18 @@ export function TheoryLabClient() {
             onPlayNote={(note) => playNoteAtOctave(note)}
           />
 
+          {/* Diatonic Triads */}
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-4">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="eyebrow text-[0.62rem]">{t("theory.diatonicChords")}</span>
+                <span className="eyebrow text-[0.62rem]">Diatonic Chords</span>
                 <InfoTooltip
                   content="These are the 7 triads built from each scale degree. They're the foundation of chord progressions in that key. Click any triad to hear it and load it into the chord explorer."
                   position="top"
                   size="md"
                 />
               </div>
-              <span className="text-[10px] text-[var(--color-sand-2)]">{t("theory.clickTriad")}</span>
+              <span className="text-[10px] text-[var(--color-sand-2)]">Click triad to play</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {diatonicTriads(scaleNotes).map((triad, degree) => {
@@ -388,9 +382,10 @@ export function TheoryLabClient() {
             </div>
           </div>
 
+          {/* Scale Theory */}
           <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-4">
             <div className="mb-3 flex items-center gap-2">
-              <span className="eyebrow text-[0.62rem]">{t("theory.scaleTheory")}</span>
+              <span className="eyebrow text-[0.62rem]">Scale Theory</span>
               <InfoTooltip
                 content="Learn about the theory behind scales including interval patterns and note relationships. Understanding theory helps you compose and improvise more effectively."
                 position="top"
@@ -407,11 +402,11 @@ export function TheoryLabClient() {
         </div>
       </CollapsibleCard>
 
-      {/* 3. Chord Constructor & Inversions (Less critical: Closed by default) */}
+      {/* 2. Chord Constructor & Inversions */}
       <CollapsibleCard
         defaultOpen={false}
-        title={t("theory.constructor")}
-        subtitle={`${chordRoot} ${chordType} · ${inversion === 0 ? t("theory.rootPosition") : t("theory.inversionN").replace("{n}", String(inversion))}`}
+        title="Chord Constructor"
+        subtitle={`${chordRoot} ${chordType} · ${inversion === 0 ? "Root Position" : `Inversion ${inversion}`}`}
         eyebrow="Harmony Builder"
         icon={<Layers className="h-5 w-5 text-[var(--color-berry)]" />}
         headerActions={
@@ -419,10 +414,10 @@ export function TheoryLabClient() {
             <button
               type="button"
               onClick={() => { setHighlightMode("chord"); playKeyboardNotes(getAudioContext(), chordFrequencies, keyboardVoice, 90); }}
-              title={t("theory.arpeggiate")}
+              title="Arpeggiate"
               className="glass-pill btn-sound px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-all hover:bg-[var(--color-berry)] hover:text-black"
             >
-              <Play className="mr-1 inline h-3 w-3 fill-current" /> {t("theory.arpeggiate")}
+              <Play className="mr-1 inline h-3 w-3 fill-current" /> Arpeggiate
             </button>
             <InfoTooltip
               content="Build and explore different chord types with inversions. Inversions change which note is in the bass, creating different voicings of the same chord."
@@ -435,51 +430,65 @@ export function TheoryLabClient() {
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <span className="field-label">{t("theory.chordRootNote")}</span>
+              <span className="field-label">Chord Root Note</span>
               <InfoTooltip
-                content="Select the root note (bass note) for the chord."
+                content="Select the root note (starting note) for the chord."
                 position="top"
                 size="sm"
               />
             </div>
-            <NoteButtons
-              value={chordRoot}
-              onChange={(note) => { setChordRoot(note); setInversion(0); }}
-              accent="berry"
-              ariaLabel="Select chord root note"
-            />
+            <NoteButtons value={chordRoot} onChange={setChordRoot} ariaLabel="Select chord root note" />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <div className="flex flex-[2] items-center gap-2">
-              <select
-                value={chordType}
-                onChange={(e) => { setChordType(e.target.value); setInversion(0); }}
-                className="field flex-[2]"
-              >
-                {Object.keys(CHORDS).map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="field-label">Chord Type</span>
               <InfoTooltip
-                content="Choose from 18 different chord types including triads, 7th chords, 9th chords, and extended voicings."
+                content="Choose from 17 different chord types. Each has a unique interval pattern that creates its characteristic sound."
                 position="top"
                 size="sm"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={inversion}
-                onChange={(e) => setInversion(Number(e.target.value))}
-                className="field w-auto"
-                aria-label="Chord inversion"
-              >
-                {Array.from({ length: Math.max(1, CHORDS[chordType].length) }, (_, i) => (
-                <option key={i} value={i}>{i === 0 ? "Root Position" : `${i}${i === 1 ? "st" : i === 2 ? "nd" : "rd"} Inversion`}</option>
+            <div className="flex flex-wrap gap-2">
+              {Object.keys(CHORDS).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setChordType(type)}
+                  className={`glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition ${
+                    chordType === type
+                      ? "bg-[var(--color-berry)] text-black"
+                      : "text-[var(--color-sand-2)] hover:text-white"
+                  }`}
+                >
+                  {type}
+                </button>
               ))}
-            </select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="field-label">Inversion</span>
               <InfoTooltip
-                content="Change the chord inversion. Root position has the root in bass, 1st inversion has the 3rd in bass, etc. Inversions create smoother voice leading."
+                content="Inversions change which note is in the bass. Root position has the root in the bass, first inversion has the third, second inversion has the fifth."
                 position="top"
                 size="sm"
               />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[0, 1, 2].map((inv) => (
+                <button
+                  key={inv}
+                  type="button"
+                  onClick={() => setInversion(inv)}
+                  className={`glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition ${
+                    inversion === inv
+                      ? "bg-[var(--color-berry)] text-black"
+                      : "text-[var(--color-sand-2)] hover:text-white"
+                  }`}
+                >
+                  {inv === 0 ? "Root Position" : `Inversion ${inv}`}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -490,33 +499,34 @@ export function TheoryLabClient() {
                 type="button"
                 onClick={() => playNoteAtOctave(n)}
                 title={`Play ${n}`}
-                className={`glass-pill btn-sound flex min-w-[50px] flex-col items-center border-white/10 bg-white/5 px-4 py-2 ${
-                  i === 0 ? "!border-[var(--color-berry)]" : ""
-                }`}
+                className="glass-pill btn-sound flex min-w-[50px] flex-col items-center border-white/10 bg-white/5 px-4 py-2 hover:border-[var(--color-berry)]"
               >
-                <span className="text-[8px] font-black uppercase opacity-40">
-                  {i === 0 ? t("theory.bass") : `${i + 1}`}
-                </span>
+                <span className="text-[8px] font-black uppercase opacity-40">{i + 1}</span>
                 <span className="text-sm font-black">{n}</span>
                 <span className="flex items-center gap-1 text-[8px] font-bold uppercase text-[var(--color-berry)]/70">
                   <SoundIndicator className="h-2.5 w-2.5" />{intervalName(chordRoot, n)}
                 </span>
               </button>
             ))}
-            <InfoTooltip
-              content="Click individual notes to hear them. The bass note (highlighted in berry) determines the chord inversion and voicing."
-              position="top"
-              size="md"
-            />
           </div>
 
-          <ChordHowToPlay
-            chordLabel={`${chordRoot} ${chordType}`}
-            root={chordRoot}
-            notes={chordNotes}
+          <PianoKeyboard
+            activeNotes={chordNotes}
+            startOctave={keyboardOctave}
+            voice={keyboardVoice}
+            onVoiceChange={setKeyboardVoice}
+            showInstrumentSelector
+            onNotePlay={(note, frequency) => {
+              const midi = 69 + 12 * Math.log2(frequency / 440);
+              setKeyboardOctave(Math.max(1, Math.min(6, Math.floor(midi / 12) - 1)));
+              playFrequency(frequency);
+            }}
           />
         </div>
       </CollapsibleCard>
+
+      {/* 3. Chord How-to-Play */}
+      <ChordHowToPlay chordLabel={chordType} root={chordRoot} notes={chordNotes} />
     </SplitViewFullScreen>
   );
 }
