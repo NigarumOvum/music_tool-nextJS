@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Button, Chip } from "@heroui/react";
+import { useI18n } from "@/components/language-provider";
 import type { MusicProjectRecord, MusicSongSummary } from "@/lib/music/types";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 
@@ -46,8 +47,10 @@ export function StudioSidebar({
   language = "",
   onLanguageChange,
 }: StudioSidebarProps) {
+  const { t } = useI18n();
   const userId = useCurrentUserId();
   const [collapsed, setCollapsed] = usePersistentState<boolean>(SIDEBAR_COLLAPSED_KEY, false, { userId });
+  const [projectFilter, setProjectFilter] = useState("all");
 
   const projectBySlug = useMemo(
     () => new Map(projects.map((project) => [project.slug, project])),
@@ -70,8 +73,18 @@ export function StudioSidebar({
     }
     if (genreQuery && !(song.genre || "").toLowerCase().includes(genreQuery)) return false;
     if (languageQuery && !(song.language || "").toLowerCase().includes(languageQuery)) return false;
+    if (projectFilter === "solo" && song.project_slug) return false;
+    if (projectFilter !== "all" && projectFilter !== "solo" && song.project_slug !== projectFilter) return false;
     return true;
   });
+
+  const displayedSongs = catalogMode
+    ? filteredSongs
+    : [...filteredSongs].sort((a, b) => {
+        const projectA = songProject(a)?.name ?? "Solo";
+        const projectB = songProject(b)?.name ?? "Solo";
+        return projectA.localeCompare(projectB) || a.title.localeCompare(b.title);
+      });
 
   const genres = catalogMode
     ? Array.from(new Set(songs.map((s) => s.genre).filter((g): g is string => Boolean(g)))).sort()
@@ -162,6 +175,21 @@ export function StudioSidebar({
           />
         </div>
 
+        {!catalogMode ? (
+          <select
+            aria-label={t("sidebar.filterBand")}
+            value={projectFilter}
+            onChange={(event) => setProjectFilter(event.target.value)}
+            className="field"
+          >
+            <option value="all">{t("sidebar.allBands")}</option>
+            {projects.map((project) => (
+              <option key={project.slug} value={project.slug}>{project.name}</option>
+            ))}
+            {songs.some((song) => !song.project_slug) ? <option value="solo">{t("studio.solo")}</option> : null}
+          </select>
+        ) : null}
+
         {catalogMode && onGenreChange && onLanguageChange ? (
           <div className="grid grid-cols-2 gap-2">
             <select value={genre} onChange={(e) => onGenreChange(e.target.value)} className="field">
@@ -190,10 +218,25 @@ export function StudioSidebar({
           {filteredSongs.length} of {songs.length} songs
         </div>
         <div className={`mt-2 ${catalogMode ? "flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex-col xl:overflow-visible xl:pb-0" : "max-h-[68vh] space-y-2 overflow-auto pr-1 stagger-children"}`}>
-          {filteredSongs.map((song) => (
+          {displayedSongs.map((song, index) => {
+            const currentProjectKey = song.project_slug || "solo";
+            const previousProjectKey = index > 0 ? displayedSongs[index - 1].project_slug || "solo" : null;
+            const showProjectHeading = !catalogMode && currentProjectKey !== previousProjectKey;
+
+            return (
+            <Fragment key={song.id}>
+            {showProjectHeading ? (
+              <div className="flex items-center gap-2 px-1 pb-1 pt-3 text-[10px] font-bold uppercase tracking-widest text-[var(--color-sand-2)]">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: songProject(song)?.color || "var(--color-sand-2)" }}
+                />
+                {songProject(song)?.name ?? t("studio.solo")}
+              </div>
+            ) : null}
             catalogMode ? (
               <button
-                key={song.id}
                 type="button"
                 onClick={() => onSelectSong(song.id)}
                 className={`min-w-[220px] rounded-2xl border px-4 py-4 text-left transition xl:w-full xl:min-w-0 ${
@@ -220,7 +263,6 @@ export function StudioSidebar({
               </button>
             ) : (
               <div
-                key={song.id}
                 className={`song-list-item group flex items-start gap-2 rounded-[1.25rem] px-3 py-3 ${
                   selectedSongId === song.id ? "song-list-item-active" : ""
                 }`}
@@ -267,7 +309,9 @@ export function StudioSidebar({
                 </button>
               </div>
             )
-          ))}
+            </Fragment>
+            );
+          })}
           {filteredSongs.length === 0 ? (
             <div className={`py-4 text-sm text-[var(--color-sand-2)] ${catalogMode ? "" : "rounded-[1.25rem] border border-dashed border-white/10 px-4 py-6 text-center"}`}>
               No songs match the filters.

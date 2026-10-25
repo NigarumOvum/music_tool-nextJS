@@ -171,6 +171,8 @@ export const musicBEn = {
 
   "sidebar.library": "Library",
   "sidebar.songs": "Songs",
+  "sidebar.filterBand": "Filter songs by band",
+  "sidebar.allBands": "All bands",
   "sidebar.allGenres": "All genres",
   "sidebar.allLanguages": "All languages",
 
@@ -427,6 +429,8 @@ const es: Record<MusicBKey, string> = {
 
   "sidebar.library": "Biblioteca",
   "sidebar.songs": "Canciones",
+  "sidebar.filterBand": "Filtrar canciones por banda",
+  "sidebar.allBands": "Todas las bandas",
   "sidebar.allGenres": "Todos los géneros",
   "sidebar.allLanguages": "Todos los idiomas",
 
@@ -681,6 +685,8 @@ const de: Record<MusicBKey, string> = {
 
   "sidebar.library": "Bibliothek",
   "sidebar.songs": "Songs",
+  "sidebar.filterBand": "Songs nach Band filtern",
+  "sidebar.allBands": "Alle Bands",
   "sidebar.allGenres": "Alle Genres",
   "sidebar.allLanguages": "Alle Sprachen",
 
@@ -935,6 +941,8 @@ const fr: Record<MusicBKey, string> = {
 
   "sidebar.library": "Bibliothèque",
   "sidebar.songs": "Morceaux",
+  "sidebar.filterBand": "Filtrer les morceaux par groupe",
+  "sidebar.allBands": "Tous les groupes",
   "sidebar.allGenres": "Tous genres",
   "sidebar.allLanguages": "Toutes langues",
 
@@ -1189,6 +1197,8 @@ const ru: Record<MusicBKey, string> = {
 
   "sidebar.library": "Библиотека",
   "sidebar.songs": "Песни",
+  "sidebar.filterBand": "Фильтр песен по группе",
+  "sidebar.allBands": "Все группы",
   "sidebar.allGenres": "Все жанры",
   "sidebar.allLanguages": "Все языки",
 

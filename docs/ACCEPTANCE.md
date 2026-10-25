@@ -10,8 +10,10 @@
   Play chord sounds per instrument and follows inversion; Progressions has
   no Chord Voicing Preview section. (FR-012, FR-014–FR-019, FR-041, FR-042)
 - **Studio**: create song → edit lyrics/metadata/sections/layers/partitures
-  → filters find it → modal tabs open → DAW import/play/export → grid↔ASCII
-  round-trip → band assign → collaborator sees the shared song.
+  → Songs Library groups entries by band, sorts groups/song titles, and its
+  filter shows all bands, one band, or Solo → catalog filters find it → modal
+  tabs open → DAW import/play/export → grid↔ASCII round-trip → band assign →
+  collaborator sees the shared song.
   (FR-020–FR-028)
 - **Prompts**: create template → run on song via Ollama → preview output →
   apply writes the correct field; denied without both page grants.
