@@ -81,8 +81,9 @@ Pro $9.99 mo / Lifetime $149), `membership_subscriptions`
   partitures → modal tabs (lyrics / DAW / notation) → band assignment.
   The Songs Library sidebar groups songs by band, sorts band/song names
   alphabetically, and offers an all-bands or single-band filter (including
-  Solo). Song entries show the band/project badge in its band color; the
-  navbar brand uses the PWA app icon.
+  Solo). The band filter persists per user, and collapsed song entries use
+  the band color and accessible song/band labels. Song entries show the
+  band/project badge in its band color; the navbar brand uses the PWA app icon.
 - **DAW**: MIDI import → layers (gain/pan/mute/solo) → tempo-ratio playback →
   note edit/quantize → JSON manifest export.
 - **Tabs**: fretboard grid ⇄ ASCII (`gridToAscii`/`parseAsciiTab`) ⇄ song

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Button, Chip } from "@heroui/react";
 import { useI18n } from "@/components/language-provider";
@@ -50,7 +50,7 @@ export function StudioSidebar({
   const { t } = useI18n();
   const userId = useCurrentUserId();
   const [collapsed, setCollapsed] = usePersistentState<boolean>(SIDEBAR_COLLAPSED_KEY, false, { userId });
-  const [projectFilter, setProjectFilter] = useState("all");
+  const [projectFilter, setProjectFilter] = usePersistentState<string>("studio_sidebar_project_filter", "all", { userId });
 
   const projectBySlug = useMemo(
     () => new Map(projects.map((project) => [project.slug, project])),
@@ -125,7 +125,7 @@ export function StudioSidebar({
           </>
         )}
         <div className="flex-1 space-y-2 overflow-auto">
-          {filteredSongs.map((song) => (
+          {displayedSongs.map((song) => (
             <button
               key={song.id}
               type="button"
@@ -133,9 +133,12 @@ export function StudioSidebar({
               className={`glass-pill flex h-8 w-8 items-center justify-center ${
                 selectedSongId === song.id ? "bg-[var(--color-copper)] text-white" : ""
               }`}
-              aria-label={song.title}
+              aria-label={`${song.title}, ${songProject(song)?.name ?? t("studio.solo")}`}
             >
-              <div className="h-2 w-2 rounded-full bg-current" />
+              <div
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: songProject(song)?.color || "var(--color-sand-2)" }}
+              />
             </button>
           ))}
         </div>

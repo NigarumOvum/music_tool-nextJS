@@ -69,7 +69,8 @@
 - FR-020 Song catalog lists owned + project-shared songs with counts,
   search, genre/key/emotion/mood/project/instrument filters, and saved
   presets. The Studio Songs Library sidebar groups songs by band and provides
-  an all-bands or single-band filter, including unassigned Solo songs.
+  an all-bands or single-band filter, including unassigned Solo songs; the
+  selection persists per user and collapsed entries identify each song's band.
 - FR-021 Song CRUD plus section/layer part upsert/delete persist and reload
   correctly.
 - FR-022 Band CRUD (slug/color/shared flag/members) works; member songs
