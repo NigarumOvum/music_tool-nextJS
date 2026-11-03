@@ -30,7 +30,7 @@ import { toast } from "sonner";
 import { useAudio } from "@/components/music/audio-provider";
 import { useProductionSong } from "@/components/music/production-song-context";
 import { FileUploadButton } from "@/components/music/file-upload-button";
-import { createPartiture, deletePartiture, downloadBlob, fetchPartitures } from "@/lib/music/client";
+import { createPartiture, deletePartiture, downloadBlob, fetchPartitures, updatePartiture } from "@/lib/music/client";
 import { readStoredRaw, removeStored, useCurrentUserId, userKey, writeStored } from "@/lib/persist";
 import type { MusicPartitureRecord } from "@/lib/music/types";
 import { parseMidiFile, type MidiTrackData, type ParsedMidi } from "@/lib/music/midi-parser";
@@ -58,6 +58,18 @@ type GridRow = {
   cells: string[];
 };
 
+type FretboardComposition = {
+  version: 1;
+  instrument: InstrumentType;
+  tuningId: string;
+  bpm: number;
+  columnCount: number;
+  grid: GridRow[];
+};
+
+const INSTRUMENT_TYPES: InstrumentType[] = ["Steel", "Nylon", "Bass", "Overdrive"];
+const FRETBOARD_COMPOSITION_FORMAT = "fretboard-grid-v1";
+
 export type MultiTrackItem = {
   index: number;
   name: string;
@@ -78,6 +90,40 @@ function buildEmptyGrid(strings: StringFreq[], columns: number): GridRow[] {
     label: string.label,
     cells: Array.from({ length: columns }, () => "-"),
   }));
+}
+
+function parseFretboardComposition(content: string): FretboardComposition | null {
+  try {
+    const parsed: unknown = JSON.parse(content);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const candidate = parsed as Partial<FretboardComposition>;
+    if (
+      candidate.version !== 1 ||
+      !INSTRUMENT_TYPES.includes(candidate.instrument as InstrumentType) ||
+      typeof candidate.tuningId !== "string" ||
+      typeof candidate.bpm !== "number" ||
+      candidate.bpm < 40 ||
+      candidate.bpm > 260 ||
+      !Number.isInteger(candidate.columnCount) ||
+      (candidate.columnCount ?? 0) < 1 ||
+      !Array.isArray(candidate.grid) ||
+      candidate.grid.length === 0 ||
+      candidate.grid.some((row) =>
+        !row ||
+        typeof row.label !== "string" ||
+        !Array.isArray(row.cells) ||
+        row.cells.length !== candidate.columnCount ||
+        row.cells.some((cell) => typeof cell !== "string")
+      )
+    ) {
+      return null;
+    }
+
+    return candidate as FretboardComposition;
+  } catch {
+    return null;
+  }
 }
 
 function parseAsciiTab(content: string, strings: StringFreq[]): GridRow[] | null {
@@ -215,6 +261,9 @@ export function TabStudioClient() {
   const [playhead, setPlayhead] = useState(-1);
   const [metronome, setMetronome] = useState(false);
   const [savedPartitures, setSavedPartitures] = useState<MusicPartitureRecord[]>([]);
+  const [activePartitureId, setActivePartitureId] = useState<string | null>(null);
+  const [compositionTitle, setCompositionTitle] = useState("");
+  const [savingComposition, setSavingComposition] = useState(false);
   const [loadingPartitures, setLoadingPartitures] = useState(false);
   const [pastedAscii, setPastedAscii] = useState("");
   const [showPasteImport, setShowPasteImport] = useState(false);
@@ -410,10 +459,14 @@ export function TabStudioClient() {
   useEffect(() => {
     if (!selectedSongId) {
       setSavedPartitures([]);
+      setActivePartitureId(null);
+      setCompositionTitle("");
       return;
     }
 
     let cancelled = false;
+    setActivePartitureId(null);
+    setCompositionTitle("");
     setLoadingPartitures(true);
     void fetchPartitures(selectedSongId)
       .then((payload) => {
@@ -581,13 +634,54 @@ export function TabStudioClient() {
   }
 
   function loadPartiture(partiture: MusicPartitureRecord) {
-    const parsed = parseAsciiTab(partiture.content, strings);
-    if (!parsed) {
-      toast.error("Could not parse this partiture as ASCII tab");
+    const composition = partiture.format === FRETBOARD_COMPOSITION_FORMAT
+      ? parseFretboardComposition(partiture.content)
+      : null;
+
+    if (partiture.format === FRETBOARD_COMPOSITION_FORMAT && !composition) {
+      toast.error(`Could not load "${partiture.title}" — its composition data is invalid`);
       return;
     }
-    setGrid(parsed);
-    setColumnCount(parsed[0]?.cells.length || 16);
+
+    if (composition) {
+      const tuningOptions = composition.instrument === "Bass" ? BASS_TUNINGS : GUITAR_TUNINGS;
+      const tuning = tuningOptions.find((option) => option.id === composition.tuningId);
+      if (!tuning) {
+        toast.error(`Could not load "${partiture.title}" — its tuning is unavailable`);
+        return;
+      }
+
+      const targetStrings = stringsFromTuning(tuning);
+      const restoredGrid = targetStrings.map((string) => {
+        const row = composition.grid.find((item) => item.label.toLowerCase() === string.label.toLowerCase());
+        return {
+          label: string.label,
+          cells: row ? [...row.cells] : Array.from({ length: composition.columnCount }, () => "-"),
+        };
+      });
+
+      setInstrument(composition.instrument);
+      setTuningId(composition.tuningId);
+      setBpm(composition.bpm);
+      setGrid(restoredGrid);
+      setColumnCount(composition.columnCount);
+    } else {
+      const legacyInstrument = partiture.instrument === "bass" ? "Bass" : "Steel";
+      const legacyTuningOptions = legacyInstrument === "Bass" ? BASS_TUNINGS : GUITAR_TUNINGS;
+      const legacyTuning = legacyTuningOptions[0];
+      const parsed = parseAsciiTab(partiture.content, stringsFromTuning(legacyTuning));
+      if (!parsed) {
+        toast.error("Could not parse this partiture as ASCII tab");
+        return;
+      }
+      setInstrument(legacyInstrument);
+      setTuningId(legacyTuning.id);
+      setGrid(parsed);
+      setColumnCount(parsed[0]?.cells.length || 16);
+    }
+
+    setActivePartitureId(partiture.id);
+    setCompositionTitle(partiture.title);
     toast.success(`Loaded "${partiture.title}"`);
   }
 
@@ -595,6 +689,10 @@ export function TabStudioClient() {
     if (!confirm(`Delete "${partiture.title}"?`)) return;
     try {
       await deletePartiture(partiture.id);
+      if (activePartitureId === partiture.id) {
+        setActivePartitureId(null);
+        setCompositionTitle("");
+      }
       toast.success(`Deleted "${partiture.title}"`);
       if (selectedSongId) {
         const payload = await fetchPartitures(selectedSongId);
@@ -667,19 +765,46 @@ export function TabStudioClient() {
       return;
     }
 
+    if (savingComposition) return;
+
+    const currentPartiture = savedPartitures.find((partiture) => partiture.id === activePartitureId);
+    const partitureInstrument = instrument === "Bass" ? "bass" : "guitar";
+    const slot = currentPartiture?.instrument === partitureInstrument
+      ? currentPartiture.slot
+      : Math.max(0, ...savedPartitures
+          .filter((partiture) => partiture.instrument === partitureInstrument)
+          .map((partiture) => partiture.slot)) + 1;
+    const title = compositionTitle.trim() || currentPartiture?.title || `${instrument} composition ${new Date().toLocaleDateString()}`;
+    const composition: FretboardComposition = {
+      version: 1,
+      instrument,
+      tuningId: activeTuning.id,
+      bpm,
+      columnCount: grid[0]?.cells.length ?? columnCount,
+      grid,
+    };
+
+    setSavingComposition(true);
     try {
-      await createPartiture(selectedSongId, {
-        instrument: instrument === "Bass" ? "bass" : "guitar",
-        slot: instrument === "Bass" ? 2 : 1,
-        title: `${instrument} tab (${activeTuning.name}) ${new Date().toLocaleDateString()}`,
-        content: asciiPreview,
-        format: "text-tab",
-      });
-      toast.success("Tab saved to song partitures");
-      const payload = await fetchPartitures(selectedSongId);
-      setSavedPartitures(payload.partitures);
+      const payload = {
+        instrument: partitureInstrument,
+        slot,
+        title,
+        content: JSON.stringify(composition),
+        format: FRETBOARD_COMPOSITION_FORMAT,
+      };
+      const result = currentPartiture
+        ? await updatePartiture(currentPartiture.id, payload)
+        : await createPartiture(selectedSongId, payload);
+      setActivePartitureId(result.partiture.id);
+      setCompositionTitle(result.partiture.title);
+      const refreshed = await fetchPartitures(selectedSongId);
+      setSavedPartitures(refreshed.partitures);
+      toast.success(currentPartiture ? "Composition progress saved" : "Composition saved to this song");
     } catch (error) {
       toast.error((error as Error).message);
+    } finally {
+      setSavingComposition(false);
     }
   }
 
@@ -926,10 +1051,6 @@ export function TabStudioClient() {
             <Download className="mr-1 inline h-3.5 w-3.5" />
             Export
           </button>
-          <button onClick={() => void saveToSongPartiture()} className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest" type="button">
-            <Save className="mr-1 inline h-3.5 w-3.5 text-[var(--color-brass)]" />
-            Save Partiture
-          </button>
         </div>
       </div>
 
@@ -1044,7 +1165,7 @@ export function TabStudioClient() {
           <div className="my-3 border-t border-white/8" />
 
           <div className="flex items-center justify-between">
-            <div className="eyebrow">Song Partitures · {savedPartitures.length}</div>
+            <div className="eyebrow">Saved Compositions · {savedPartitures.length}</div>
             <Music className="h-4 w-4 text-[var(--color-brass)]" />
           </div>
           {loadingPartitures ? (
@@ -1058,7 +1179,9 @@ export function TabStudioClient() {
               {savedPartitures.map((partiture) => (
                 <div
                   key={partiture.id}
-                  className="song-list-item flex items-center gap-2 rounded-[1rem] px-3 py-2"
+                  className={`song-list-item flex items-center gap-2 rounded-[1rem] px-3 py-2 ${
+                    activePartitureId === partiture.id ? "border border-[var(--color-mint)]/40 bg-[var(--color-mint)]/5" : ""
+                  }`}
                 >
                   <button
                     className="min-w-0 flex-1 text-left"
@@ -1093,13 +1216,47 @@ export function TabStudioClient() {
             <div>
               <div className="eyebrow">Interactive Fretboard Grid</div>
               <h3 className="text-xl font-black">
-                {barCount} bars · {gridStepCount} beats · {strings.length} strings
+                {barCount} bars · {gridStepCount} steps · {strings.length} strings
               </h3>
               <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-sand-2)]">
                 Enter notes or techniques in each beat · 3h5 hammer-on · 5p3 pull-off · 7s9 slide · 5b7 bend · ~ vibrato · x dead note
               </p>
             </div>
             <Volume2 className="h-4 w-4 text-[var(--color-brass)] opacity-70" />
+          </div>
+
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <input
+              value={compositionTitle}
+              onChange={(event) => setCompositionTitle(event.target.value)}
+              className="field min-w-48 flex-1 py-2 text-sm"
+              maxLength={100}
+              placeholder={`${instrument} composition name`}
+              aria-label="Composition name"
+            />
+            {activePartitureId ? (
+              <button
+                onClick={() => {
+                  setActivePartitureId(null);
+                  setCompositionTitle("");
+                }}
+                className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest"
+                type="button"
+                disabled={!selectedSongId || savingComposition}
+              >
+                Save as new
+              </button>
+            ) : null}
+            <button
+              onClick={() => void saveToSongPartiture()}
+              className="glass-pill px-3 py-2 text-[10px] font-black uppercase tracking-widest disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+              disabled={!selectedSongId || savingComposition}
+              title={selectedSongId ? "Save this instrument composition to the active song" : "Select a song to save this composition"}
+            >
+              <Save className="mr-1 inline h-3.5 w-3.5 text-[var(--color-brass)]" />
+              {savingComposition ? "Saving..." : activePartitureId ? "Save Progress" : "Save Composition"}
+            </button>
           </div>
 
           <div ref={gridViewportRef} className="relative overflow-x-auto rounded-[1.25rem] border border-white/8 bg-black/20 p-3">
