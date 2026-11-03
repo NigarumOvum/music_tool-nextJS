@@ -30,7 +30,6 @@ import { toast } from "sonner";
 import { useAudio } from "@/components/music/audio-provider";
 import { useProductionSong } from "@/components/music/production-song-context";
 import { FileUploadButton } from "@/components/music/file-upload-button";
-import { InteractiveFretboard } from "@/components/music/interactive-fretboard";
 import { createPartiture, deletePartiture, downloadBlob, fetchPartitures } from "@/lib/music/client";
 import { readStoredRaw, removeStored, useCurrentUserId, userKey, writeStored } from "@/lib/persist";
 import type { MusicPartitureRecord } from "@/lib/music/types";
@@ -220,8 +219,6 @@ export function TabStudioClient() {
   const [pastedAscii, setPastedAscii] = useState("");
   const [showPasteImport, setShowPasteImport] = useState(false);
   const [draftAvailable, setDraftAvailable] = useState(false);
-  const [scaleOverlay, setScaleOverlay] = useState<"none" | "major" | "minor" | "pentatonic" | "blues">("none");
-  const [rootNote, setRootNote] = useState("C");
   const [gridViewportWidth, setGridViewportWidth] = useState(0);
   const userId = useCurrentUserId();
   const draftKey = userId && selectedSongId
@@ -248,7 +245,8 @@ export function TabStudioClient() {
 
   const asciiPreview = useMemo(() => gridToAscii(grid, instrument, bpm, activeTuning.name), [grid, instrument, bpm, activeTuning.name]);
   const gridStepCount = grid[0]?.cells.length ?? columnCount;
-  const stepWidth = Math.max(20, Math.min(40, (gridViewportWidth - 64) / gridStepCount));
+  const barCount = Math.ceil(gridStepCount / 4);
+  const stepWidth = Math.max(34, Math.min(48, (gridViewportWidth - 64) / gridStepCount));
 
   useEffect(() => {
     const viewport = gridViewportRef.current;
@@ -985,24 +983,10 @@ export function TabStudioClient() {
           </div>
         </div>
       )}
-      <aside className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <section className="panel glass-shine rounded-[1.75rem] p-4">
-          <div className="eyebrow mb-3">Interactive Fretboard</div>
-          <InteractiveFretboard
-            mode={instrument === "Bass" ? "bass" : "guitar"}
-            tuning={activeTuning}
-            onTuningChange={(tuning) => setTuningId(tuning.id)}
-            showControls={false}
-            scaleOverlay={scaleOverlay}
-            onScaleChange={(scale) => setScaleOverlay(scale)}
-            rootNote={rootNote}
-            className="scale-90 origin-top"
-          />
-        </section>
-
+      <aside className="grid gap-4">
         <section className="panel glass-shine rounded-[1.75rem] p-4">
           <div className="flex items-center justify-between">
-            <div className="eyebrow">ASCII Preview</div>
+            <div className="eyebrow">Tab Preview</div>
             <button
               onClick={() => void copyAsciiPreview()}
               className="glass-pill px-2.5 py-1 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-mint)]"
@@ -1109,33 +1093,46 @@ export function TabStudioClient() {
             <div>
               <div className="eyebrow">Interactive Fretboard Grid</div>
               <h3 className="text-xl font-black">
-                {columnCount} steps · {strings.length} strings · {activeTuning.name}
+                {barCount} bars · {gridStepCount} beats · {strings.length} strings
               </h3>
               <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-sand-2)]">
-                Techniques: 3h5 hammer-on · 5p3 pull-off · 7s9 slide · 5b7 bend · ~ vibrato · x dead note
+                Enter notes or techniques in each beat · 3h5 hammer-on · 5p3 pull-off · 7s9 slide · 5b7 bend · ~ vibrato · x dead note
               </p>
             </div>
             <Volume2 className="h-4 w-4 text-[var(--color-brass)] opacity-70" />
           </div>
 
           <div ref={gridViewportRef} className="relative overflow-x-auto rounded-[1.25rem] border border-white/8 bg-black/20 p-3">
-            {/* Step / Measure Headers */}
+            <div className="mb-1 flex min-w-max pl-16" aria-hidden="true">
+              {Array.from({ length: barCount }, (_, barIdx) => (
+                <div
+                  key={barIdx}
+                  className="border-l border-[var(--color-brass)]/40 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-[var(--color-brass)]"
+                  style={{ width: `${Math.min(4, gridStepCount - barIdx * 4) * stepWidth}px` }}
+                >
+                  Bar {barIdx + 1}
+                </div>
+              ))}
+            </div>
+
             <div className="mb-2 flex min-w-max pl-16">
               {grid[0]?.cells.map((_, columnIdx) => (
                 <button
                   key={columnIdx}
-                  className={`text-center text-[10px] font-black uppercase tracking-wider transition ${
+                  className={`border-l text-center text-xs font-black transition ${
                     playhead === columnIdx
-                      ? "scale-110 font-bold text-[var(--color-mint)]"
+                      ? "border-[var(--color-mint)] text-[var(--color-mint)]"
                       : columnIdx % 4 === 0
-                      ? "text-white"
-                      : "text-[var(--color-sand-2)]"
+                      ? "border-[var(--color-brass)]/40 text-white"
+                      : "border-white/10 text-[var(--color-sand-2)]"
                   }`}
                   style={{ width: `${stepWidth}px` }}
                   onClick={() => setPlayhead(columnIdx)}
                   type="button"
+                  aria-label={`Set playhead to bar ${Math.floor(columnIdx / 4) + 1}, beat ${(columnIdx % 4) + 1}`}
+                  aria-pressed={playhead === columnIdx}
                 >
-                  {columnIdx + 1}
+                  {columnIdx % 4 + 1}
                 </button>
               ))}
             </div>
@@ -1182,12 +1179,12 @@ export function TabStudioClient() {
                     {grid.map((row, rowIdx) => (
                       <div key={row.label} className="flex h-9 items-center justify-center">
                         <input
-                          className={`h-7 w-7 rounded-md border text-center text-xs font-black outline-none transition ${
+                          className={`h-8 rounded-md border text-center text-[11px] font-black outline-none transition focus:ring-2 focus:ring-[var(--color-mint)]/60 ${
                             row.cells[columnIdx] === "-"
-                              ? "border-transparent bg-transparent text-zinc-600 focus:border-white/30 focus:bg-zinc-800"
-                              : "border-white bg-white text-black shadow-md"
+                              ? "border-white/10 bg-white/[0.03] text-[var(--color-sand-1)] placeholder:text-zinc-600 focus:border-[var(--color-mint)]/50 focus:bg-zinc-800"
+                              : "border-[var(--color-mint)]/50 bg-[var(--color-mint)]/10 text-white"
                           }`}
-                          style={{ width: `${Math.max(14, stepWidth - 8)}px` }}
+                          style={{ width: `${stepWidth - 4}px` }}
                           value={row.cells[columnIdx] === "-" ? "" : row.cells[columnIdx]}
                           onChange={(event) => {
                             const next = event.target.value.replace(/[^0-9hpsb~x/\\-]/g, "") || "-";
@@ -1205,6 +1202,7 @@ export function TabStudioClient() {
                             );
                           }}
                           placeholder="-"
+                          aria-label={`${row.label} string, bar ${Math.floor(columnIdx / 4) + 1}, beat ${(columnIdx % 4) + 1}`}
                         />
                       </div>
                     ))}
