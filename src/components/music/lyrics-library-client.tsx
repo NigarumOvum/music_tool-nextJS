@@ -43,7 +43,7 @@ function lyricsStats(text: string) {
   return { lines, words, syllables, estSeconds };
 }
 
-export function LyricsLibraryClient() {
+export function LyricsLibraryClient({ showLibrary = true }: { showLibrary?: boolean }) {
   const { selectedSongId: hubSongId, setSelectedSongId: setHubSongId } = useProductionSong();
   const [songs, setSongs] = useState<MusicSongSummary[]>([]);
   const [projects, setProjects] = useState<MusicProjectRecord[]>([]);
@@ -376,26 +376,28 @@ export function LyricsLibraryClient() {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
-      <StudioSidebar
-        songs={songs}
-        projects={projects}
-        selectedSongId={selectedSongId}
-        search={search}
-        onSearchChange={setSearch}
-        onSearchSubmit={() => {}}
-        onRefresh={() => void loadLibrary()}
-        onNew={() => void createNewSong()}
-        onSelectSong={(id) => void loadSong(id)}
-        onDeleteSong={(song) => removeSong(song)}
-        catalogMode
-        genre={genre}
-        onGenreChange={setGenre}
-        language={language}
-        onLanguageChange={setLanguage}
-      />
+    <div className={showLibrary ? "grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]" : "min-w-0"}>
+      {showLibrary && (
+        <StudioSidebar
+          songs={songs}
+          projects={projects}
+          selectedSongId={selectedSongId}
+          search={search}
+          onSearchChange={setSearch}
+          onSearchSubmit={() => {}}
+          onRefresh={() => void loadLibrary()}
+          onNew={() => void createNewSong()}
+          onSelectSong={(id) => void loadSong(id)}
+          onDeleteSong={(song) => removeSong(song)}
+          catalogMode
+          genre={genre}
+          onGenreChange={setGenre}
+          language={language}
+          onLanguageChange={setLanguage}
+        />
+      )}
 
-      <section className="space-y-6">
+      <section className={showLibrary ? "space-y-6" : "min-w-0 space-y-6"}>
         {lyricsDraftAvailable && selectedSong ? (
           <div className="panel flex flex-wrap items-center justify-between gap-2 rounded-[1.25rem] border border-[var(--color-brass)]/30 bg-[var(--color-brass)]/5 p-3">
             <p className="text-xs text-[var(--color-sand-1)]">
@@ -540,4 +542,8 @@ export function LyricsLibraryClient() {
       </Modal>
     </div>
   );
+}
+
+export function ProductionStudioLyricsClient() {
+  return <LyricsLibraryClient showLibrary={false} />;
 }

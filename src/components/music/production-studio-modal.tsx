@@ -25,7 +25,7 @@ import type { DictKey } from "@/lib/i18n/dictionaries";
 import type { MusicSongSummary, MusicProjectRecord } from "@/lib/music/types";
 
 const tabLoaders = {
-  lyrics: () => import("@/components/music/lyrics-library-client").then((module) => module.LyricsLibraryClient),
+  lyrics: () => import("@/components/music/lyrics-library-client").then((module) => module.ProductionStudioLyricsClient),
   "notation-audio": () => import("@/components/music/notation-audio-studio").then((module) => module.NotationAudioStudio),
   daw: () => import("@/components/music/daw-client").then((module) => module.DawClient),
 } as const;
