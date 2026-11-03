@@ -41,9 +41,11 @@ function playKarplusStrong(
   instrument: PluckInstrument,
   velocity: number,
   when: number,
+  duration?: number,
 ) {
   const sampleRate = audioContext.sampleRate;
   const ringSeconds = instrument.startsWith("bass") ? 2.4 : 1.8;
+  const noteDuration = Math.max(0.03, duration ?? ringSeconds);
   const length = Math.min(Math.ceil(sampleRate * ringSeconds), sampleRate * 3);
   const buffer = audioContext.createBuffer(1, length, sampleRate);
   const data = buffer.getChannelData(0);
@@ -75,13 +77,13 @@ function playKarplusStrong(
   const peak = (instrument.startsWith("bass") ? 0.38 : 0.28) * (0.35 + velocity * 0.65);
   gain.gain.setValueAtTime(0, when);
   gain.gain.linearRampToValueAtTime(peak, when + 0.004);
-  gain.gain.exponentialRampToValueAtTime(0.001, when + ringSeconds);
+  gain.gain.exponentialRampToValueAtTime(0.001, when + noteDuration);
 
   source.connect(filter);
   filter.connect(gain);
   gain.connect(out);
   source.start(when);
-  source.stop(when + ringSeconds + 0.05);
+  source.stop(when + noteDuration + 0.05);
 }
 
 export function playReferencePluck(
@@ -91,6 +93,7 @@ export function playReferencePluck(
   when = audioContext.currentTime,
   velocity = 0.85,
   out: AudioNode | null = null,
+  duration?: number,
 ) {
   if (frequency <= 0) return;
   const destination = out ?? audioContext.destination;
@@ -101,7 +104,8 @@ export function playReferencePluck(
     playSampledNote(audioContext, destination, PLUCK_TO_SAMPLE[instrument], midi, {
       when,
       velocity,
-      duration: instrument.startsWith("bass") ? 2.2 : 1.6,
+      duration: duration ?? (instrument.startsWith("bass") ? 2.2 : 1.6),
+      truncate: duration !== undefined,
     })
   ) {
     if (instrument === "bass" || instrument === "bass-pick") {
@@ -111,16 +115,16 @@ export function playReferencePluck(
       sub.frequency.setValueAtTime(frequency / 2, when);
       const subGain = audioContext.createGain();
       subGain.gain.setValueAtTime(0.1 * velocity, when);
-      subGain.gain.exponentialRampToValueAtTime(0.001, when + 1.5);
+      subGain.gain.exponentialRampToValueAtTime(0.001, when + Math.min(duration ?? 1.5, 1.5));
       sub.connect(subGain);
       subGain.connect(destination);
       sub.start(when);
-      sub.stop(when + 1.6);
+      sub.stop(when + Math.min(duration ?? 1.5, 1.5) + 0.1);
     }
     return;
   }
 
-  playKarplusStrong(audioContext, destination, frequency, instrument, velocity, when);
+  playKarplusStrong(audioContext, destination, frequency, instrument, velocity, when, duration);
 
   if (instrument === "bass" || instrument === "bass-pick") {
     const sub = audioContext.createOscillator();
@@ -128,10 +132,10 @@ export function playReferencePluck(
     sub.frequency.setValueAtTime(frequency / 2, when);
     const subGain = audioContext.createGain();
     subGain.gain.setValueAtTime(0.12 * velocity, when);
-    subGain.gain.exponentialRampToValueAtTime(0.001, when + 1.8);
+    subGain.gain.exponentialRampToValueAtTime(0.001, when + Math.min(duration ?? 1.8, 1.8));
     sub.connect(subGain);
     subGain.connect(destination);
     sub.start(when);
-    sub.stop(when + 1.9);
+    sub.stop(when + Math.min(duration ?? 1.8, 1.8) + 0.1);
   }
 }

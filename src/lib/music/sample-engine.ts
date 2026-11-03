@@ -146,6 +146,7 @@ export type SampledNoteOptions = {
   velocity?: number;
   /** Seconds the note should ring (sustained instruments hold + release). */
   duration?: number;
+  truncate?: boolean;
 };
 
 /**
@@ -161,7 +162,7 @@ export function playSampledNote(
 ): boolean {
   const when = options.when ?? ctx.currentTime;
   const velocity = Math.max(0, Math.min(1, options.velocity ?? 0.8));
-  const duration = Math.max(0.1, options.duration ?? 1.5);
+  const duration = Math.max(options.truncate ? 0.03 : 0.1, options.duration ?? 1.5);
 
   const { anchor, anchorMidi } = nearestAnchor(instrument, midi);
   const buffer = cacheFor(ctx).get(`${instrument}/${anchor}`);
@@ -174,7 +175,9 @@ export function playSampledNote(
 
   const sustained = SUSTAINED.has(instrument);
   const peak = 0.04 + velocity * 0.3;
-  const ring = sustained ? duration + 0.6 : Math.min(duration + 0.4, 3.5);
+  const ring = sustained
+    ? duration + 0.6
+    : Math.min(options.truncate ? duration : duration + 0.4, 3.5);
 
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, when);

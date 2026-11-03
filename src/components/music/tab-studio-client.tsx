@@ -31,8 +31,17 @@ import { useAudio } from "@/components/music/audio-provider";
 import { useProductionSong } from "@/components/music/production-song-context";
 import { FileUploadButton } from "@/components/music/file-upload-button";
 import { createPartiture, deletePartiture, downloadBlob, fetchPartitures, updatePartiture } from "@/lib/music/client";
-import { readStoredRaw, removeStored, useCurrentUserId, userKey, writeStored } from "@/lib/persist";
+import { readStoredRaw, useCurrentUserId, userKey, writeStored } from "@/lib/persist";
 import type { MusicPartitureRecord } from "@/lib/music/types";
+import {
+  NOTE_DIVISIONS,
+  reconcileTabGridRows,
+  secondsPerStep,
+  stepsPerBar,
+  stepsPerBeat,
+  type NoteDivision,
+  type TimeSignature,
+} from "@/lib/music/tab-grid";
 import { parseMidiFile, type MidiTrackData, type ParsedMidi } from "@/lib/music/midi-parser";
 import {
   BASS_TUNINGS,
@@ -59,13 +68,27 @@ type GridRow = {
 };
 
 type FretboardComposition = {
-  version: 1;
+  version: 1 | 2;
   instrument: InstrumentType;
   tuningId: string;
   bpm: number;
+  timeSignature: TimeSignature;
+  noteDivision: NoteDivision;
+  noteLength: number;
   columnCount: number;
   grid: GridRow[];
 };
+
+const TIME_SIGNATURES: TimeSignature[] = [
+  { numerator: 2, denominator: 4 },
+  { numerator: 3, denominator: 4 },
+  { numerator: 4, denominator: 4 },
+  { numerator: 5, denominator: 4 },
+  { numerator: 6, denominator: 8 },
+  { numerator: 7, denominator: 8 },
+  { numerator: 9, denominator: 8 },
+  { numerator: 12, denominator: 8 },
+];
 
 const INSTRUMENT_TYPES: InstrumentType[] = ["Steel", "Nylon", "Bass", "Overdrive"];
 const FRETBOARD_COMPOSITION_FORMAT = "fretboard-grid-v1";
@@ -74,6 +97,8 @@ export type MultiTrackItem = {
   index: number;
   name: string;
   notesCount: number;
+  instrument: InstrumentType;
+  tuningId: string;
   grid: GridRow[];
 };
 
@@ -98,13 +123,21 @@ function parseFretboardComposition(content: string): FretboardComposition | null
     if (!parsed || typeof parsed !== "object") return null;
 
     const candidate = parsed as Partial<FretboardComposition>;
+    const meter = candidate.timeSignature ?? { numerator: 4, denominator: 4 as const };
     if (
-      candidate.version !== 1 ||
+      (candidate.version !== 1 && candidate.version !== 2) ||
       !INSTRUMENT_TYPES.includes(candidate.instrument as InstrumentType) ||
       typeof candidate.tuningId !== "string" ||
       typeof candidate.bpm !== "number" ||
       candidate.bpm < 40 ||
       candidate.bpm > 260 ||
+      !TIME_SIGNATURES.some((signature) =>
+        signature.numerator === meter.numerator && signature.denominator === meter.denominator
+      ) ||
+      (candidate.noteDivision !== undefined &&
+        !NOTE_DIVISIONS.includes(candidate.noteDivision as NoteDivision)) ||
+      (candidate.noteLength !== undefined &&
+        ![50, 75, 100].includes(candidate.noteLength)) ||
       !Number.isInteger(candidate.columnCount) ||
       (candidate.columnCount ?? 0) < 1 ||
       !Array.isArray(candidate.grid) ||
@@ -120,7 +153,13 @@ function parseFretboardComposition(content: string): FretboardComposition | null
       return null;
     }
 
-    return candidate as FretboardComposition;
+    return {
+      ...candidate,
+      version: 2,
+      timeSignature: meter,
+      noteDivision: candidate.noteDivision ?? 16,
+      noteLength: candidate.noteLength ?? 100,
+    } as FretboardComposition;
   } catch {
     return null;
   }
@@ -144,22 +183,44 @@ function parseAsciiTab(content: string, strings: StringFreq[]): GridRow[] | null
   if (parsed.length === 0) return null;
 
   const columnCount = Math.max(...parsed.map((row) => row.cells.length));
-  return strings.map((string) => {
-    const found = parsed.find((row) => row.label.toLowerCase() === string.label.toLowerCase());
+  const usedRows = new Set<number>();
+  return strings.map((string, stringIndex) => {
+    let foundIndex = parsed.findIndex(
+      (row, index) => !usedRows.has(index) && row.label.toLowerCase() === string.label.toLowerCase(),
+    );
+    if (foundIndex < 0 && stringIndex < parsed.length && !usedRows.has(stringIndex)) {
+      foundIndex = stringIndex;
+    }
+    if (foundIndex < 0) {
+      return { label: string.label, cells: Array.from({ length: columnCount }, () => "-") };
+    }
+
+    usedRows.add(foundIndex);
+    const found = parsed[foundIndex];
     if (!found) {
       return { label: string.label, cells: Array.from({ length: columnCount }, () => "-") };
     }
-    while (found.cells.length < columnCount) found.cells.push("-");
-    return found;
+    const cells = found.cells.slice(0, columnCount);
+    while (cells.length < columnCount) cells.push("-");
+    return { label: string.label, cells };
   });
 }
 
-function gridToAscii(grid: GridRow[], instrument: string, bpm: number, tuningName: string) {
+function gridToAscii(
+  grid: GridRow[],
+  instrument: string,
+  bpm: number,
+  tuningName: string,
+  timeSignature: TimeSignature,
+  noteDivision: NoteDivision,
+  noteLength: number,
+) {
+  const barSteps = stepsPerBar(timeSignature, noteDivision);
   const lines = grid.map((row) => {
     const chunks: string[] = [];
-    for (let i = 0; i < row.cells.length; i += 4) {
+    for (let i = 0; i < row.cells.length; i += barSteps) {
       chunks.push(
-        row.cells.slice(i, i + 4).map((cell) => (cell === "-" || cell === "" ? "-" : cell)).join("-"),
+        row.cells.slice(i, i + barSteps).map((cell) => (cell === "-" || cell === "" ? "-" : cell)).join("-"),
       );
     }
     return `${row.label.padEnd(2, " ")} |${chunks.join("|")}|`;
@@ -168,6 +229,8 @@ function gridToAscii(grid: GridRow[], instrument: string, bpm: number, tuningNam
     `Tab Studio Export (${instrument})`,
     `Tuning: ${tuningName}`,
     `Tempo: ${bpm} BPM`,
+    `Time signature: ${timeSignature.numerator}/${timeSignature.denominator}`,
+    `Grid: 1/${noteDivision} notes · Note length: ${noteLength}%`,
     "",
     ...lines,
     "",
@@ -258,6 +321,9 @@ export function TabStudioClient() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loopPlayback, setLoopPlayback] = useState(false);
   const [bpm, setBpm] = useState(120);
+  const [timeSignature, setTimeSignature] = useState<TimeSignature>({ numerator: 4, denominator: 4 });
+  const [noteDivision, setNoteDivision] = useState<NoteDivision>(16);
+  const [noteLength, setNoteLength] = useState(100);
   const [playhead, setPlayhead] = useState(-1);
   const [metronome, setMetronome] = useState(false);
   const [savedPartitures, setSavedPartitures] = useState<MusicPartitureRecord[]>([]);
@@ -267,14 +333,12 @@ export function TabStudioClient() {
   const [loadingPartitures, setLoadingPartitures] = useState(false);
   const [pastedAscii, setPastedAscii] = useState("");
   const [showPasteImport, setShowPasteImport] = useState(false);
-  const [draftAvailable, setDraftAvailable] = useState(false);
   const [gridViewportWidth, setGridViewportWidth] = useState(0);
   const userId = useCurrentUserId();
   const draftKey = userId && selectedSongId
     ? userKey(userId, `tab_studio_draft:${selectedSongId}`)
     : TAB_DRAFT_KEY;
   const lastWrittenDraftRef = useRef<string | null>(null);
-  const draftConsumedRef = useRef(false);
 
   // Multi-track MIDI separation state
   const [multiTracks, setMultiTracks] = useState<MultiTrackItem[]>([]);
@@ -291,10 +355,42 @@ export function TabStudioClient() {
   const strings = useMemo(() => stringsFromTuning(activeTuning), [activeTuning]);
 
   const [grid, setGrid] = useState<GridRow[]>(() => buildEmptyGrid(stringsFromTuning(GUITAR_TUNINGS[0]), 16));
+  const measureSteps = stepsPerBar(timeSignature, noteDivision);
+  const beatSteps = stepsPerBeat(timeSignature, noteDivision);
 
-  const asciiPreview = useMemo(() => gridToAscii(grid, instrument, bpm, activeTuning.name), [grid, instrument, bpm, activeTuning.name]);
+  function changeInstrument(nextInstrument: InstrumentType) {
+    const nextOptions = nextInstrument === "Bass" ? BASS_TUNINGS : GUITAR_TUNINGS;
+    const nextTuning = nextOptions.find((preset) => preset.id === tuningId) ?? nextOptions[0];
+    const nextStrings = stringsFromTuning(nextTuning);
+
+    setInstrument(nextInstrument);
+    setTuningId(nextTuning.id);
+    setGrid((current) => reconcileTabGridRows(
+      current,
+      nextStrings.map((string) => string.label),
+      current[0]?.cells.length || columnCount,
+    ));
+  }
+
+  function changeTuning(nextTuningId: string) {
+    const nextTuning = tuningOptions.find((preset) => preset.id === nextTuningId);
+    if (!nextTuning) return;
+
+    const nextStrings = stringsFromTuning(nextTuning);
+    setTuningId(nextTuning.id);
+    setGrid((current) => reconcileTabGridRows(
+      current,
+      nextStrings.map((string) => string.label),
+      current[0]?.cells.length || columnCount,
+    ));
+  }
+
+  const asciiPreview = useMemo(
+    () => gridToAscii(grid, instrument, bpm, activeTuning.name, timeSignature, noteDivision, noteLength),
+    [grid, instrument, bpm, activeTuning.name, timeSignature, noteDivision, noteLength],
+  );
   const gridStepCount = grid[0]?.cells.length ?? columnCount;
-  const barCount = Math.ceil(gridStepCount / 4);
+  const barCount = Math.ceil(gridStepCount / measureSteps);
   const stepWidth = Math.max(34, Math.min(48, (gridViewportWidth - 64) / gridStepCount));
 
   useEffect(() => {
@@ -307,33 +403,6 @@ export function TabStudioClient() {
     observer.observe(viewport);
     return () => observer.disconnect();
   }, []);
-
-  // Adjust tuning selection when instrument changes
-  useEffect(() => {
-    if (instrument === "Bass") {
-      if (!BASS_TUNINGS.some((t) => t.id === tuningId)) {
-        setTuningId(BASS_TUNINGS[0].id);
-      }
-    } else {
-      if (!GUITAR_TUNINGS.some((t) => t.id === tuningId)) {
-        setTuningId(GUITAR_TUNINGS[0].id);
-      }
-    }
-  }, [instrument, tuningId]);
-
-  // Update grid strings if tuning changes
-  useEffect(() => {
-    setGrid((current) => {
-      const cols = current[0]?.cells.length || columnCount;
-      if (current.length === strings.length) {
-        return strings.map((s, idx) => ({
-          label: s.label,
-          cells: current[idx]?.cells || Array.from({ length: cols }, () => "-"),
-        }));
-      }
-      return buildEmptyGrid(strings, cols);
-    });
-  }, [strings, columnCount]);
 
   // Preload real string samples in the background; grid keeps playing live regardless.
   useEffect(() => {
@@ -367,7 +436,7 @@ export function TabStudioClient() {
     return curve;
   }, []);
 
-  const playPluck = useCallback((fret: number, stringIdx: number, time: number) => {
+  const playPluck = useCallback((fret: number, stringIdx: number, time: number, duration: number) => {
     if (fret < 0 || Number.isNaN(fret) || stringIdx >= strings.length) return;
     const ctx = getAudioContext();
     const freq = strings[stringIdx].base * 2 ** (fret / 12);
@@ -387,7 +456,7 @@ export function TabStudioClient() {
     // Shared pluck engine: real samples when loaded, Karplus-Strong string otherwise.
     const pluck: PluckInstrument =
       instrument === "Nylon" ? "guitar-nylon" : instrument === "Bass" ? "bass" : "guitar-steel";
-    playReferencePluck(ctx, freq, pluck, time, 0.9, masterGain);
+    playReferencePluck(ctx, freq, pluck, time, 0.9, masterGain, duration);
   }, [createOverdriveCurve, getAudioContext, instrument, strings]);
 
   const playMetronomeClick = useCallback((time: number, accent: boolean) => {
@@ -404,20 +473,20 @@ export function TabStudioClient() {
 
     const ctx = getAudioContext();
     void ctx.resume();
-    const stepDuration = 60 / bpm / 4;
+    const stepDuration = secondsPerStep(bpm, noteDivision);
     const LOOKAHEAD_SECONDS = 0.2;
     let currentStep = Math.max(0, playhead);
     let nextStepTime = ctx.currentTime + 0.1;
 
     const scheduleStep = (step: number, time: number) => {
       setPlayhead(step);
-      if (metronome) {
-        playMetronomeClick(time, step % 4 === 0);
+      if (metronome && step % beatSteps === 0) {
+        playMetronomeClick(time, step % measureSteps === 0);
       }
       grid.forEach((row, stringIdx) => {
         const cell = row.cells[step];
         if (cell !== "-" && cell !== "") {
-          playPluck(parseInt(cell, 10), stringIdx, time);
+          playPluck(parseInt(cell, 10), stringIdx, time, stepDuration * (noteLength / 100));
         }
       });
     };
@@ -449,7 +518,21 @@ export function TabStudioClient() {
       if (schedulerRef.current !== null) window.clearInterval(schedulerRef.current);
       schedulerRef.current = null;
     };
-  }, [isPlaying, bpm, grid, loopPlayback, metronome, getAudioContext, playMetronomeClick, playPluck, playhead]);
+  }, [
+    isPlaying,
+    bpm,
+    noteDivision,
+    noteLength,
+    beatSteps,
+    measureSteps,
+    grid,
+    loopPlayback,
+    metronome,
+    getAudioContext,
+    playMetronomeClick,
+    playPluck,
+    playhead,
+  ]);
 
   useEffect(() => () => {
     if (schedulerRef.current !== null) window.clearInterval(schedulerRef.current);
@@ -484,96 +567,122 @@ export function TabStudioClient() {
     };
   }, [selectedSongId]);
 
-  // Track the stored draft for this song/user. Autosave writes every change
-  // (debounced) unless an untouched draft is waiting for restore/discard.
   useEffect(() => {
-    draftConsumedRef.current = false;
     const raw = readStoredRaw(draftKey);
-    lastWrittenDraftRef.current = raw;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDraftAvailable(Boolean(raw));
+    if (!raw) return;
+
+    try {
+      const draft = JSON.parse(raw) as {
+        grid?: GridRow[];
+        bpm?: number;
+        instrument?: InstrumentType;
+        tuningId?: string;
+        timeSignature?: TimeSignature;
+        noteDivision?: number;
+        noteLength?: number;
+      };
+      if (
+        !Array.isArray(draft.grid) ||
+        draft.grid.length === 0 ||
+        draft.grid.some((row) =>
+          !row ||
+          typeof row.label !== "string" ||
+          !Array.isArray(row.cells) ||
+          row.cells.some((cell) => typeof cell !== "string")
+        )
+      ) {
+        toast.error("Could not restore the local tab draft");
+        return;
+      }
+
+      const restoredInstrument = draft.instrument && INSTRUMENT_TYPES.includes(draft.instrument)
+        ? draft.instrument
+        : "Steel";
+      const tuningOptions = restoredInstrument === "Bass" ? BASS_TUNINGS : GUITAR_TUNINGS;
+      const tuning = tuningOptions.find((preset) => preset.id === draft.tuningId) ?? tuningOptions[0];
+      const restoredStrings = stringsFromTuning(tuning);
+      const cols = Math.max(1, ...draft.grid.map((row) => row.cells.length));
+      const restoredMeter = TIME_SIGNATURES.find((signature) =>
+        signature.numerator === draft.timeSignature?.numerator &&
+        signature.denominator === draft.timeSignature?.denominator
+      ) ?? { numerator: 4, denominator: 4 as const };
+      const restoredDivision = NOTE_DIVISIONS.includes(draft.noteDivision as NoteDivision)
+        ? draft.noteDivision as NoteDivision
+        : 16;
+
+      // Local recovery is silent so opening the studio does not interrupt editing.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setInstrument(restoredInstrument);
+      setTuningId(tuning.id);
+      setGrid(reconcileTabGridRows(
+        draft.grid,
+        restoredStrings.map((string) => string.label),
+        cols,
+      ));
+      setColumnCount(cols);
+      if (typeof draft.bpm === "number" && draft.bpm >= 40 && draft.bpm <= 260) setBpm(draft.bpm);
+      setTimeSignature(restoredMeter);
+      setNoteDivision(restoredDivision);
+      if (draft.noteLength && [50, 75, 100].includes(draft.noteLength)) setNoteLength(draft.noteLength);
+    } catch {
+      toast.error("Could not restore the local tab draft");
+    }
+  }, [draftKey]);
+
+  // Keep a quiet local recovery copy without interrupting the workspace.
+  useEffect(() => {
+    lastWrittenDraftRef.current = null;
   }, [draftKey]);
 
   const draftSnapshot = useMemo(
-    () => JSON.stringify({ grid, columnCount, instrument, tuningId, bpm }),
-    [grid, columnCount, instrument, tuningId, bpm],
+    () => JSON.stringify({
+      grid,
+      columnCount,
+      instrument,
+      tuningId,
+      bpm,
+      timeSignature,
+      noteDivision,
+      noteLength,
+    }),
+    [grid, columnCount, instrument, tuningId, bpm, timeSignature, noteDivision, noteLength],
   );
 
   useEffect(() => {
-    if (draftAvailable && !draftConsumedRef.current) return;
     if (lastWrittenDraftRef.current === draftSnapshot) return;
     const timer = window.setTimeout(() => {
       writeStored(draftKey, JSON.parse(draftSnapshot));
       lastWrittenDraftRef.current = draftSnapshot;
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [draftSnapshot, draftKey, draftAvailable]);
+  }, [draftSnapshot, draftKey]);
 
   // Studio exit confirmation ("Save & exit") flushes a local draft of the grid.
   useEffect(() => {
     const flushDraft = () => {
       writeStored(draftKey, JSON.parse(draftSnapshot));
       lastWrittenDraftRef.current = draftSnapshot;
-      setDraftAvailable(true);
       toast.success("Tab draft saved locally");
     };
     window.addEventListener("production-studio:save-request", flushDraft);
     return () => window.removeEventListener("production-studio:save-request", flushDraft);
   }, [draftSnapshot, draftKey]);
 
-  function restoreDraft() {
-    try {
-      const raw = readStoredRaw(draftKey);
-      if (!raw) return;
-      const draft = JSON.parse(raw) as { grid?: GridRow[]; bpm?: number };
-      if (!Array.isArray(draft.grid) || draft.grid.length === 0) {
-        toast.error("Saved draft is empty");
-        return;
-      }
-      const cols = draft.grid[0]?.cells.length || 16;
-      // Reconcile with the active tuning by string label so switching
-      // tunings doesn't corrupt the restored grid.
-      const reconciled = strings.map((s) => {
-        const found = draft.grid!.find((row) => row.label.toLowerCase() === s.label.toLowerCase());
-        if (!found) return { label: s.label, cells: Array.from({ length: cols }, () => "-") };
-        const cells = [...found.cells];
-        while (cells.length < cols) cells.push("-");
-        return { label: s.label, cells: cells.slice(0, cols) };
-      });
-      setGrid(reconciled);
-      setColumnCount(cols);
-      if (typeof draft.bpm === "number" && draft.bpm >= 40 && draft.bpm <= 260) setBpm(draft.bpm);
-      setMultiTracks([]);
-      draftConsumedRef.current = true;
-      setDraftAvailable(false);
-      toast.success("Draft restored — changes keep autosaving");
-    } catch {
-      toast.error("Could not restore draft");
-    }
-  }
-
-  function discardDraft() {
-    removeStored(draftKey);
-    lastWrittenDraftRef.current = draftSnapshot;
-    draftConsumedRef.current = true;
-    setDraftAvailable(false);
-    toast.message("Draft discarded");
-  }
-
-  function addColumns(count = 4) {
+  function addBar() {
     setGrid((current) => current.map((row) => ({
       ...row,
-      cells: [...row.cells, ...Array.from({ length: count }, () => "-")],
+      cells: [...row.cells, ...Array.from({ length: measureSteps }, () => "-")],
     })));
-    setColumnCount((current) => current + count);
+    setColumnCount((current) => current + measureSteps);
   }
 
-  function removeColumns(count = 4) {
-    setGrid((current) => current.map((row) => ({
-      ...row,
-      cells: row.cells.slice(0, Math.max(4, row.cells.length - count)),
-    })));
-    setColumnCount((current) => Math.max(4, current - count));
+  function removeBar() {
+    const targetSteps = Math.max(
+      measureSteps,
+      (Math.ceil(gridStepCount / measureSteps) - 1) * measureSteps,
+    );
+    setGrid((current) => current.map((row) => ({ ...row, cells: row.cells.slice(0, targetSteps) })));
+    setColumnCount(targetSteps);
   }
 
   function clearGrid() {
@@ -604,13 +713,16 @@ export function TabStudioClient() {
       toast.error("Move playhead to a measure first by playing or scrubbing");
       return;
     }
+    const measureStart = Math.floor(playhead / measureSteps) * measureSteps;
     setGrid((current) => current.map((row) => {
-      const value = row.cells[playhead] ?? "-";
       const cells = [...row.cells];
-      cells.splice(playhead + 1, 0, value);
+      const measure = cells.slice(measureStart, measureStart + measureSteps);
+      while (measure.length < measureSteps) measure.push("-");
+      cells.splice(measureStart + measureSteps, 0, ...measure);
       return { ...row, cells };
     }));
-    setColumnCount((current) => current + 1);
+    setColumnCount((current) => current + measureSteps);
+    toast.success(`Duplicated bar ${Math.floor(playhead / measureSteps) + 1}`);
   }
 
   function insertChord(chord: string) {
@@ -652,18 +764,18 @@ export function TabStudioClient() {
       }
 
       const targetStrings = stringsFromTuning(tuning);
-      const restoredGrid = targetStrings.map((string) => {
-        const row = composition.grid.find((item) => item.label.toLowerCase() === string.label.toLowerCase());
-        return {
-          label: string.label,
-          cells: row ? [...row.cells] : Array.from({ length: composition.columnCount }, () => "-"),
-        };
-      });
 
       setInstrument(composition.instrument);
       setTuningId(composition.tuningId);
       setBpm(composition.bpm);
-      setGrid(restoredGrid);
+      setTimeSignature(composition.timeSignature);
+      setNoteDivision(composition.noteDivision);
+      setNoteLength(composition.noteLength);
+      setGrid(reconcileTabGridRows(
+        composition.grid,
+        targetStrings.map((string) => string.label),
+        composition.columnCount,
+      ));
       setColumnCount(composition.columnCount);
     } else {
       const legacyInstrument = partiture.instrument === "bass" ? "Bass" : "Steel";
@@ -676,6 +788,9 @@ export function TabStudioClient() {
       }
       setInstrument(legacyInstrument);
       setTuningId(legacyTuning.id);
+      setTimeSignature({ numerator: 4, denominator: 4 });
+      setNoteDivision(16);
+      setNoteLength(100);
       setGrid(parsed);
       setColumnCount(parsed[0]?.cells.length || 16);
     }
@@ -776,10 +891,13 @@ export function TabStudioClient() {
           .map((partiture) => partiture.slot)) + 1;
     const title = compositionTitle.trim() || currentPartiture?.title || `${instrument} composition ${new Date().toLocaleDateString()}`;
     const composition: FretboardComposition = {
-      version: 1,
+      version: 2,
       instrument,
       tuningId: activeTuning.id,
       bpm,
+      timeSignature,
+      noteDivision,
+      noteLength,
       columnCount: grid[0]?.cells.length ?? columnCount,
       grid,
     };
@@ -812,7 +930,15 @@ export function TabStudioClient() {
     const selected = multiTracks[trackIdx];
     if (!selected) return;
     setActiveTrackIndex(trackIdx);
-    setGrid(selected.grid);
+    const tuningOptions = selected.instrument === "Bass" ? BASS_TUNINGS : GUITAR_TUNINGS;
+    const tuning = tuningOptions.find((preset) => preset.id === selected.tuningId) ?? tuningOptions[0];
+    setInstrument(selected.instrument);
+    setTuningId(tuning.id);
+    setGrid(reconcileTabGridRows(
+      selected.grid,
+      stringsFromTuning(tuning).map((string) => string.label),
+      selected.grid[0]?.cells.length || 16,
+    ));
     setColumnCount(selected.grid[0]?.cells.length || 16);
     toast.info(`Switched to: ${selected.name}`);
   };
@@ -845,22 +971,34 @@ export function TabStudioClient() {
         const convertedTracks: MultiTrackItem[] = validTracks.map((t, idx) => {
           // Detect if track is bass
           const isBassTrack = t.name.toLowerCase().includes("bass") || t.notes.some((n) => n.note < 40);
-          const trackStrings = isBassTrack
-            ? stringsFromTuning(BASS_TUNINGS[0])
-            : stringsFromTuning(GUITAR_TUNINGS[0]);
+          const trackInstrument: InstrumentType = isBassTrack ? "Bass" : "Steel";
+          const trackTuning = isBassTrack ? BASS_TUNINGS[0] : GUITAR_TUNINGS[0];
+          const trackStrings = stringsFromTuning(trackTuning);
           
           const trackGrid = convertTrackToGrid(t, trackStrings, parsedMidi.ppq);
           return {
             index: idx,
             name: t.name || `Track ${idx + 1}`,
             notesCount: t.notes.length,
+            instrument: trackInstrument,
+            tuningId: trackTuning.id,
             grid: trackGrid,
           };
         });
 
         setMultiTracks(convertedTracks);
         setActiveTrackIndex(0);
-        setGrid(convertedTracks[0].grid);
+        const firstTrack = convertedTracks[0];
+        const firstTrackTuningOptions = firstTrack.instrument === "Bass" ? BASS_TUNINGS : GUITAR_TUNINGS;
+        const firstTrackTuning = firstTrackTuningOptions.find((preset) => preset.id === firstTrack.tuningId)
+          ?? firstTrackTuningOptions[0];
+        setInstrument(firstTrack.instrument);
+        setTuningId(firstTrackTuning.id);
+        setGrid(reconcileTabGridRows(
+          firstTrack.grid,
+          stringsFromTuning(firstTrackTuning).map((string) => string.label),
+          firstTrack.grid[0]?.cells.length || 64,
+        ));
         setColumnCount(convertedTracks[0].grid[0]?.cells.length || 64);
 
         toast.success(
@@ -902,10 +1040,10 @@ export function TabStudioClient() {
               <SkipBack className="h-4 w-4" />
             </button>
             <button
-              onClick={() => jumpPlayhead(-4)}
+              onClick={() => jumpPlayhead(-beatSteps)}
               className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-zinc-900/60 text-[var(--color-sand-1)] transition hover:border-[var(--color-mint)] hover:text-white"
               type="button"
-              title="Jump back 4 steps"
+              title="Jump back one beat"
             >
               <Rewind className="h-4 w-4" />
             </button>
@@ -922,10 +1060,10 @@ export function TabStudioClient() {
               {isPlaying ? <Square className="h-5 w-5 fill-current" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
             </button>
             <button
-              onClick={() => jumpPlayhead(4)}
+              onClick={() => jumpPlayhead(beatSteps)}
               className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-zinc-900/60 text-[var(--color-sand-1)] transition hover:border-[var(--color-mint)] hover:text-white"
               type="button"
-              title="Jump forward 4 steps"
+              title="Jump forward one beat"
             >
               <FastForward className="h-4 w-4" />
             </button>
@@ -936,7 +1074,7 @@ export function TabStudioClient() {
             <span className="field-label">Instrument</span>
             <select
               value={instrument}
-              onChange={(event) => setInstrument(event.target.value as InstrumentType)}
+              onChange={(event) => changeInstrument(event.target.value as InstrumentType)}
               className="field min-w-[140px] py-1.5 text-xs font-bold"
             >
               <option value="Steel">Steel Guitar</option>
@@ -951,7 +1089,7 @@ export function TabStudioClient() {
             <span className="field-label">Tuning</span>
             <select
               value={tuningId}
-              onChange={(event) => setTuningId(event.target.value)}
+              onChange={(event) => changeTuning(event.target.value)}
               className="field min-w-[170px] py-1.5 text-xs font-bold"
             >
               {tuningOptions.map((preset) => (
@@ -970,9 +1108,59 @@ export function TabStudioClient() {
               value={bpm}
               min={40}
               max={260}
-              onChange={(event) => setBpm(Number(event.target.value) || 120)}
+              onChange={(event) => setBpm(Math.min(260, Math.max(40, Number(event.target.value) || 120)))}
               className="field w-16 py-1.5 text-center text-xs font-black"
+              aria-label="Tempo in beats per minute"
             />
+          </div>
+
+          <div className="field-group">
+            <span className="field-label">Meter</span>
+            <select
+              value={`${timeSignature.numerator}/${timeSignature.denominator}`}
+              onChange={(event) => {
+                const next = TIME_SIGNATURES.find(
+                  (signature) => `${signature.numerator}/${signature.denominator}` === event.target.value,
+                );
+                if (next) setTimeSignature(next);
+              }}
+              className="field min-w-[92px] py-1.5 text-xs font-bold"
+              aria-label="Time signature"
+            >
+              {TIME_SIGNATURES.map((signature) => (
+                <option key={`${signature.numerator}/${signature.denominator}`} value={`${signature.numerator}/${signature.denominator}`}>
+                  {signature.numerator}/{signature.denominator}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field-group">
+            <span className="field-label">Grid</span>
+            <select
+              value={noteDivision}
+              onChange={(event) => setNoteDivision(Number(event.target.value) as NoteDivision)}
+              className="field min-w-[112px] py-1.5 text-xs font-bold"
+              aria-label="Note grid division"
+            >
+              {NOTE_DIVISIONS.map((division) => (
+                <option key={division} value={division}>1/{division}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field-group">
+            <span className="field-label">Note length</span>
+            <select
+              value={noteLength}
+              onChange={(event) => setNoteLength(Number(event.target.value))}
+              className="field min-w-[104px] py-1.5 text-xs font-bold"
+              aria-label="Note gate length"
+            >
+              <option value={50}>50% · staccato</option>
+              <option value={75}>75% · detached</option>
+              <option value={100}>100% · full</option>
+            </select>
           </div>
 
           {/* Quick Metronome and Loop Toggles */}
@@ -1017,13 +1205,13 @@ export function TabStudioClient() {
               </option>
             ))}
           </select>
-          <button onClick={() => addColumns(4)} className="glass-pill px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest" type="button">
+          <button onClick={addBar} className="glass-pill px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest" type="button">
             <Plus className="mr-1 inline h-3 w-3" />
-            Bars
+            Add bar
           </button>
-          <button onClick={() => removeColumns(4)} className="glass-pill px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest" type="button">
+          <button onClick={removeBar} className="glass-pill px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest" type="button">
             <Minus className="mr-1 inline h-3 w-3" />
-            Trim
+            Remove bar
           </button>
           <button onClick={clearGrid} className="glass-pill px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest" type="button">
             <Eraser className="mr-1 inline h-3 w-3" />
@@ -1031,7 +1219,7 @@ export function TabStudioClient() {
           </button>
           <button onClick={duplicateMeasure} className="glass-pill px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest" type="button">
             <Copy className="mr-1 inline h-3 w-3" />
-            Dup
+            Duplicate bar
           </button>
           <FileUploadButton
             type="tab"
@@ -1081,29 +1269,6 @@ export function TabStudioClient() {
       )}
 
       {/* Fretboard Grid & Sidebars */}
-      {draftAvailable && (
-        <div className="panel flex flex-wrap items-center justify-between gap-2 rounded-[1.25rem] border border-[var(--color-brass)]/30 bg-[var(--color-brass)]/5 p-3">
-          <p className="text-xs text-[var(--color-sand-1)]">
-            Unsaved tab changes were autosaved locally. Restore the draft or discard it.
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={restoreDraft}
-              className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
-              type="button"
-            >
-              Restore draft
-            </button>
-            <button
-              onClick={discardDraft}
-              className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
-              type="button"
-            >
-              Discard
-            </button>
-          </div>
-        </div>
-      )}
       <aside className="grid gap-4">
         <section className="panel glass-shine rounded-[1.75rem] p-4">
           <div className="flex items-center justify-between">
@@ -1216,10 +1381,10 @@ export function TabStudioClient() {
             <div>
               <div className="eyebrow">Interactive Fretboard Grid</div>
               <h3 className="text-xl font-black">
-                {barCount} bars · {gridStepCount} steps · {strings.length} strings
+                {barCount} bars · {timeSignature.numerator}/{timeSignature.denominator} · {gridStepCount} steps
               </h3>
               <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-sand-2)]">
-                Enter notes or techniques in each beat · 3h5 hammer-on · 5p3 pull-off · 7s9 slide · 5b7 bend · ~ vibrato · x dead note
+                Add notes on a 1/{noteDivision} grid · {noteLength}% note gate · {strings.length} strings · 3h5 hammer-on · 5p3 pull-off · 7s9 slide · 5b7 bend · ~ vibrato · x dead note
               </p>
             </div>
             <Volume2 className="h-4 w-4 text-[var(--color-brass)] opacity-70" />
@@ -1265,7 +1430,7 @@ export function TabStudioClient() {
                 <div
                   key={barIdx}
                   className="border-l border-[var(--color-brass)]/40 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-[var(--color-brass)]"
-                  style={{ width: `${Math.min(4, gridStepCount - barIdx * 4) * stepWidth}px` }}
+                  style={{ width: `${Math.min(measureSteps, gridStepCount - barIdx * measureSteps) * stepWidth}px` }}
                 >
                   Bar {barIdx + 1}
                 </div>
@@ -1273,33 +1438,44 @@ export function TabStudioClient() {
             </div>
 
             <div className="mb-2 flex min-w-max pl-16">
-              {grid[0]?.cells.map((_, columnIdx) => (
+              {grid[0]?.cells.map((_, columnIdx) => {
+                const stepInBar = columnIdx % measureSteps;
+                const beatInBar = Math.floor(stepInBar / beatSteps);
+                const subdivision = stepInBar % beatSteps;
+                const barNumber = Math.floor(columnIdx / measureSteps) + 1;
+                const beatNumber = beatInBar + 1;
+                const isBeatStart = subdivision === 0;
+                const isBarStart = stepInBar === 0;
+                return (
                 <button
                   key={columnIdx}
                   className={`border-l text-center text-xs font-black transition ${
                     playhead === columnIdx
                       ? "border-[var(--color-mint)] text-[var(--color-mint)]"
-                      : columnIdx % 4 === 0
-                      ? "border-[var(--color-brass)]/40 text-white"
+                      : isBarStart
+                      ? "border-[var(--color-brass)]/50 text-white"
+                      : isBeatStart
+                      ? "border-white/25 text-[var(--color-sand-1)]"
                       : "border-white/10 text-[var(--color-sand-2)]"
                   }`}
                   style={{ width: `${stepWidth}px` }}
                   onClick={() => setPlayhead(columnIdx)}
                   type="button"
-                  aria-label={`Set playhead to bar ${Math.floor(columnIdx / 4) + 1}, beat ${(columnIdx % 4) + 1}`}
+                  aria-label={`Set playhead to bar ${barNumber}, beat ${beatNumber}, subdivision ${subdivision + 1}`}
                   aria-pressed={playhead === columnIdx}
                 >
-                  {columnIdx % 4 + 1}
+                  {isBeatStart ? beatNumber : `+${subdivision + 1}`}
                 </button>
-              ))}
+                );
+              })}
             </div>
 
             <div className="relative min-w-max">
               {/* String Labels column (tuning note + pitch) */}
               <div className="absolute inset-y-0 left-0 z-20 flex w-16 flex-col justify-between rounded-l-lg border-r border-white/10 bg-zinc-900/80 py-[2px] backdrop-blur-md">
-                {strings.map((stringRef) => (
+                {strings.map((stringRef, stringIdx) => (
                   <span
-                    key={`${stringRef.label}-${stringRef.note}`}
+                    key={`${stringRef.label}-${stringRef.note}-${stringIdx}`}
                     title={`${stringRef.label} string · ${stringRef.note} · ${stringRef.base.toFixed(1)} Hz`}
                     className="flex h-9 items-center justify-center gap-1 text-xs font-black text-[var(--color-sand-1)]"
                   >
@@ -1314,7 +1490,7 @@ export function TabStudioClient() {
               {/* String horizontal wire lines */}
               {strings.slice(0, -1).map((stringRef, idx) => (
                 <div
-                  key={stringRef.label}
+                  key={`${stringRef.label}-${idx}`}
                   className="notation-string-line"
                   style={{ top: `${(idx + 1) * 36 - 18}px` }}
                 />
@@ -1330,11 +1506,13 @@ export function TabStudioClient() {
                     }`}
                     style={{ width: `${stepWidth}px` }}
                   >
-                    {columnIdx % 4 === 0 && columnIdx > 0 ? (
-                      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[var(--color-brass)]/40" />
+                    {columnIdx > 0 && columnIdx % measureSteps === 0 ? (
+                      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[var(--color-brass)]/60" />
+                    ) : columnIdx > 0 && columnIdx % beatSteps === 0 ? (
+                      <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-white/20" />
                     ) : null}
                     {grid.map((row, rowIdx) => (
-                      <div key={row.label} className="flex h-9 items-center justify-center">
+                      <div key={`${row.label}-${rowIdx}`} className="flex h-9 items-center justify-center">
                         <input
                           className={`h-8 rounded-md border text-center text-[11px] font-black outline-none transition focus:ring-2 focus:ring-[var(--color-mint)]/60 ${
                             row.cells[columnIdx] === "-"
@@ -1359,7 +1537,7 @@ export function TabStudioClient() {
                             );
                           }}
                           placeholder="-"
-                          aria-label={`${row.label} string, bar ${Math.floor(columnIdx / 4) + 1}, beat ${(columnIdx % 4) + 1}`}
+                          aria-label={`${row.label} string, bar ${Math.floor(columnIdx / measureSteps) + 1}, beat ${Math.floor((columnIdx % measureSteps) / beatSteps) + 1}, subdivision ${(columnIdx % beatSteps) + 1}`}
                         />
                       </div>
                     ))}
