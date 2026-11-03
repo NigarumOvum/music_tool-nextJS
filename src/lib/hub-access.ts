@@ -3,8 +3,9 @@ import type { AuthUser } from "@/lib/auth";
 import { ensureUserCanAccessPage } from "@/lib/auth";
 
 export const PRODUCTION_STUDIO_TABS = [
-  { id: "notation-audio", label: "Notation & Audio", pageKey: "tab-studio" },
   { id: "lyrics", label: "Lyrics", pageKey: "lyrics-library" },
+  { id: "notation-audio", label: "Notation/Partitures", pageKey: "tab-studio" },
+  { id: "daw", label: "Audio DAW", pageKey: "daw" },
 ] as const;
 
 export const MUSIC_TOOLKIT_TABS = [

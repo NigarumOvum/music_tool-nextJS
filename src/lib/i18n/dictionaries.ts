@@ -27,6 +27,7 @@ const en = {
   "tabs.lyrics": "Lyrics & Rhymes",
   "tabs.audio": "Audio DAW",
   "tabs.notation": "Notation & Tabs",
+  "tabs.notation-audio": "Notation/Partitures",
 
   "common.save": "Save",
   "common.cancel": "Cancel",
@@ -96,6 +97,7 @@ const es = {
   "tabs.lyrics": "Letras y rimas",
   "tabs.audio": "DAW de audio",
   "tabs.notation": "Notación y tabs",
+  "tabs.notation-audio": "Notación/Partituras",
 
   "common.save": "Guardar",
   "common.cancel": "Cancelar",
@@ -161,6 +163,7 @@ const de = {
   "tabs.lyrics": "Texte & Reime",
   "tabs.audio": "Audio-DAW",
   "tabs.notation": "Notation & Tabs",
+  "tabs.notation-audio": "Notation/Partituren",
 
   "common.save": "Speichern",
   "common.cancel": "Abbrechen",
@@ -226,6 +229,7 @@ const fr = {
   "tabs.lyrics": "Paroles & rimes",
   "tabs.audio": "DAW audio",
   "tabs.notation": "Notation & tablatures",
+  "tabs.notation-audio": "Notation/Partitions",
 
   "common.save": "Enregistrer",
   "common.cancel": "Annuler",
@@ -291,6 +295,7 @@ const ru = {
   "tabs.lyrics": "Тексты и рифмы",
   "tabs.audio": "Аудио DAW",
   "tabs.notation": "Ноты и табы",
+  "tabs.notation-audio": "Нотация/партитуры",
 
   "common.save": "Сохранить",
   "common.cancel": "Отмена",

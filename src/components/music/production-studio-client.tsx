@@ -23,7 +23,6 @@ import {
   Play,
   Pause,
   Filter,
-  ChevronDown,
   FilterX,
   MessageSquare,
   GripVertical,
@@ -186,7 +185,7 @@ const SONG_TEMPLATES = [
   }
 ];
 
-function ProductionStudioDashboard() {
+function ProductionStudioDashboard({ allowedTabs, initialTab }: ProductionStudioClientProps) {
   const { setSelectedSongId, refreshSongs } = useProductionSong();
   const userId = useCurrentUserId();
   const [songs, setSongs] = useState<MusicSongSummary[]>([]);
@@ -199,11 +198,11 @@ function ProductionStudioDashboard() {
   const [selectedMood, setSelectedMood] = usePersistentState<string>("production_studio_mood_filter", "all", { userId });
   const [selectedProjectSlug, setSelectedProjectSlug] = usePersistentState<string>("production_studio_project_filter", "all", { userId });
   const [selectedInstrument, setSelectedInstrument] = usePersistentState<string>("production_studio_instrument_filter", "all", { userId });
-  const [showAdvancedFilters, setShowAdvancedFilters] = usePersistentState<boolean>("production_studio_advanced_filters", false, { userId });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Modals state
   const [isStudioModalOpen, setIsStudioModalOpen] = useState(false);
-  const [studioInitialTab, setStudioInitialTab] = useState<string>("notation-audio");
+  const [studioInitialTab, setStudioInitialTab] = useState<string>(initialTab);
   const [isBandModalOpen, setIsBandModalOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<MusicProjectRecord | null>(null);
   const [isNewSongModalOpen, setIsNewSongModalOpen] = useState(false);
@@ -882,69 +881,7 @@ function ProductionStudioDashboard() {
           </div>
         }
       >
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedProjectSlug("all")}
-              className={`glass-pill flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold transition ${
-                selectedProjectSlug === "all"
-                  ? "glass-pill-active text-[var(--color-foreground)] border-[var(--color-info-border)]"
-                  : "text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
-              }`}
-            >
-              <Globe2 className="h-3.5 w-3.5" />
-              <span>All Workspace Songs</span>
-              <span className="ml-1 rounded-full bg-[var(--color-surface-soft)] px-1.5 py-0.2 text-[10px]">
-                {songs.length}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSelectedProjectSlug("solo")}
-              className={`glass-pill flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold transition ${
-                selectedProjectSlug === "solo"
-                  ? "glass-pill-active text-[var(--color-foreground)]"
-                  : "text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
-              }`}
-            >
-              <Music className="h-3.5 w-3.5" />
-              <span>Solo (No Band)</span>
-              <span className="ml-1 rounded-full bg-[var(--color-surface-soft)] px-1.5 py-0.2 text-[10px]">
-                {songs.filter((s) => !s.project_slug).length}
-              </span>
-            </button>
-
-            {projects.map((proj) => {
-              const isSelected = selectedProjectSlug === proj.slug;
-              return (
-                <div key={proj.id} className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedProjectSlug(proj.slug)}
-                    className={`glass-pill flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold transition ${
-                      isSelected
-                        ? "glass-pill-active text-[var(--color-foreground)] shadow-xs"
-                        : "text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
-                    }`}
-                  >
-                    <div
-                      className="flex h-6 w-6 items-center justify-center rounded-lg text-xs font-bold text-white shadow-xs"
-                      style={{ backgroundColor: proj.color || "#f59e0b" }}
-                    >
-                      {proj.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span>{proj.name}</span>
-                    <span className="rounded-full bg-[var(--color-surface-soft)] px-1.5 py-0.2 text-[10px]">
-                      {proj.songCount}
-                    </span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
+        <div>
           {activeProject && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-4">
               <div className="flex items-center gap-3">
@@ -1007,8 +944,73 @@ function ProductionStudioDashboard() {
         </div>
       </CollapsibleCard>
 
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] px-3 py-2.5">
+        <span className="mr-1 text-[10px] font-black uppercase tracking-widest text-[var(--color-sand-2)]">
+          Filter by band
+        </span>
+        <button
+          type="button"
+          aria-pressed={selectedProjectSlug === "all"}
+          onClick={() => setSelectedProjectSlug("all")}
+          className={`glass-pill flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition ${
+            selectedProjectSlug === "all"
+              ? "glass-pill-active border-[var(--color-info-border)] text-[var(--color-foreground)]"
+              : "text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
+          }`}
+        >
+          <Globe2 className="h-3.5 w-3.5" />
+          <span>All Bands</span>
+          <span className="rounded-full bg-[var(--color-surface-soft)] px-1.5 py-0.2 text-[10px]">
+            {songs.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={selectedProjectSlug === "solo"}
+          onClick={() => setSelectedProjectSlug("solo")}
+          className={`glass-pill flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition ${
+            selectedProjectSlug === "solo"
+              ? "glass-pill-active text-[var(--color-foreground)]"
+              : "text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
+          }`}
+        >
+          <Music className="h-3.5 w-3.5" />
+          <span>Solo</span>
+          <span className="rounded-full bg-[var(--color-surface-soft)] px-1.5 py-0.2 text-[10px]">
+            {songs.filter((song) => !song.project_slug).length}
+          </span>
+        </button>
+        {projects.map((project) => {
+          const isSelected = selectedProjectSlug === project.slug;
+          return (
+            <button
+              key={project.id}
+              type="button"
+              aria-pressed={isSelected}
+              onClick={() => setSelectedProjectSlug(project.slug)}
+              className={`glass-pill flex items-center gap-2 px-3 py-1.5 text-xs font-semibold transition ${
+                isSelected
+                  ? "glass-pill-active text-[var(--color-foreground)]"
+                  : "text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
+              }`}
+            >
+              <span
+                className="flex h-5 w-5 items-center justify-center rounded-md text-[10px] font-bold text-white"
+                style={{ backgroundColor: project.color || "#f59e0b" }}
+              >
+                {project.name.charAt(0).toUpperCase()}
+              </span>
+              <span>{project.name}</span>
+              <span className="rounded-full bg-[var(--color-surface-soft)] px-1.5 py-0.2 text-[10px]">
+                {project.songCount}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* 2. Songs Catalog & Search / Action Bar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <div className={isStudioModalOpen ? "hidden" : "flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"}>
         <div className="flex flex-1 flex-wrap items-center gap-2">
           <div className="relative min-w-[200px] flex-1 sm:min-w-[240px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-sand-2)]" />
@@ -1083,16 +1085,17 @@ function ProductionStudioDashboard() {
 
             <button
               type="button"
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              onClick={() => setShowAdvancedFilters(true)}
               className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition ${
                 showAdvancedFilters
                   ? "border-[var(--color-copper)] bg-[var(--color-copper)]/10 text-[var(--color-copper)]"
                   : "border-[var(--color-border)] bg-[var(--color-surface-soft)] text-[var(--color-sand-2)] hover:text-[var(--color-foreground)]"
               }`}
+              aria-haspopup="dialog"
+              aria-expanded={showAdvancedFilters}
             >
               <Filter className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Advanced</span>
-              <ChevronDown className={`h-3 w-3 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+              <span>Advanced Search</span>
             </button>
           </div>
         </div>
@@ -1114,83 +1117,126 @@ function ProductionStudioDashboard() {
           <span className="hidden sm:inline text-[10px] opacity-75">⌘N</span>
         </button>
 
-        {/* Advanced Filters (full-width row below) */}
-        <AnimatePresence>
-          {showAdvancedFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="w-full overflow-hidden sm:basis-full"
+      </div>
+
+      <AnimatePresence>
+        {showAdvancedFilters && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <motion.button
+              type="button"
+              aria-label="Close advanced search"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAdvancedFilters(false)}
+              className="absolute inset-0 bg-black/75 backdrop-blur-md"
+            />
+            <motion.section
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ type: "spring", stiffness: 340, damping: 28 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="advanced-search-title"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setShowAdvancedFilters(false);
+                  return;
+                }
+                if (event.key === "Tab") {
+                  const focusable = event.currentTarget.querySelectorAll<HTMLElement>(
+                    'button:not([disabled]), select:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+                  );
+                  const first = focusable[0];
+                  const last = focusable[focusable.length - 1];
+                  if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last?.focus();
+                  } else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first?.focus();
+                  }
+                }
+              }}
+              className="relative z-10 max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-[1.75rem] border border-[var(--color-border)] bg-[var(--color-modal-surface)] shadow-2xl"
             >
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3">
-                <div className="flex w-full flex-wrap items-center gap-2">
-                  <select
-                    value={selectedGenre}
-                    onChange={(e) => setSelectedGenre(e.target.value)}
-                    className="field w-auto text-xs py-2"
-                  >
-                    <option value="all">All Genres</option>
-                    {GENRE_PRESETS.map((g) => (
-                      <option key={g} value={g}>
-                        {g}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={selectedKey}
-                    onChange={(e) => setSelectedKey(e.target.value)}
-                    className="field w-auto text-xs py-2"
-                  >
-                    <option value="all">All Keys</option>
-                    {KEY_PRESETS.map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={selectedEmotion}
-                    onChange={(e) => setSelectedEmotion(e.target.value)}
-                    className="field w-auto text-xs py-2"
-                  >
-                    <option value="all">All Emotions</option>
-                    {EMOTION_PRESETS.map((e) => (
-                      <option key={e} value={e}>
-                        {e}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={selectedMood}
-                    onChange={(e) => setSelectedMood(e.target.value)}
-                    className="field w-auto text-xs py-2"
-                  >
-                    <option value="all">All Moods</option>
-                    {MOOD_PRESETS.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={selectedInstrument}
-                    onChange={(e) => setSelectedInstrument(e.target.value)}
-                    className="field w-auto text-xs py-2"
-                  >
-                    <option value="all">All Instruments</option>
-                    {INSTRUMENT_PRESETS.map((i) => (
-                      <option key={i} value={i}>
-                        {i}
-                      </option>
-                    ))}
-                  </select>
-
+              <div className="flex items-center justify-between border-b border-[var(--color-stroke)] px-5 py-4">
+                <div>
+                  <div className="eyebrow">Song Catalog</div>
+                  <h2 id="advanced-search-title" className="text-lg font-bold text-[var(--color-foreground)]">
+                    Advanced Search
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  autoFocus
+                  onClick={() => setShowAdvancedFilters(false)}
+                  aria-label="Close advanced search"
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-4 p-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1.5 text-xs font-semibold text-[var(--color-sand-2)]">
+                    Genre
+                    <select
+                      value={selectedGenre}
+                      onChange={(event) => setSelectedGenre(event.target.value)}
+                      className="field w-full text-xs"
+                    >
+                      <option value="all">All Genres</option>
+                      {GENRE_PRESETS.map((genre) => <option key={genre} value={genre}>{genre}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-xs font-semibold text-[var(--color-sand-2)]">
+                    Key
+                    <select
+                      value={selectedKey}
+                      onChange={(event) => setSelectedKey(event.target.value)}
+                      className="field w-full text-xs"
+                    >
+                      <option value="all">All Keys</option>
+                      {KEY_PRESETS.map((key) => <option key={key} value={key}>{key}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-xs font-semibold text-[var(--color-sand-2)]">
+                    Emotion
+                    <select
+                      value={selectedEmotion}
+                      onChange={(event) => setSelectedEmotion(event.target.value)}
+                      className="field w-full text-xs"
+                    >
+                      <option value="all">All Emotions</option>
+                      {EMOTION_PRESETS.map((emotion) => <option key={emotion} value={emotion}>{emotion}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-xs font-semibold text-[var(--color-sand-2)]">
+                    Mood
+                    <select
+                      value={selectedMood}
+                      onChange={(event) => setSelectedMood(event.target.value)}
+                      className="field w-full text-xs"
+                    >
+                      <option value="all">All Moods</option>
+                      {MOOD_PRESETS.map((mood) => <option key={mood} value={mood}>{mood}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-xs font-semibold text-[var(--color-sand-2)] sm:col-span-2">
+                    Instrument
+                    <select
+                      value={selectedInstrument}
+                      onChange={(event) => setSelectedInstrument(event.target.value)}
+                      className="field w-full text-xs"
+                    >
+                      <option value="all">All Instruments</option>
+                      {INSTRUMENT_PRESETS.map((instrument) => <option key={instrument} value={instrument}>{instrument}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 border-t border-[var(--color-stroke)] pt-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -1202,46 +1248,45 @@ function ProductionStudioDashboard() {
                       setSelectedInstrument("all");
                       setSearch("");
                     }}
-                    className="flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)] hover:border-red-500/30 hover:text-red-500"
+                    className="flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-sand-2)] transition hover:border-red-500/30 hover:text-red-500"
                   >
                     <FilterX className="h-3.5 w-3.5" />
-                    <span>Clear Filters</span>
+                    Clear Filters
                   </button>
-
                   <button
                     type="button"
-                    onClick={() => setShowPresetModal(true)}
-                    className="flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)] hover:border-[var(--color-brass)]/50 hover:text-[var(--color-brass)]"
+                    onClick={() => {
+                      setShowAdvancedFilters(false);
+                      setShowPresetModal(true);
+                    }}
+                    className="flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-sand-2)] transition hover:border-[var(--color-brass)]/50 hover:text-[var(--color-brass)]"
                   >
                     <Bookmark className="h-3.5 w-3.5" />
-                    <span>Save Preset</span>
+                    Save Preset
                   </button>
-
-                  {filterPresets.length > 0 && (
-                    <div className="flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] px-3 py-1.5">
-                      <span className="text-[10px] font-semibold text-[var(--color-sand-2)]">Presets:</span>
-                      {filterPresets.slice(0, 3).map((preset) => (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => handleLoadPreset(preset)}
-                          className="flex items-center gap-1 rounded-lg bg-[var(--color-surface)] px-2 py-1 text-[10px] font-semibold text-[var(--color-foreground)] transition hover:bg-[var(--color-brass)]/10 hover:text-[var(--color-brass)]"
-                        >
-                          <BookmarkCheck className="h-3 w-3" />
-                          {preset.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {filterPresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => {
+                        handleLoadPreset(preset);
+                        setShowAdvancedFilters(false);
+                      }}
+                      className="flex items-center gap-1 rounded-lg bg-[var(--color-surface)] px-2.5 py-1.5 text-[10px] font-semibold text-[var(--color-foreground)] transition hover:bg-[var(--color-brass)]/10 hover:text-[var(--color-brass)]"
+                    >
+                      <BookmarkCheck className="h-3 w-3" />
+                      {preset.name}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+            </motion.section>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* 3. Songs Grid / Kanban */}
-      {loading ? (
+      {!isStudioModalOpen && (loading ? (
         <div className="flex min-h-[300px] flex-col items-center justify-center gap-3">
           <Spinner size="lg" color="warning" />
           <p className="text-xs text-[var(--color-sand-2)]">Loading song catalog...</p>
@@ -1587,12 +1632,14 @@ function ProductionStudioDashboard() {
             );
           })}
         </div>
-      )}
+      ))}
 
       {/* 4. Unified Studio Workspace Modal (Contains Lyrics, Song, Audio, Notation) */}
       <ProductionStudioModal
+        key={studioInitialTab}
         isOpen={isStudioModalOpen}
         initialTab={studioInitialTab}
+        allowedTabs={allowedTabs}
         songs={songs}
         projects={projects}
         onClose={() => setIsStudioModalOpen(false)}
@@ -2521,10 +2568,10 @@ function ProductionStudioDashboard() {
   );
 }
 
-export function ProductionStudioClient({}: ProductionStudioClientProps) {
+export function ProductionStudioClient(props: ProductionStudioClientProps) {
   return (
     <ProductionSongProvider>
-      <ProductionStudioDashboard />
+      <ProductionStudioDashboard {...props} />
     </ProductionSongProvider>
   );
 }

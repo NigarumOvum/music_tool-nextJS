@@ -27,7 +27,7 @@ export default async function ProductionStudioPage({ searchParams }: ProductionS
     <AppShell
       title="Production Studio"
       eyebrow="Song workspace"
-      description="Lyrics, song records, browser audio sessions, and tab notation in one place. Tabs respect your existing page access settings."
+      description="Lyrics and rhymes, notation and partitures, and browser audio sessions in one place. Tabs respect your existing page access settings."
     >
       <ProductionStudioClient
         allowedTabs={allowedTabs.map((entry) => ({

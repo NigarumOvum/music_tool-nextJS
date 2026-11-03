@@ -8,10 +8,8 @@ import {
   Mic2,
   Music2,
   AudioWaveform,
-  Guitar,
   Maximize2,
   Minimize2,
-  ChevronRight,
   Disc3,
   Layers,
   Columns,
@@ -29,21 +27,25 @@ import type { MusicSongSummary, MusicProjectRecord } from "@/lib/music/types";
 const tabLoaders = {
   lyrics: () => import("@/components/music/lyrics-library-client").then((module) => module.LyricsLibraryClient),
   "notation-audio": () => import("@/components/music/notation-audio-studio").then((module) => module.NotationAudioStudio),
+  daw: () => import("@/components/music/daw-client").then((module) => module.DawClient),
 } as const;
 
 const tabPanels: Record<string, ReturnType<typeof dynamic>> = {
   lyrics: dynamic(() => tabLoaders.lyrics().then((Component) => ({ default: Component })), { ssr: false }),
   "notation-audio": dynamic(() => tabLoaders["notation-audio"]().then((Component) => ({ default: Component })), { ssr: false }),
+  daw: dynamic(() => tabLoaders.daw().then((Component) => ({ default: Component })), { ssr: false }),
 } as const;
 
-const STUDIO_TABS: Array<{ id: string; label: string; icon: typeof Music2; description: string }> = [
-  { id: "notation-audio", label: "Notation & Audio", icon: Layers, description: "Integrated tab notation & audio DAW with sync" },
-  { id: "lyrics", label: "Lyrics & Rhymes", icon: Mic2, description: "Lyrics editor, rhyming & syllables" },
+const STUDIO_TABS: Array<{ id: string; labelKey: DictKey; icon: typeof Music2; description: string }> = [
+  { id: "lyrics", labelKey: "tabs.lyrics", icon: Mic2, description: "Lyrics editor, rhyming & syllables" },
+  { id: "notation-audio", labelKey: "tabs.notation-audio", icon: Layers, description: "Tab notation and partitures" },
+  { id: "daw", labelKey: "tabs.audio", icon: AudioWaveform, description: "Audio DAW" },
 ];
 
 type ProductionStudioModalProps = {
   isOpen: boolean;
   initialTab?: string;
+  allowedTabs: Array<{ id: string; label: string }>;
   songs: MusicSongSummary[];
   projects: MusicProjectRecord[];
   onClose: () => void;
@@ -51,7 +53,8 @@ type ProductionStudioModalProps = {
 
 export function ProductionStudioModal({
   isOpen,
-  initialTab = "song",
+  initialTab = "lyrics",
+  allowedTabs,
   songs,
   projects,
   onClose,
@@ -59,7 +62,14 @@ export function ProductionStudioModal({
   const { selectedSongId, setSelectedSongId } = useProductionSong();
   const userId = useCurrentUserId();
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const allowedTabIds = useMemo(() => new Set(allowedTabs.map((tab) => tab.id)), [allowedTabs]);
+  const visibleTabs = useMemo(
+    () => STUDIO_TABS.filter((tab) => allowedTabIds.has(tab.id)),
+    [allowedTabIds],
+  );
+  const fallbackTab = visibleTabs[0]?.id ?? "lyrics";
+  const resolvedInitialTab = allowedTabIds.has(initialTab) ? initialTab : fallbackTab;
+  const [activeTab, setActiveTab] = useState<string>(resolvedInitialTab);
   const [secondaryTab, setSecondaryTab] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSplitView, setIsSplitView] = useState(false);
@@ -72,11 +82,11 @@ export function ProductionStudioModal({
   const toggleSplitView = useCallback(() => {
     setIsSplitView(!isSplitView);
     if (!isSplitView && !secondaryTab) {
-      setSecondaryTab("lyrics");
+      setSecondaryTab(visibleTabs.find((tab) => tab.id !== activeTab)?.id ?? null);
     } else if (isSplitView) {
       setSecondaryTab(null);
     }
-  }, [isSplitView, secondaryTab]);
+  }, [activeTab, isSplitView, secondaryTab, visibleTabs]);
 
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen(!isFullscreen);
@@ -87,12 +97,6 @@ export function ProductionStudioModal({
       prev.includes(tabId) ? prev.filter((id) => id !== tabId) : [...prev, tabId],
     );
   }, [setPinnedTabIds]);
-
-  useEffect(() => {
-    if (initialTab) {
-      setActiveTab(initialTab);
-    }
-  }, [initialTab]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -155,7 +159,7 @@ export function ProductionStudioModal({
       // 1-3: Switch tabs
       if (e.key >= '1' && e.key <= '3') {
         const tabIndex = parseInt(e.key) - 1;
-        const tabId = STUDIO_TABS[tabIndex]?.id;
+        const tabId = visibleTabs[tabIndex]?.id;
         if (tabId) {
           if (isSplitView && secondaryTab === null) {
             setSecondaryTab(tabId);
@@ -168,7 +172,7 @@ export function ProductionStudioModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose, isSplitView, secondaryTab, toggleSplitView, toggleFullscreen, setActiveTab, togglePinTab, activeTab, pinnedTabs, requestClose, showExitConfirm]);
+  }, [isOpen, onClose, isSplitView, secondaryTab, toggleSplitView, toggleFullscreen, setActiveTab, togglePinTab, activeTab, pinnedTabs, requestClose, showExitConfirm, visibleTabs]);
 
   const activeSong = useMemo(
     () => songs.find((s) => s.id === selectedSongId) || songs[0] || null,
@@ -255,12 +259,12 @@ export function ProductionStudioModal({
 
               {/* Studio Workspace Tabs */}
               <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-1">
-                {STUDIO_TABS.map((tab) => {
+                {visibleTabs.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
                   const isSecondaryActive = secondaryTab === tab.id;
                   const isPinned = pinnedTabs.has(tab.id);
-                  const label = t(`tabs.${tab.id}` as DictKey);
+                  const label = t(tab.labelKey);
                   return (
                     <button
                       key={tab.id}
@@ -387,7 +391,7 @@ export function ProductionStudioModal({
               </Suspense>
             </div>
 
-            {/* Exit confirmation: save progress before leaving Notation & Tabs / Studio */}
+            {/* Exit confirmation: save progress before leaving the studio */}
             <AnimatePresence>
               {showExitConfirm && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center p-4">
@@ -412,7 +416,7 @@ export function ProductionStudioModal({
                       {t("common.saveProgressTitle")}
                     </h3>
                     <p className="mt-1 text-xs text-[var(--color-sand-2)]">
-                      Your Notation &amp; Tabs grid is kept as a local draft, and the DAW
+                      Your Notation/Partitures grid is kept as a local draft, and the DAW
                       session autosaves. Save a snapshot so you can resume right here.
                     </p>
                     <div className="mt-4 flex flex-col gap-2">

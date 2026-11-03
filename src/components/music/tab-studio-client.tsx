@@ -205,6 +205,7 @@ export function TabStudioClient() {
   const { selectedSongId } = useProductionSong();
   const playingRef = useRef(false);
   const schedulerRef = useRef<number | null>(null);
+  const gridViewportRef = useRef<HTMLDivElement>(null);
 
   const [instrument, setInstrument] = useState<InstrumentType>("Steel");
   const [tuningId, setTuningId] = useState<string>("guitar-standard");
@@ -219,9 +220,9 @@ export function TabStudioClient() {
   const [pastedAscii, setPastedAscii] = useState("");
   const [showPasteImport, setShowPasteImport] = useState(false);
   const [draftAvailable, setDraftAvailable] = useState(false);
-  const [showFretboard, setShowFretboard] = useState(true);
   const [scaleOverlay, setScaleOverlay] = useState<"none" | "major" | "minor" | "pentatonic" | "blues">("none");
   const [rootNote, setRootNote] = useState("C");
+  const [gridViewportWidth, setGridViewportWidth] = useState(0);
   const userId = useCurrentUserId();
   const draftKey = userId && selectedSongId
     ? userKey(userId, `tab_studio_draft:${selectedSongId}`)
@@ -246,6 +247,19 @@ export function TabStudioClient() {
   const [grid, setGrid] = useState<GridRow[]>(() => buildEmptyGrid(stringsFromTuning(GUITAR_TUNINGS[0]), 16));
 
   const asciiPreview = useMemo(() => gridToAscii(grid, instrument, bpm, activeTuning.name), [grid, instrument, bpm, activeTuning.name]);
+  const gridStepCount = grid[0]?.cells.length ?? columnCount;
+  const stepWidth = Math.max(20, Math.min(40, (gridViewportWidth - 64) / gridStepCount));
+
+  useEffect(() => {
+    const viewport = gridViewportRef.current;
+    if (!viewport) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setGridViewportWidth(entry.contentRect.width);
+    });
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
 
   // Adjust tuning selection when instrument changes
   useEffect(() => {
@@ -971,7 +985,125 @@ export function TabStudioClient() {
           </div>
         </div>
       )}
-      <div className="page-grid !grid-cols-1 lg:!grid-cols-[minmax(0,1fr)_300px]">
+      <aside className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <section className="panel glass-shine rounded-[1.75rem] p-4">
+          <div className="eyebrow mb-3">Interactive Fretboard</div>
+          <InteractiveFretboard
+            mode={instrument === "Bass" ? "bass" : "guitar"}
+            tuning={activeTuning}
+            onTuningChange={(tuning) => setTuningId(tuning.id)}
+            showControls={false}
+            scaleOverlay={scaleOverlay}
+            onScaleChange={(scale) => setScaleOverlay(scale)}
+            rootNote={rootNote}
+            className="scale-90 origin-top"
+          />
+        </section>
+
+        <section className="panel glass-shine rounded-[1.75rem] p-4">
+          <div className="flex items-center justify-between">
+            <div className="eyebrow">ASCII Preview</div>
+            <button
+              onClick={() => void copyAsciiPreview()}
+              className="glass-pill px-2.5 py-1 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-mint)]"
+              type="button"
+              title="Copy ASCII tab to clipboard"
+            >
+              <ClipboardCopy className="mr-1 inline h-3 w-3" />
+              Copy
+            </button>
+          </div>
+          <pre className="mt-3 max-h-64 select-all overflow-auto rounded-[1rem] border border-white/8 bg-black/25 p-3 font-mono text-[11px] leading-5 text-white">
+            {asciiPreview}
+          </pre>
+
+          {showPasteImport ? (
+            <div className="mt-3 space-y-2 rounded-[1rem] border border-[var(--color-brass)]/30 bg-black/25 p-3">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">
+                Paste ASCII tab to import
+              </div>
+              <textarea
+                value={pastedAscii}
+                onChange={(event) => setPastedAscii(event.target.value)}
+                rows={5}
+                placeholder={"e |---|---|...|\nB |---|---|...|"}
+                className="field font-mono text-[11px]"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={importPastedAscii}
+                  className="glass-pill flex-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+                  type="button"
+                >
+                  Import pasted tab
+                </button>
+                <button
+                  onClick={() => setShowPasteImport(false)}
+                  className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
+                  type="button"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowPasteImport(true)}
+              className="mt-2 w-full rounded-[1rem] border border-dashed border-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--color-sand-2)] transition hover:border-[var(--color-brass)]/50 hover:text-white"
+              type="button"
+            >
+              <ClipboardPaste className="mr-1 inline h-3 w-3" />
+              Or paste ASCII here to import
+            </button>
+          )}
+
+          <div className="my-3 border-t border-white/8" />
+
+          <div className="flex items-center justify-between">
+            <div className="eyebrow">Song Partitures · {savedPartitures.length}</div>
+            <Music className="h-4 w-4 text-[var(--color-brass)]" />
+          </div>
+          {loadingPartitures ? (
+            <p className="mt-2 text-sm text-[var(--color-sand-2)]">Loading...</p>
+          ) : !selectedSongId ? (
+            <p className="mt-2 text-xs text-[var(--color-sand-2)]">Pick an active song above to load saved tabs.</p>
+          ) : savedPartitures.length === 0 ? (
+            <p className="mt-2 text-xs text-[var(--color-sand-2)]">No saved partitures for this song yet.</p>
+          ) : (
+            <div className="mt-2 max-h-56 space-y-1.5 overflow-auto pr-0.5">
+              {savedPartitures.map((partiture) => (
+                <div
+                  key={partiture.id}
+                  className="song-list-item flex items-center gap-2 rounded-[1rem] px-3 py-2"
+                >
+                  <button
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => loadPartiture(partiture)}
+                    type="button"
+                    title="Load into grid"
+                  >
+                    <div className="truncate text-xs font-bold">{partiture.title}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-[var(--color-sand-2)]">
+                      {partiture.instrument} · slot {partiture.slot}
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => void removePartiture(partiture)}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 text-[var(--color-sand-2)] transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+                    type="button"
+                    title={`Delete "${partiture.title}"`}
+                    aria-label={`Delete "${partiture.title}"`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </aside>
+
+      <div className="w-full">
         <div className="panel glass-shine overflow-hidden rounded-[1.75rem] p-5">
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -986,19 +1118,20 @@ export function TabStudioClient() {
             <Volume2 className="h-4 w-4 text-[var(--color-brass)] opacity-70" />
           </div>
 
-          <div className="relative overflow-x-auto rounded-[1.25rem] border border-white/8 bg-black/20 p-3">
+          <div ref={gridViewportRef} className="relative overflow-x-auto rounded-[1.25rem] border border-white/8 bg-black/20 p-3">
             {/* Step / Measure Headers */}
             <div className="mb-2 flex min-w-max pl-16">
               {grid[0]?.cells.map((_, columnIdx) => (
                 <button
                   key={columnIdx}
-                  className={`w-10 text-center text-[10px] font-black uppercase tracking-wider transition ${
+                  className={`text-center text-[10px] font-black uppercase tracking-wider transition ${
                     playhead === columnIdx
                       ? "scale-110 font-bold text-[var(--color-mint)]"
                       : columnIdx % 4 === 0
                       ? "text-white"
                       : "text-[var(--color-sand-2)]"
                   }`}
+                  style={{ width: `${stepWidth}px` }}
                   onClick={() => setPlayhead(columnIdx)}
                   type="button"
                 >
@@ -1038,9 +1171,10 @@ export function TabStudioClient() {
                 {grid[0]?.cells.map((_, columnIdx) => (
                   <div
                     key={columnIdx}
-                    className={`relative w-10 transition-colors ${
+                    className={`relative transition-colors ${
                       playhead === columnIdx ? "bg-[var(--color-mint)]/15" : "hover:bg-white/5"
                     }`}
+                    style={{ width: `${stepWidth}px` }}
                   >
                     {columnIdx % 4 === 0 && columnIdx > 0 ? (
                       <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-px bg-[var(--color-brass)]/40" />
@@ -1053,6 +1187,7 @@ export function TabStudioClient() {
                               ? "border-transparent bg-transparent text-zinc-600 focus:border-white/30 focus:bg-zinc-800"
                               : "border-white bg-white text-black shadow-md"
                           }`}
+                          style={{ width: `${Math.max(14, stepWidth - 8)}px` }}
                           value={row.cells[columnIdx] === "-" ? "" : row.cells[columnIdx]}
                           onChange={(event) => {
                             const next = event.target.value.replace(/[^0-9hpsb~x/\\-]/g, "") || "-";
@@ -1085,7 +1220,7 @@ export function TabStudioClient() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="pointer-events-none absolute bottom-0 top-6 z-30 w-[2px] bg-[var(--color-mint)] shadow-[0_0_14px_var(--color-mint)]"
-                    style={{ left: `${64 + playhead * 40}px` }}
+                    style={{ left: `${64 + playhead * stepWidth}px` }}
                   />
                 ) : null}
               </AnimatePresence>
@@ -1093,137 +1228,7 @@ export function TabStudioClient() {
           </div>
         </div>
 
-        {/* Sidebar: Interactive Fretboard + ASCII preview + compact song partitures */}
-        <aside className="space-y-4">
-          <div className="panel glass-shine rounded-[1.75rem] p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="eyebrow">Interactive Fretboard</div>
-              <button
-                onClick={() => setShowFretboard((prev) => !prev)}
-                className="glass-pill px-2 py-1 text-[10px] font-black uppercase tracking-widest"
-                type="button"
-              >
-                {showFretboard ? "Hide" : "Show"}
-              </button>
-            </div>
-            {showFretboard && (
-              <InteractiveFretboard
-                mode={instrument === "Bass" ? "bass" : "guitar"}
-                tuning={activeTuning}
-                onTuningChange={(tuning) => setTuningId(tuning.id)}
-                showControls={false}
-                scaleOverlay={scaleOverlay}
-                onScaleChange={(scale) => setScaleOverlay(scale)}
-                rootNote={rootNote}
-                className="scale-90 origin-top"
-              />
-            )}
-          </div>
-
-          <div className="panel glass-shine rounded-[1.75rem] p-4">
-            <div className="flex items-center justify-between">
-              <div className="eyebrow">ASCII Preview</div>
-              <button
-                onClick={() => void copyAsciiPreview()}
-                className="glass-pill px-2.5 py-1 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-mint)]"
-                type="button"
-                title="Copy ASCII tab to clipboard"
-              >
-                <ClipboardCopy className="mr-1 inline h-3 w-3" />
-                Copy
-              </button>
-            </div>
-            <pre className="mt-3 max-h-64 select-all overflow-auto rounded-[1rem] border border-white/8 bg-black/25 p-3 font-mono text-[11px] leading-5 text-white">
-              {asciiPreview}
-            </pre>
-
-            {showPasteImport ? (
-              <div className="mt-3 space-y-2 rounded-[1rem] border border-[var(--color-brass)]/30 bg-black/25 p-3">
-                <div className="text-[10px] font-black uppercase tracking-widest text-[var(--color-brass)]">
-                  Paste ASCII tab to import
-                </div>
-                <textarea
-                  value={pastedAscii}
-                  onChange={(event) => setPastedAscii(event.target.value)}
-                  rows={5}
-                  placeholder={"e |---|---|...|\nB |---|---|...|"}
-                  className="field font-mono text-[11px]"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={importPastedAscii}
-                    className="glass-pill flex-1 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
-                    type="button"
-                  >
-                    Import pasted tab
-                  </button>
-                  <button
-                    onClick={() => setShowPasteImport(false)}
-                    className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest"
-                    type="button"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowPasteImport(true)}
-                className="mt-2 w-full rounded-[1rem] border border-dashed border-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--color-sand-2)] transition hover:border-[var(--color-brass)]/50 hover:text-white"
-                type="button"
-              >
-                <ClipboardPaste className="mr-1 inline h-3 w-3" />
-                Or paste ASCII here to import
-              </button>
-            )}
-
-            <div className="my-3 border-t border-white/8" />
-
-            <div className="flex items-center justify-between">
-              <div className="eyebrow">Song Partitures · {savedPartitures.length}</div>
-              <Music className="h-4 w-4 text-[var(--color-brass)]" />
-            </div>
-            {loadingPartitures ? (
-              <p className="mt-2 text-sm text-[var(--color-sand-2)]">Loading...</p>
-            ) : !selectedSongId ? (
-              <p className="mt-2 text-xs text-[var(--color-sand-2)]">Pick an active song above to load saved tabs.</p>
-            ) : savedPartitures.length === 0 ? (
-              <p className="mt-2 text-xs text-[var(--color-sand-2)]">No saved partitures for this song yet.</p>
-            ) : (
-              <div className="mt-2 max-h-56 space-y-1.5 overflow-auto pr-0.5">
-                {savedPartitures.map((partiture) => (
-                  <div
-                    key={partiture.id}
-                    className="song-list-item flex items-center gap-2 rounded-[1rem] px-3 py-2"
-                  >
-                    <button
-                      className="min-w-0 flex-1 text-left"
-                      onClick={() => loadPartiture(partiture)}
-                      type="button"
-                      title="Load into grid"
-                    >
-                      <div className="truncate text-xs font-bold">{partiture.title}</div>
-                      <div className="text-[10px] uppercase tracking-wider text-[var(--color-sand-2)]">
-                        {partiture.instrument} · slot {partiture.slot}
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => void removePartiture(partiture)}
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 text-[var(--color-sand-2)] transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
-                      type="button"
-                      title={`Delete "${partiture.title}"`}
-                      aria-label={`Delete "${partiture.title}"`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </aside>
       </div>
     </div>
   );
 }
-
