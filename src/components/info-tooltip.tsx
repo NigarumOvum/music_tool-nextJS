@@ -36,7 +36,7 @@ export function InfoTooltip({
       <button
         type="button"
         className={`inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface-soft)] text-[var(--color-sand-2)] transition hover:border-[var(--color-brass)] hover:text-[var(--color-brass)] ${className}`}
-        aria-label="Show info"
+        aria-label={content}
       >
         <Info className="h-3 w-3" />
       </button>

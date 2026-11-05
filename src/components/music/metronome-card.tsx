@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, FastForward, Pause, Play, VolumeX } from "lucide-react";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
+import { InfoTooltip } from "@/components/info-tooltip";
 import { useAudio } from "@/components/music/audio-provider";
 import { useI18n } from "@/components/language-provider";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
@@ -233,19 +234,22 @@ export function MetronomeCard() {
         />
       }
       headerActions={
-        <button
-          type="button"
-          onClick={() => setIsPlaying(!isPlaying)}
-          className={`glass-pill flex h-8 w-8 items-center justify-center rounded-full transition-all ${
-            isPlaying
-              ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
-              : "bg-[var(--color-mint)] text-black shadow-lg shadow-emerald-500/20"
-          }`}
-          aria-label={isPlaying ? t("metro.stop") : t("metro.start")}
-          title={isPlaying ? `${t("metro.stop")} (Space)` : `${t("metro.start")} (Space)`}
-        >
-          {isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="ml-0.5 h-3.5 w-3.5 fill-current" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <InfoTooltip content={t("metro.help")} position="left" />
+          <button
+            type="button"
+            onClick={() => setIsPlaying(!isPlaying)}
+            className={`glass-pill flex h-8 w-8 items-center justify-center rounded-full transition-all ${
+              isPlaying
+                ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
+                : "bg-[var(--color-mint)] text-black shadow-lg shadow-emerald-500/20"
+            }`}
+            aria-label={isPlaying ? t("metro.stop") : t("metro.start")}
+            title={isPlaying ? `${t("metro.stop")} (Space)` : `${t("metro.start")} (Space)`}
+          >
+            {isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="ml-0.5 h-3.5 w-3.5 fill-current" />}
+          </button>
+        </div>
       }
     >
       <div className="space-y-3">
@@ -297,6 +301,7 @@ export function MetronomeCard() {
               type="button"
               onClick={handleTapTempo}
               className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:border-[var(--color-mint)]"
+              title={t("metro.tapTempo")}
             >
               Tap {tappedBpm ? `· ${tappedBpm}` : ""}
             </button>

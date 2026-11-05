@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { ListMusic, Timer, type LucideIcon } from "lucide-react";
+import { Tooltip } from "@heroui/react";
 
 import { useI18n } from "@/components/language-provider";
 import type { MusicToolkitTabId } from "@/lib/hub-access";
@@ -31,20 +32,31 @@ function ToolkitNavLinksInner({ tabs }: ToolkitNavLinksInnerProps) {
         const Icon = TAB_ICONS[tab.id] ?? Timer;
         const isActive = activeTab === tab.id;
         const label = (t(`tabs.${tab.id}` as DictKey) as string) || tab.label;
+        const help = t(`navHelp.${tab.id}` as DictKey);
         return (
-          <a
+          <Tooltip
             key={tab.id}
-            href={`/?tab=${tab.id}`}
-            className={`glass-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${
-              isActive
-                ? "glass-pill-active text-[var(--color-foreground)]"
-                : "text-[var(--color-sand-2)] hover:-translate-y-0.5 hover:text-[var(--color-foreground)]"
-            }`}
-            title={label}
+            content={<div className="max-w-xs p-3 text-sm leading-relaxed">{help}</div>}
+            placement="bottom"
+            showArrow
+            className="border border-[var(--color-border)] bg-[var(--color-surface-strong)] text-[var(--color-foreground)]"
           >
-            <Icon className="h-3.5 w-3.5 shrink-0" />
-            <span className="whitespace-nowrap">{label}</span>
-          </a>
+            <a
+              href={`/?tab=${tab.id}`}
+              aria-current={isActive ? "page" : undefined}
+              className={`glass-pill inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] transition ${
+                tab.id === "progressions" ? "order-last" : ""
+              } ${
+                isActive
+                  ? "glass-pill-active text-[var(--color-foreground)]"
+                  : "text-[var(--color-sand-2)] hover:-translate-y-0.5 hover:text-[var(--color-foreground)]"
+              }`}
+              title={`${label}: ${help}`}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span className="whitespace-nowrap">{label}</span>
+            </a>
+          </Tooltip>
         );
       })}
     </>

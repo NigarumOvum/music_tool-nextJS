@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, Trash2, Check, Sparkles, ChevronDown } from "lucide-react";
+import { X, Users, UserPlus, Trash2, Check, Sparkles, ChevronDown } from "lucide-react";
 import { Spinner } from "@heroui/react";
 import { toast } from "sonner";
 
@@ -173,6 +173,7 @@ export function BandManagerModal({
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [collaborators, setCollaborators] = useState<MusicCollaboratorUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [collaboratorsError, setCollaboratorsError] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -195,17 +196,26 @@ export function BandManagerModal({
       }
 
       setLoadingUsers(true);
+      setCollaboratorsError("");
       fetchCollaborators()
         .then((res) => setCollaborators(res.users || []))
-        .catch(() => {})
+        .catch((error: unknown) => {
+          setCollaborators([]);
+          setCollaboratorsError(
+            error instanceof Error ? error.message : t("band.collaboratorsLoadFailed")
+          );
+        })
         .finally(() => setLoadingUsers(false));
     }
-  }, [isOpen, projectToEdit]);
+  }, [isOpen, projectToEdit, t]);
 
-  const toggleMember = (userId: string) => {
-    setSelectedMemberIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    );
+  const addMember = (userId: string) => {
+    setSelectedMemberIds((prev) => (prev.includes(userId) ? prev : [...prev, userId]));
+  };
+
+  const removeMember = (userId: string) => {
+    if (userId === projectToEdit?.userId) return;
+    setSelectedMemberIds((prev) => prev.filter((id) => id !== userId));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -262,7 +272,7 @@ export function BandManagerModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-2 sm:p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -276,7 +286,10 @@ export function BandManagerModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 14 }}
             transition={{ type: "spring", stiffness: 350, damping: 28 }}
-            className="relative z-10 flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-[1.5rem] border border-[var(--color-border)] bg-[var(--color-modal-surface)] shadow-2xl sm:rounded-[1.75rem]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="band-modal-title"
+            className="relative z-10 flex max-h-[min(94dvh,56rem)] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border border-[var(--color-border)] bg-[var(--color-modal-surface)] shadow-2xl sm:rounded-2xl"
           >
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--color-stroke)] px-4 py-3.5 sm:px-5">
               <div className="flex min-w-0 items-center gap-3">
@@ -290,7 +303,7 @@ export function BandManagerModal({
                   <div className="eyebrow text-[0.62rem] text-[var(--color-brass)]">
                     {t("band.collab")}
                   </div>
-                  <h2 className="truncate text-lg font-bold tracking-tight text-[var(--color-foreground)] sm:text-xl">
+                  <h2 id="band-modal-title" className="truncate text-lg font-bold tracking-tight text-[var(--color-foreground)] sm:text-xl">
                     {projectToEdit ? t("band.manage") : t("band.create")}
                   </h2>
                 </div>
@@ -300,16 +313,18 @@ export function BandManagerModal({
                 type="button"
                 onClick={onClose}
                 aria-label={t("common.close")}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)]"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)]"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form id="band-form" onSubmit={handleSave} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+            <form id="band-form" onSubmit={handleSave} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 sm:p-5">
               <div className="space-y-1.5">
-                <label className="field-label">{t("band.name")}</label>
+                <label htmlFor="band-name" className="field-label">{t("band.name")}</label>
                 <input
+                  id="band-name"
                   type="text"
                   required
                   placeholder="e.g., Neon Horizon, The Velvet Echoes, Cyberpunk EP"
@@ -320,7 +335,7 @@ export function BandManagerModal({
               </div>
 
               <div className="space-y-1.5">
-                <label className="field-label">{t("band.color")}</label>
+                <label htmlFor="band-color-input" className="field-label">{t("band.color")}</label>
 
                 {/* Current color preview with hex input */}
                 <div className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3">
@@ -330,6 +345,7 @@ export function BandManagerModal({
                   />
                   <div className="flex-1 min-w-0">
                     <input
+                      id="band-color-input"
                       type="text"
                       value={customColorInput}
                       onChange={(e) => {
@@ -361,6 +377,7 @@ export function BandManagerModal({
                       setCustomColorInput(e.target.value);
                     }}
                     className="h-10 w-10 cursor-pointer rounded-lg border border-[var(--color-border)] bg-transparent p-0"
+                    aria-label={t("band.colorPicker")}
                     title={t("band.colorPicker")}
                   />
                 </div>
@@ -406,8 +423,9 @@ export function BandManagerModal({
               </div>
 
               <div className="space-y-1.5">
-                <label className="field-label">{t("band.description")}</label>
+                <label htmlFor="band-description" className="field-label">{t("band.description")}</label>
                 <textarea
+                  id="band-description"
                   rows={2}
                   placeholder={t("band.descriptionPh")}
                   value={description}
@@ -416,12 +434,69 @@ export function BandManagerModal({
                 />
               </div>
 
-              <div className="space-y-2">
+              <section className="space-y-2" aria-labelledby="band-current-members">
                 <div className="flex items-center justify-between">
-                  <label className="field-label mb-0">{t("band.collaborators")}</label>
+                  <h3 id="band-current-members" className="field-label mb-0">{t("band.currentMembers")}</h3>
                   <span className="text-[11px] text-[var(--color-sand-2)]">
                     {t("band.selectedN").replace("{n}", String(selectedMemberIds.length))}
                   </span>
+                </div>
+
+                <div className="max-h-40 space-y-1.5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-2">
+                  {selectedMemberIds.length === 0 ? (
+                    <p className="py-4 text-center text-xs text-[var(--color-sand-2)]">{t("band.noMembers")}</p>
+                  ) : (
+                    selectedMemberIds.map((userId) => {
+                      const member = collaborators.find((user) => user.id === userId);
+                      const existingMember = projectToEdit?.members.find((entry) => entry.userId === userId);
+                      const memberName = member?.name || member?.email || existingMember?.userName || existingMember?.userEmail || userId;
+                      const isOwner = userId === projectToEdit?.userId;
+                      return (
+                        <div key={userId} className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-[var(--color-info-border)] bg-[var(--color-info-surface)] px-3 py-2 text-xs text-[var(--color-foreground)]">
+                          <div className="flex items-center gap-2.5">
+                            <div
+                              aria-hidden="true"
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-black uppercase text-white shadow-xs"
+                              style={{ backgroundColor: color }}
+                            >
+                              {memberName.charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="truncate font-semibold">{memberName}</div>
+                              {(member?.name || existingMember?.userName) && (
+                                <div className="truncate text-[10px] opacity-60 font-normal">
+                                  {member?.email || existingMember?.userEmail}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {isOwner ? (
+                            <span className="shrink-0 rounded-full border border-[var(--color-border)] px-2 py-1 text-[10px] font-semibold text-[var(--color-sand-2)]">
+                              {t("band.owner")}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={saving || deleting}
+                              onClick={() => removeMember(userId)}
+                              aria-label={t("band.removeMember").replace("{name}", memberName)}
+                              className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-red-500/30 px-3 text-xs font-semibold text-red-500 transition hover:bg-red-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+                            >
+                              <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
+                              <span>{t("common.delete")}</span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </section>
+
+              <section className="space-y-2" aria-labelledby="band-add-members">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 id="band-add-members" className="field-label mb-0">{t("band.addMembers")}</h3>
                 </div>
 
                 <div className="max-h-44 space-y-1.5 overflow-y-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-2">
@@ -429,53 +504,45 @@ export function BandManagerModal({
                     <div className="flex items-center justify-center py-6 text-xs text-[var(--color-sand-2)]">
                       <Spinner size="sm" color="warning" className="mr-2" /> {t("common.loading")}
                     </div>
+                  ) : collaboratorsError ? (
+                    <p role="alert" className="py-4 text-center text-xs text-red-500">{collaboratorsError}</p>
                   ) : collaborators.length === 0 ? (
-                    <p className="py-4 text-center text-xs text-[var(--color-sand-2)]">
-                      {t("band.noUsers")}
-                    </p>
+                    <p className="py-4 text-center text-xs text-[var(--color-sand-2)]">{t("band.noUsers")}</p>
+                  ) : collaborators.every((user) => user.id === projectToEdit?.userId || selectedMemberIds.includes(user.id)) ? (
+                    <p className="py-4 text-center text-xs text-[var(--color-sand-2)]">{t("band.allMembersAdded")}</p>
                   ) : (
-                    collaborators.map((user) => {
-                      const isSelected = selectedMemberIds.includes(user.id);
-                      return (
-                        <div
-                          key={user.id}
-                          onClick={() => toggleMember(user.id)}
-                          className={`flex cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-xs transition ${
-                            isSelected
-                              ? "border border-[var(--color-info-border)] bg-[var(--color-info-surface)] text-[var(--color-foreground)] font-semibold"
-                              : "border border-transparent hover:bg-[var(--color-surface)] text-[var(--color-sand-2)]"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
+                    collaborators
+                      .filter((user) => user.id !== projectToEdit?.userId && !selectedMemberIds.includes(user.id))
+                      .map((user) => (
+                        <div key={user.id} className="flex min-w-0 items-center justify-between gap-2 rounded-xl px-3 py-1.5 text-xs text-[var(--color-sand-2)]">
+                          <div className="flex min-w-0 items-center gap-2.5">
                             <div
-                              className="flex h-6 w-6 items-center justify-center rounded-lg text-[10px] font-black uppercase text-white shadow-xs"
+                              aria-hidden="true"
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-black uppercase text-white shadow-xs"
                               style={{ backgroundColor: color }}
                             >
                               {(user.name || user.email).charAt(0)}
                             </div>
-                            <div>
-                              <div>{user.name || user.email}</div>
-                              {user.name && (
-                                <div className="text-[10px] opacity-60 font-normal">{user.email}</div>
-                              )}
+                            <div className="min-w-0">
+                              <div className="truncate">{user.name || user.email}</div>
+                              {user.name && <div className="truncate text-[10px] opacity-60">{user.email}</div>}
                             </div>
                           </div>
-
-                          <div
-                            className={`flex h-5 w-5 items-center justify-center rounded-md border transition ${
-                              isSelected
-                                ? "border-transparent bg-[var(--color-copper)] text-white"
-                                : "border-[var(--color-border)]"
-                            }`}
+                          <button
+                            type="button"
+                            disabled={saving || deleting}
+                            onClick={() => addMember(user.id)}
+                            aria-label={t("band.addMember").replace("{name}", user.name || user.email)}
+                            className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 text-xs font-semibold text-[var(--color-foreground)] transition hover:bg-[var(--color-surface)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brass)]"
                           >
-                            {isSelected && <Check className="h-3 w-3" />}
-                          </div>
+                            <UserPlus aria-hidden="true" className="h-3.5 w-3.5" />
+                            <span>{t("band.addMemberLabel")}</span>
+                          </button>
                         </div>
-                      );
-                    })
+                      ))
                   )}
                 </div>
-              </div>
+              </section>
 
               <div className="flex items-center justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-soft)] p-3">
                 <div className="space-y-0.5">
@@ -487,20 +554,22 @@ export function BandManagerModal({
                   </div>
                 </div>
                 <input
+                  aria-label={t("band.visibility")}
                   type="checkbox"
                   checked={isSharedWithAll}
                   onChange={(e) => setIsSharedWithAll(e.target.checked)}
                   className="h-4 w-4 rounded accent-[var(--color-brass)] cursor-pointer"
                 />
               </div>
+              </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-[var(--color-stroke)]">
+              <div className="flex shrink-0 flex-col gap-3 border-t border-[var(--color-stroke)] bg-[var(--color-modal-surface)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between sm:px-5">
                 {projectToEdit ? (
                   <button
                     type="button"
                     disabled={deleting || saving}
                     onClick={handleDelete}
-                    className="flex items-center gap-1.5 rounded-xl border border-red-500/30 px-3.5 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-500/10 disabled:opacity-50"
+                    className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-red-500/30 px-3.5 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-500/10 disabled:opacity-50 sm:w-auto"
                   >
                     {deleting ? <Spinner size="sm" color="danger" /> : <Trash2 className="h-3.5 w-3.5" />}
                     {t("band.deleteBand")}
@@ -509,20 +578,20 @@ export function BandManagerModal({
                   <div />
                 )}
 
-                <div className="flex items-center gap-2.5">
+                <div className="flex w-full items-center gap-2.5 sm:w-auto">
                   <button
                     type="button"
                     onClick={onClose}
-                    disabled={saving}
-                    className="rounded-xl border border-[var(--color-border)] px-4 py-2 text-xs font-semibold text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)]"
+                    disabled={saving || deleting}
+                    className="min-h-11 flex-1 rounded-xl border border-[var(--color-border)] px-4 py-2 text-xs font-semibold text-[var(--color-sand-2)] transition hover:text-[var(--color-foreground)] sm:flex-none"
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </button>
 
                   <button
                     type="submit"
-                    disabled={saving}
-                    className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-5 py-2 text-xs font-bold text-black shadow-md transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                    disabled={saving || deleting}
+                    className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--color-brass)] to-[var(--color-gold)] px-5 py-2 text-xs font-bold text-black shadow-md transition hover:brightness-110 active:scale-95 disabled:opacity-50 sm:flex-none"
                   >
                     {saving ? (
                       <Spinner size="sm" color="current" />

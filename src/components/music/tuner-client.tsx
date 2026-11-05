@@ -4,10 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Gauge, Guitar, Mic, MicOff, Music2, Volume2 } from "lucide-react";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
+import { InfoTooltip } from "@/components/info-tooltip";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
 import { useI18n } from "@/components/language-provider";
 import { SoundIndicator } from "@/components/ui/sound-indicator";
 import { useAudio } from "@/components/music/audio-provider";
+import { GlassSurface } from "@/components/ui/glass-surface";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { detectPitchAutocorrelation, type PitchDetection } from "@/lib/music/pitch";
 import { playReferencePluck, preloadPluck, type PluckInstrument } from "@/lib/music/instrument-synth";
@@ -297,14 +299,19 @@ export function TunerCard() {
       eyebrow="Pitch Precision"
       icon={<Gauge className="h-5 w-5 text-[var(--color-copper)]" />}
       headerActions={
-        <button
-          type="button"
-          onClick={() => void toggleListening()}
-          className={`glass-pill flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${isListening ? "bg-red-500 text-white" : ""}`}
-        >
-          {isListening ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
-          {isListening ? t("tuner.stopMic") : t("tuner.startMic")}
-        </button>
+        <div className="flex items-center gap-2">
+          <InfoTooltip content={t("tuner.help")} position="left" />
+          <button
+            type="button"
+            onClick={() => void toggleListening()}
+            aria-label={isListening ? t("tuner.stopMic") : t("tuner.startMic")}
+            title={isListening ? t("tuner.stopMic") : t("tuner.startMic")}
+            className={`glass-pill flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${isListening ? "bg-red-500 text-white" : ""}`}
+          >
+            {isListening ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+            {isListening ? t("tuner.stopMic") : t("tuner.startMic")}
+          </button>
+        </div>
       }
     >
       <div className="space-y-4">
@@ -316,6 +323,7 @@ export function TunerCard() {
               key={entry.id}
               type="button"
               onClick={() => setInstrument(entry.id)}
+              title={`Tune ${entry.label}`}
               className={`tab-editor-pill inline-flex items-center gap-1.5 ${instrument === entry.id ? "tab-editor-pill-active" : ""}`}
             >
               {entry.id === "guitar" || entry.id === "ukulele" || entry.id === "mandolin" || entry.id === "banjo"
@@ -343,6 +351,7 @@ export function TunerCard() {
             <select
               value={activeTuning.id}
               onChange={(e) => setTuningId(e.target.value)}
+              title={t("tuner.tuningPreset")}
               className="field py-1.5 text-xs font-bold"
             >
               {tuningOptions.map((p: TuningPreset) => (
@@ -355,6 +364,7 @@ export function TunerCard() {
             <select
               value={pluckVoice}
               onChange={(e) => setPluckVoice(e.target.value as PluckInstrument)}
+              title={t("tuner.refSound")}
               className="field py-1.5 text-xs font-bold"
             >
               <option value="guitar-steel">{t("tuner.steel")}</option>
@@ -380,7 +390,7 @@ export function TunerCard() {
         {/* ── Live pitch readout — fixed height to prevent layout shifts ── */}
         <div className="min-h-[108px]">
           {detectedPitch ? (
-            <div className="modal-inset-panel rounded-2xl p-3">
+            <GlassSurface className="modal-inset-panel rounded-2xl p-3">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <div className="text-4xl font-black tracking-tight text-[var(--color-copper)]">
@@ -407,7 +417,7 @@ export function TunerCard() {
                 <span>{t("tuner.gaugeMid")}</span>
                 <span>{t("tuner.sharp")}</span>
               </div>
-            </div>
+            </GlassSurface>
           ) : isListening ? (
             <div className="flex h-full min-h-[108px] items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)]">
               <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">

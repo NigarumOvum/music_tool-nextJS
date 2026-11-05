@@ -188,7 +188,7 @@ export function TheoryLabClient() {
   };
 
   return (
-    <SplitViewFullScreen className="space-y-4" showControls={false}>
+    <SplitViewFullScreen className="space-y-6" showControls={false}>
       {/* 0. Tuner & Pitch Reference (merged from Tuner tab) */}
       <TunerCard />
 

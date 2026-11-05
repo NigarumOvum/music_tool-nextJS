@@ -6,6 +6,7 @@ import { Download, Layers, Music, Piano, PlayCircle, Plus, RotateCcw, Repeat, Tr
 import { toast } from "sonner";
 
 import { CollapsibleCard } from "@/components/collapsible-card";
+import { InfoTooltip } from "@/components/info-tooltip";
 import { useI18n } from "@/components/language-provider";
 import { useCurrentUserId, usePersistentState } from "@/lib/persist";
 import { SplitViewFullScreen } from "@/components/split-view-fullscreen";
@@ -226,7 +227,7 @@ export function ProgressionClient() {
   };
 
   return (
-    <SplitViewFullScreen className="space-y-4" showControls={false}>
+    <SplitViewFullScreen className="space-y-6" showControls={false}>
       {/* 1. Progression Timeline & Audio Player (Important: Open by default) */}
       <CollapsibleCard
         defaultOpen={true}
@@ -241,6 +242,7 @@ export function ProgressionClient() {
         }
         headerActions={
           <div className="flex items-center gap-1.5">
+            <InfoTooltip content={t("prog.timelineHelp")} position="left" />
             <button
               type="button"
               disabled={progression.length === 0}
@@ -255,6 +257,8 @@ export function ProgressionClient() {
               type="button"
               onClick={exportProgression}
               disabled={progression.length === 0}
+              aria-label={t("prog.export")}
+              title={t("prog.export")}
               className="glass-pill px-3 py-1.5 text-[10px] font-black uppercase tracking-widest disabled:opacity-30"
             >
               <Download className="h-3.5 w-3.5" />
@@ -272,6 +276,7 @@ export function ProgressionClient() {
               <select
                 value={keyboardVoice}
                 onChange={(e) => setKeyboardVoice(e.target.value as KeyboardVoice)}
+                title="Change the sound used to play chords"
                 className="field py-1 text-xs font-bold"
               >
                 {KEYBOARD_VOICES.map((v) => (
@@ -288,6 +293,7 @@ export function ProgressionClient() {
               <select
                 value={keyboardOctave}
                 onChange={(e) => setKeyboardOctave(Number(e.target.value))}
+                title="Change the playback octave"
                 className="field py-1 text-xs font-bold"
               >
                 {[1, 2, 3, 4, 5].map((o) => (
@@ -304,12 +310,16 @@ export function ProgressionClient() {
               <button
                 type="button"
                 onClick={() => setBpm((b) => Math.max(40, b - 5))}
+                aria-label="Decrease tempo by 5 BPM"
+                title="Decrease tempo by 5 BPM"
                 className="glass-pill flex h-6 w-6 items-center justify-center text-[10px] font-black text-[var(--color-sand-2)] hover:text-white"
               >−</button>
               <span className="min-w-[2.4rem] text-center text-sm font-black tabular-nums">{bpm}</span>
               <button
                 type="button"
                 onClick={() => setBpm((b) => Math.min(240, b + 5))}
+                aria-label="Increase tempo by 5 BPM"
+                title="Increase tempo by 5 BPM"
                 className="glass-pill flex h-6 w-6 items-center justify-center text-[10px] font-black text-[var(--color-sand-2)] hover:text-white"
               >+</button>
               <input
@@ -318,6 +328,8 @@ export function ProgressionClient() {
                 max={240}
                 value={bpm}
                 onChange={(e) => setBpm(Number(e.target.value))}
+                aria-label="Progression playback tempo"
+                title="Adjust progression playback tempo"
                 className="hidden h-1.5 w-20 cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-[var(--color-copper)] sm:block"
               />
             </label>
@@ -328,7 +340,9 @@ export function ProgressionClient() {
             <button
               type="button"
               onClick={() => setLoopPlayback(!loopPlayback)}
-              title={loopPlayback ? "Loop on" : "Loop off"}
+              title={loopPlayback ? "Turn progression looping off" : "Repeat the progression"}
+              aria-pressed={loopPlayback}
+              aria-label={loopPlayback ? "Turn progression looping off" : "Repeat the progression"}
               className={`glass-pill inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest transition ${loopPlayback ? "bg-[var(--color-copper)]/20 text-[var(--color-copper)] border-[var(--color-copper)]/40" : "text-[var(--color-sand-2)]"}`}
             >
               <Repeat className="h-3 w-3" />
@@ -343,6 +357,7 @@ export function ProgressionClient() {
                 type="button"
                 onClick={() => transposeAll(-1)}
                 disabled={progression.length === 0}
+                title="Transpose all chords down one semitone"
                 className="glass-pill px-2.5 py-1 text-[10px] font-black uppercase tracking-widest disabled:opacity-30"
               >
                 -1 st
@@ -351,6 +366,7 @@ export function ProgressionClient() {
                 type="button"
                 onClick={() => transposeAll(1)}
                 disabled={progression.length === 0}
+                title="Transpose all chords up one semitone"
                 className="glass-pill px-2.5 py-1 text-[10px] font-black uppercase tracking-widest disabled:opacity-30"
               >
                 +1 st
@@ -361,6 +377,8 @@ export function ProgressionClient() {
               type="button"
               onClick={() => setProgression([])}
               disabled={progression.length === 0}
+              title="Remove every chord from the timeline"
+              aria-label="Clear all progression chords"
               className="flex items-center gap-1 text-[11px] font-bold text-red-500 hover:underline disabled:opacity-30"
             >
               <RotateCcw className="h-3.5 w-3.5" /> Clear All
@@ -464,6 +482,7 @@ export function ProgressionClient() {
               <button
                 type="button"
                 onClick={() => setProgression([...progression, { id: crypto.randomUUID(), root, quality }])}
+                title={`Add ${root} ${quality} chord to the progression`}
                 className="glass-pill w-full px-4 py-2.5 text-[10px] font-black uppercase tracking-widest"
               >
                 Add chord
@@ -481,16 +500,21 @@ export function ProgressionClient() {
         eyebrow="Songcrafting Presets"
         icon={<Layers className="h-5 w-5 text-[var(--color-brass)]" />}
         headerActions={
-          <select
-            value={presetCategory}
-            onChange={(event) => setPresetCategory(event.target.value)}
-            className="field w-auto py-1 text-xs font-bold"
-          >
-            <option value="All">All categories</option>
-            {PROGRESSION_CATEGORIES.map((category) => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <InfoTooltip content={t("prog.presetsHelp")} position="left" />
+            <select
+              value={presetCategory}
+              onChange={(event) => setPresetCategory(event.target.value)}
+              aria-label={t("prog.allCategories")}
+              title={t("prog.allCategories")}
+              className="field w-auto py-1 text-xs font-bold"
+            >
+              <option value="All">{t("prog.allCategories")}</option>
+              {PROGRESSION_CATEGORIES.map((category) => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+          </div>
         }
       >
         <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
@@ -499,6 +523,7 @@ export function ProgressionClient() {
               key={preset.id}
               type="button"
               onClick={() => applyPreset(preset)}
+              title={preset.description}
               className="song-list-item rounded-2xl p-4 text-left transition hover:border-[var(--color-copper)]"
             >
               <div className="flex items-start justify-between gap-2">
